@@ -1,0 +1,39 @@
+{
+    "name": "vrana/adminer",
+    "description": "Database management in a single PHP file.",
+    "homepage": "https://www.adminer.org/",
+    "keywords": [
+        "database"
+    ],
+    "support": {
+        "issues": "https://github.com/vrana/adminer/issues",
+        "forum": "https://github.com/vrana/adminer/discussions",
+        "source": "https://github.com/vrana/adminer/"
+    },
+    "authors": [
+        {
+            "name": "Jakub Vrána",
+            "homepage": "https://www.vrana.cz/"
+        }
+    ],
+    "autoload": {
+        "exclude-from-classmap": [
+            "adminer/drivers/",
+            "plugins/drivers/"
+        ],
+        "classmap": [
+            "plugins/"
+        ]
+    },
+    "license": [
+        "Apache-2.0",
+        "GPL-2.0-only"
+    ],
+    "require": {
+        "php": ">=7.4"
+    },
+    "scripts": {
+        "clean": "rm -f adminer*.php editor*.php",
+        "compile": "@php compile.php"
+    }
+}
