@@ -27,12 +27,10 @@ use App\Http\Controllers\Api\Admin\UserController;
 |
 */
 
-Route::middleware('auth:api')->get('/user', function (Request $request) {
-    return $request->user();
-});
-Route::post('login', [DinningController::class, 'login']);
 
-Route::post('backend/ios/login', [DinningController::class, 'iosFormLogin']);
+Route::post('login', [DinningController::class, 'login']); // APIToken
+
+Route::post('backend/ios/login', [DinningController::class, 'iosFormLogin']); // APIToken
 
 Route::group(['prefix' => 'admin'], function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
@@ -45,11 +43,8 @@ Route::group(['prefix' => 'admin'], function () {
 // routes related to adminpanel , ios form app and dynamic form app website 
 // auth , roles, permissions are same for all these three
 
-
-Route::group(['middleware' => 'api'], function () {
-
-    // hamilton old routes that run with APIToken middleware 
-
+Route::group(['middleware' => 'APIToken'], function () {
+    
     Route::get('rooms-list', [DinningController::class, 'getRoomList']);
     Route::post('order-list', [DinningController::class, 'getOrderList']);
     Route::post('item-list', [DinningController::class, 'getItemList']);
@@ -96,137 +91,138 @@ Route::group(['middleware' => 'api'], function () {
 
     Route::post('multi-order-update', [DinningController::class, 'updateOrderBulk']);
 
-    // end
+});
 
-    Route::prefix('admin')->group(function () {
-        
-        Route::post('logout', [AuthController::class, 'logout'])->name('logout');
-        Route::get('me', [AuthController::class, 'me']);
-        Route::post('refresh', [AuthController::class, 'refresh']);
+
+Route::group(['prefix' => 'admin', 'middleware' => 'api'], function () {
+
+    Route::post('logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('me', [AuthController::class, 'me']);
+    Route::post('refresh', [AuthController::class, 'refresh']);
+
+    Route::post('temp-send-email', [DinningController::class, 'tempSendMail']);
+    Route::post('temp-form-response-list' , [DinningController::class, 'getTempFormResponseList']);
+    Route::get('get-temp-form-list', [DinningController::class, 'getTempFormTypesList']);
+    Route::post('temp-form-save', [DinningController::class, 'saveTempForm']);
+    Route::get('demo-form-fields-by-id/{id}', [DinningController::class, 'getDynamicFormDemoDataById']);
+    Route::get('temp-get-user-data', [DinningController::class, 'getTempUserData']);
+    Route::get('{id}/temp-form-response-delete', [DinningController::class, 'deleteTempFormResponse']);
+
+    //website routes
+    Route::post('temp-form-save-by-user', [DinningController::class, 'saveTempFormByUser']); //Get-temp-form-list
+    Route::get('temp-form-type/{id}/delete', [DinningController::class, 'deleteTempFormType']);
+    Route::get('temp-form-type-list', [DinningController::class, 'tempFormTypeList']);
+    Route::get('{id}/temp-form-type-by-id', [DinningController::class, 'tempFormTypeById']);
     
-        Route::post('temp-send-email', [DinningController::class, 'tempSendMail']);
-        Route::post('temp-form-response-list' , [DinningController::class, 'getTempFormResponseList']);
-        Route::get('get-temp-form-list', [DinningController::class, 'getTempFormTypesList']);
-        Route::post('temp-form-save', [DinningController::class, 'saveTempForm']);
-        Route::get('demo-form-fields-by-id/{id}', [DinningController::class, 'getDynamicFormDemoDataById']);
-        Route::get('temp-get-user-data', [DinningController::class, 'getTempUserData']);
-        Route::get('{id}/temp-form-response-delete', [DinningController::class, 'deleteTempFormResponse']);
-
-        //website routes
-        Route::post('temp-form-save-by-user', [DinningController::class, 'saveTempFormByUser']); //Get-temp-form-list
-        Route::get('temp-form-type/{id}/delete', [DinningController::class, 'deleteTempFormType']);
-        Route::get('temp-form-type-list', [DinningController::class, 'tempFormTypeList']);
-        Route::get('{id}/temp-form-type-by-id', [DinningController::class, 'tempFormTypeById']);
-        
-        Route::post('edit-temp-form', [DinningController::class, 'editGeneratedTempFormResponse']);
-        // Route::post('temp-form-details', [DinningController::class, 'getTempFormDetails']);
-        
-        Route::post('delete-temp-form-attachment', [DinningController::class, 'deleteTempFormAttachment']);
-        Route::post('add-temp-form-attachment', [DinningController::class, 'addAttachmentsToExistingTempForm']);
-        
-        // Route::get('get-move-in-summary-values', [DinningController::class, 'getMoveInSummaryValues']);
+    Route::post('edit-temp-form', [DinningController::class, 'editGeneratedTempFormResponse']);
+    // Route::post('temp-form-details', [DinningController::class, 'getTempFormDetails']);
+    
+    Route::post('delete-temp-form-attachment', [DinningController::class, 'deleteTempFormAttachment']);
+    Route::post('add-temp-form-attachment', [DinningController::class, 'addAttachmentsToExistingTempForm']);
+    
+    // Route::get('get-move-in-summary-values', [DinningController::class, 'getMoveInSummaryValues']);
 
 
-        // --------------------------------------------------------------------
+    // --------------------------------------------------------------------
 
-        // custom admin panel routes
+    // custom admin panel routes
 
-        // Menu routes group
-        Route::prefix('menus')->group(function () {
-            Route::get('/', [MenuController::class, 'index']);
-            Route::post('/', [MenuController::class, 'store']);
-            Route::get('/{id}', [MenuController::class, 'show']);
-            Route::put('/{id}', [MenuController::class, 'update']);
-            Route::delete('/bulk-delete', [MenuController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [MenuController::class, 'destroy']);
-        });
-
-        // Category routes group
-        Route::prefix('categories')->group(function () {
-            Route::get('/', [CategoryDetailController::class, 'index']);
-            Route::post('/', [CategoryDetailController::class, 'store']);
-            Route::get('/{id}', [CategoryDetailController::class, 'show']);
-            Route::put('/{id}', [CategoryDetailController::class, 'update']);
-            Route::delete('/bulk-delete', [CategoryDetailController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [CategoryDetailController::class, 'destroy']);
-        });
-
-        // Item option routes group
-        Route::prefix('item-options')->group(function () {
-            Route::get('/', [ItemOptionController::class, 'index']);
-            Route::post('/', [ItemOptionController::class, 'store']);
-            Route::get('/{id}', [ItemOptionController::class, 'show']);
-            Route::put('/{id}', [ItemOptionController::class, 'update']);
-            Route::delete('/bulk-delete', [ItemOptionController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [ItemOptionController::class, 'destroy']);
-        });
-
-        // Item Details routes group
-        Route::prefix('item-details')->group(function () {
-            Route::get('/', [ItemDetailController::class, 'index']);
-            Route::post('/', [ItemDetailController::class, 'store']);
-            Route::get('/{id}', [ItemDetailController::class, 'show']);
-            Route::put('/{id}', [ItemDetailController::class, 'update']);
-            Route::delete('/bulk-delete', [ItemDetailController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [ItemDetailController::class, 'destroy']);
-        });
-
-        // Preference routes group
-        Route::prefix('item-preferences')->group(function () {
-            Route::get('/', [ItemPreferenceController::class, 'index']);
-            Route::post('/', [ItemPreferenceController::class, 'store']);
-            Route::get('/{id}', [ItemPreferenceController::class, 'show']);
-            Route::put('/{id}', [ItemPreferenceController::class, 'update']);
-            Route::delete('/bulk-delete', [ItemPreferenceController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [ItemPreferenceController::class, 'destroy']);
-        });
-
-        // Room routes group
-        Route::prefix('rooms')->group(function () {
-            Route::get('/', [RoomDetailController::class, 'index']);
-            Route::post('/', [RoomDetailController::class, 'store']);
-            Route::get('/{id}', [RoomDetailController::class, 'show']);
-            Route::put('/{id}', [RoomDetailController::class, 'update']);
-            Route::delete('/bulk-delete', [RoomDetailController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [RoomDetailController::class, 'destroy']);
-        });
-
-
-        //  roles routes group
-        Route::prefix('roles')->group(function () {
-            Route::get('/', [RoleController::class, 'index']);
-            Route::post('/', [RoleController::class, 'store']);
-            Route::get('/{id}', [RoleController::class, 'show']);
-            Route::put('/{id}', [RoleController::class, 'update']);
-            Route::delete('/bulk-delete', [RoleController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [RoleController::class, 'destroy']);
-        });
-
-        //  permissions routes group
-        Route::prefix('permissions')->group(function () {
-            Route::get('/', [PermissionController::class, 'index']);
-            Route::post('/', [PermissionController::class, 'store']);
-            Route::get('/{id}', [PermissionController::class, 'show']);
-            Route::put('/{id}', [PermissionController::class, 'update']);
-            Route::delete('/bulk-delete', [PermissionController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [PermissionController::class, 'destroy']);
-        });
-
-        // User routes group
-        Route::prefix('users')->group(function () {
-            Route::get('/', [UserController::class, 'index']);
-            Route::post('/', [UserController::class, 'store']);
-            Route::get('/{id}', [UserController::class, 'show']);
-            Route::put('/{id}', [UserController::class, 'update']);
-            Route::delete('/bulk-delete', [UserController::class, 'bulkDestroy']);
-            Route::delete('/{id}', [UserController::class, 'destroy']);
-        });
-
-        // Order routes (moved inside admin group)
-        Route::get('reports', [OrderController::class, 'reportList']);
-
+    // Menu routes group
+    Route::prefix('menus')->group(function () {
+        Route::get('/', [MenuController::class, 'index']);
+        Route::post('/', [MenuController::class, 'store']);
+        Route::get('/{id}', [MenuController::class, 'show']);
+        Route::put('/{id}', [MenuController::class, 'update']);
+        Route::delete('/bulk-delete', [MenuController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [MenuController::class, 'destroy']);
     });
 
-    // routes for ios form app and dynamic form app website
+    // Category routes group
+    Route::prefix('categories')->group(function () {
+        Route::get('/', [CategoryDetailController::class, 'index']);
+        Route::post('/', [CategoryDetailController::class, 'store']);
+        Route::get('/{id}', [CategoryDetailController::class, 'show']);
+        Route::put('/{id}', [CategoryDetailController::class, 'update']);
+        Route::delete('/bulk-delete', [CategoryDetailController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [CategoryDetailController::class, 'destroy']);
+    });
+
+    // Item option routes group
+    Route::prefix('item-options')->group(function () {
+        Route::get('/', [ItemOptionController::class, 'index']);
+        Route::post('/', [ItemOptionController::class, 'store']);
+        Route::get('/{id}', [ItemOptionController::class, 'show']);
+        Route::put('/{id}', [ItemOptionController::class, 'update']);
+        Route::delete('/bulk-delete', [ItemOptionController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [ItemOptionController::class, 'destroy']);
+    });
+
+    // Item Details routes group
+    Route::prefix('item-details')->group(function () {
+        Route::get('/', [ItemDetailController::class, 'index']);
+        Route::post('/', [ItemDetailController::class, 'store']);
+        Route::get('/{id}', [ItemDetailController::class, 'show']);
+        Route::put('/{id}', [ItemDetailController::class, 'update']);
+        Route::delete('/bulk-delete', [ItemDetailController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [ItemDetailController::class, 'destroy']);
+    });
+
+    // Preference routes group
+    Route::prefix('item-preferences')->group(function () {
+        Route::get('/', [ItemPreferenceController::class, 'index']);
+        Route::post('/', [ItemPreferenceController::class, 'store']);
+        Route::get('/{id}', [ItemPreferenceController::class, 'show']);
+        Route::put('/{id}', [ItemPreferenceController::class, 'update']);
+        Route::delete('/bulk-delete', [ItemPreferenceController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [ItemPreferenceController::class, 'destroy']);
+    });
+
+    // Room routes group
+    Route::prefix('rooms')->group(function () {
+        Route::get('/', [RoomDetailController::class, 'index']);
+        Route::post('/', [RoomDetailController::class, 'store']);
+        Route::get('/{id}', [RoomDetailController::class, 'show']);
+        Route::put('/{id}', [RoomDetailController::class, 'update']);
+        Route::delete('/bulk-delete', [RoomDetailController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [RoomDetailController::class, 'destroy']);
+    });
+
+
+    //  roles routes group
+    Route::prefix('roles')->group(function () {
+        Route::get('/', [RoleController::class, 'index']);
+        Route::post('/', [RoleController::class, 'store']);
+        Route::get('/{id}', [RoleController::class, 'show']);
+        Route::put('/{id}', [RoleController::class, 'update']);
+        Route::delete('/bulk-delete', [RoleController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [RoleController::class, 'destroy']);
+
+        Route::get('tree', [RoleController::class, 'getUserTree']);
+        
+        Route::post('sync', [RoleController::class, 'syncPermission']);
+    });
+
+    //  permissions routes group
+    Route::prefix('permissions')->group(function () {
+        Route::get('/', [PermissionController::class, 'index']);
+        Route::post('/', [PermissionController::class, 'store']);
+        Route::get('/{id}', [PermissionController::class, 'show']);
+        Route::put('/{id}', [PermissionController::class, 'update']);
+        Route::delete('/bulk-delete', [PermissionController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [PermissionController::class, 'destroy']);
+    });
+
+    // User routes group
+    Route::prefix('users')->group(function () {
+        Route::get('/', [UserController::class, 'index']);
+        Route::post('/', [UserController::class, 'store']);
+        Route::get('/{id}', [UserController::class, 'show']);
+        Route::put('/{id}', [UserController::class, 'update']);
+        Route::delete('/bulk-delete', [UserController::class, 'bulkDestroy']);
+        Route::delete('/{id}', [UserController::class, 'destroy']);
+    });
+
+    // Order routes (moved inside admin group)
+    Route::get('reports', [OrderController::class, 'reportList']);
     
 });

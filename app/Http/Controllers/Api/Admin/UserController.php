@@ -18,7 +18,7 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with('roles')
+        $query = User::with('permissionList')
             ->when($request->has('search'), function($query) use ($request) {
                 return $query->where('name', 'LIKE', '%' . $request->search . '%')
                       ->orWhere('email', 'LIKE', '%' . $request->search . '%')
@@ -73,12 +73,12 @@ class UserController extends Controller
             'role_id' => 'required|exists:roles,id'
         ]);
 
-        // if ($validator->fails()) {
-        //     return response()->json([
-        //         'success' => false,
-        //         'errors' => $validator->errors()
-        //     ], 422);
-        // }
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         $user = User::create([
             'name' => $request->name,
@@ -107,7 +107,7 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::with('roles')->find($id);
+        $user = User::with('permissionList')->find($id);
         
         if (!$user) {
             return response()->json([

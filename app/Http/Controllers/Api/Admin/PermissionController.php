@@ -16,7 +16,7 @@ class PermissionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Permission::when($request->has('search'), function($query) use ($request) {
+        $query = Permission::with('rolesList')->when($request->has('search'), function($query) use ($request) {
                 return $query->where('name', 'LIKE', '%' . $request->search . '%')
                       ->orWhere('display_name', 'LIKE', '%' . $request->search . '%');
             })
@@ -102,7 +102,7 @@ class PermissionController extends Controller
     public function show($id)
     {
         try {
-            $permission = Permission::findOrFail($id);
+            $permission = Permission::with('rolesList')->findOrFail($id);
             return response()->json([
                 'status' => 'success',
                 'data' => $permission

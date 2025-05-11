@@ -4,7 +4,7 @@
 namespace App\Http\Controllers\Api;
 
 use Illuminate\Http\Request;
-use App\Models\BackendRole;
+use App\Models\Role as BackendRole;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role as SpatieRole;
 
@@ -97,7 +97,7 @@ class RoleController extends Controller
     public function getUserTree(){
         try {
             
-            $list = BackendRole::with('users')->get();
+            $list = Role::with('userList')->get();
             return response()->json([ 'list' =>  $list], 200);
             
         }
@@ -114,7 +114,7 @@ class RoleController extends Controller
             
             $permissions = json_decode($request->input('permissions'),true); // should be permission array ['edit articles', 'delete articles']
             
-            $role = SpatieRole::find($roleId);
+            $role = BackendRole::find($roleId);
         
             $role->syncPermissions($permissions);
             

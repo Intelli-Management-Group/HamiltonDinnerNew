@@ -16,7 +16,7 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Role::when($request->has('search'), function($query) use ($request) {
+        $query = Role::with('permissionList')->when($request->has('search'), function($query) use ($request) {
                 return $query->where('name', 'LIKE', '%' . $request->search . '%')
                       ->orWhere('display_name', 'LIKE', '%' . $request->search . '%');
             })
@@ -102,7 +102,7 @@ class RoleController extends Controller
     public function show($id)
     {
         try {
-            $role = Role::with('permissions')->findOrFail($id);
+            $role = Role::with('permissionList')->findOrFail($id);
             return response()->json([
                 'status' => 'success',
                 'data' => $role
@@ -233,5 +233,40 @@ class RoleController extends Controller
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function getUserTree(){
+        try {
+            
+            $list = Role::with('userList')->get();
+            return response()->json([ 'list' =>  $list], 200);
+            
+        }
+        catch (\Exception $e){
+            return $this->sendResultJSON("0", $e->getMessage());
+        }
+    }
+    
+    public function syncPermission(Request $request){
+        
+        try{
+            
+            $roleId = $request->input('roleId');
+            
+            $permissions = json_decode($request->input('permissions'),true); // should be permission array ['edit articles', 'delete articles']
+            
+            $role = Role::find($roleId);
+        
+            $role->syncPermissions($permissions);
+            
+            return response()->json(['message' =>  "Permissions Synced Successfully"], 200);
+            
+        }
+        
+        catch (\Exception $e){
+            return response()->json([ 'message' => $e->getMessage()], 500);
+        }
+        
+
     }
 }

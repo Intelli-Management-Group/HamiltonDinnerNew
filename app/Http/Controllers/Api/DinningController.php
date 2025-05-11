@@ -31,7 +31,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use JWTAuth;
 use App\Models\TempFormMediaAttachments;
-use App\Models\BackendRole;
+
 use App\Models\BackendPermission;
 use App\Models\BackendUser;
 use DB;
@@ -3124,7 +3124,7 @@ class DinningController extends Controller
       
             if (!empty($user->role_id)){
                 
-                $roleName = BackendRole::select('name')->where('id' ,$user->role_id)->get()->toArray();
+                $roleName = Role::select('name')->where('id' ,$user->role_id)->get()->toArray();
             }
             
             if (!empty($roleName)){
