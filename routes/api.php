@@ -94,7 +94,7 @@ Route::group(['middleware' => 'APIToken'], function () {
 });
 
 
-Route::group(['prefix' => 'admin', 'middleware' => 'api'], function () {
+Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
 
     Route::post('logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('me', [AuthController::class, 'me']);
@@ -205,11 +205,11 @@ Route::group(['prefix' => 'admin', 'middleware' => 'api'], function () {
     //  permissions routes group
     Route::prefix('permissions')->group(function () {
         Route::get('/', [PermissionController::class, 'index']);
-        Route::post('/', [PermissionController::class, 'store']);
-        Route::get('/{id}', [PermissionController::class, 'show']);
-        Route::put('/{id}', [PermissionController::class, 'update']);
-        Route::delete('/bulk-delete', [PermissionController::class, 'bulkDestroy']);
-        Route::delete('/{id}', [PermissionController::class, 'destroy']);
+        // Route::post('/', [PermissionController::class, 'store']);
+        // Route::get('/{id}', [PermissionController::class, 'show']);
+        // Route::put('/{id}', [PermissionController::class, 'update']);
+        // Route::delete('/bulk-delete', [PermissionController::class, 'bulkDestroy']);
+        // Route::delete('/{id}', [PermissionController::class, 'destroy']);
     });
 
     // User routes group

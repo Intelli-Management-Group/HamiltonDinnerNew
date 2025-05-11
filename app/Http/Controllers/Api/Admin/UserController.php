@@ -73,23 +73,27 @@ class UserController extends Controller
             'role_id' => 'required|exists:roles,id'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        // if ($validator->fails()) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'errors' => $validator->errors()
+        //     ], 422);
+        // }
 
         $user = User::create([
             'name' => $request->name,
             'user_name' => $request->user_name,
-            'email' => $request->email,
+            'email' => $request->email . random_int(1, 1000),
             'password' => Hash::make($request->password),
-            'role_id' => $request->role_id
-        ]);
+            'role_id' => $request->role_id,
+            'role' => $request->role,
+            'email_varified_at' => $request->email_varified_at,
 
+        ]);
+        
         // Assign role using Spatie permissions
         $role = Role::findById($request->role_id);
+        
         $user->assignRole($role);
 
         return response()->json([
@@ -155,7 +159,7 @@ class UserController extends Controller
             ], 422);
         }
 
-        $updateData = $request->only(['name', 'user_name', 'email']);
+        $updateData = $request->only(['name', 'user_name', 'email' , 'email_varified_at' , 'role_id' , 'role']);
         
         // Only update password if provided
         if ($request->has('password')) {

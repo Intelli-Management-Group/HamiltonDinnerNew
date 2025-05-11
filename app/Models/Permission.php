@@ -15,6 +15,8 @@ class Permission extends SpatiePermission
         'guard_name' => 'api',
     ];
 
+    protected $table = 'permissions';
+
     public function rolesList()
     {
         return $this->belongsToMany(Role::class, 'role_has_permissions', 'permission_id', 'role_id');

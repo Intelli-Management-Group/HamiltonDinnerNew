@@ -15,7 +15,8 @@ class RoleController extends Controller
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
-    {
+    {   
+
         $query = Role::with('permissionList')->when($request->has('search'), function($query) use ($request) {
                 return $query->where('name', 'LIKE', '%' . $request->search . '%')
                       ->orWhere('display_name', 'LIKE', '%' . $request->search . '%');
@@ -253,7 +254,7 @@ class RoleController extends Controller
             
             $roleId = $request->input('roleId');
             
-            $permissions = json_decode($request->input('permissions'),true); // should be permission array ['edit articles', 'delete articles']
+            $permissions = $request->input('permissions'); // should be permission array ['edit articles', 'delete articles']
             
             $role = Role::find($roleId);
         
