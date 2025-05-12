@@ -73,17 +73,17 @@ class UserController extends Controller
             'role_id' => 'required|exists:roles,id'
         ]);
 
-        // if ($validator->fails()) {
-        //     return response()->json([
-        //         'success' => false,
-        //         'errors' => $validator->errors()
-        //     ], 422);
-        // }
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
         $user = User::create([
             'name' => $request->name,
             'user_name' => $request->user_name,
-            'email' => $request->email . random_int(1, 1000),
+            'email' => $request->email,
             'password' => Hash::make($request->password),
             'role_id' => $request->role_id,
             'role' => $request->role,
