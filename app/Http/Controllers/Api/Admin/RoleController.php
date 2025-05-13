@@ -149,11 +149,15 @@ class RoleController extends Controller
             ], 422);
         }
 
+        $permissions = $request->input('permissions', []); // should be permission array ['edit articles', 'delete articles']
+        
         try {
             $role = Role::findOrFail($id);
             $role->name = $request->name;
             $role->display_name = $request->display_name;
             $role->save();
+            
+            $role->syncPermissions($permissions);
 
             return response()->json([
                 'status' => 'success',
