@@ -74,11 +74,16 @@ class RoleController extends Controller
         }
 
         try {
+
+            $permissions = $request->input('permissions', []); // should be permission array ['edit articles', 'delete articles']
+
             $role = Role::create([
                 'name' => $request->name,
                 'display_name' => $request->display_name,
                 'guard_name' => 'api' // Default guard for this application
             ]);
+
+            $role->syncPermissions($permissions);
 
             return response()->json([
                 'status' => 'success',

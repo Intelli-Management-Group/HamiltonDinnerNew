@@ -14,7 +14,6 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use TCG\Voyager\Facades\Voyager;
 use App\Models\TableDetail;
-use Validator;
 use App\User;
 use App\ItemOption;
 use App\ItemPreference;
@@ -37,6 +36,8 @@ use App\Models\BackendUser;
 use DB;
 use App\Models\ItemOption as ItemOptionModel;
 use App\Models\MoveInSummaryValues;
+use Illuminate\Support\Facades\Validator;
+
 
 
 
