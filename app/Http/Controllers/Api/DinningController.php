@@ -36,6 +36,8 @@ use App\Models\BackendUser;
 use DB;
 use App\Models\ItemOption as ItemOptionModel;
 use App\Models\MoveInSummaryValues;
+use App\Models\Permission;
+use App\Models\User as ModelsUser;
 use Illuminate\Support\Facades\Validator;
 
 
@@ -3138,7 +3140,7 @@ class DinningController extends Controller
                 }    
             }
             
-            $allPermissionsResult = BackendPermission::select('name')->pluck('name')->toArray();
+            $allPermissionsResult = Permission::select('name')->pluck('name')->toArray();
             
             $allPermissions = [];
             
@@ -3148,18 +3150,18 @@ class DinningController extends Controller
                 
             }
              
-            $newUser = BackendUser::with('permissions','role')->where('id' ,$user->id)->get()->toArray();
+            $newUser = ModelsUser::with('permissionList')->where('id' ,$user->id)->get()->toArray();
             
             $data = [];        
-                
+            
             foreach ($newUser as $result){
-                
+
                 $data['user_id'] = $result['id'];
                 $data['user_name'] = $result['name'];
                 $data['authentication_token'] = $token;
-                $data['role'] = !empty($result['role']) ? $result['role']['name'] : null;
+                $data['role'] = $user->roleName;
                 
-                foreach ($result['permissions'] as $permission){
+                foreach ($result['permission_list'] as $permission){
                     
                     $allPermissions[$permission['name']] = 1;
                     
