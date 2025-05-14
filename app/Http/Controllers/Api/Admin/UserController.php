@@ -88,6 +88,7 @@ class UserController extends Controller
             'role_id' => $request->role_id,
             'role' => $request->role,
             'email_verified_at' => $request->email_verified_at,
+            'is_admin' => $request->is_admin,
 
         ]);
         
@@ -159,8 +160,8 @@ class UserController extends Controller
             ], 422);
         }
 
-        $updateData = $request->only(['name', 'user_name', 'email' , 'email_varified_at' , 'role_id' , 'role']);
-        
+        $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin']);
+
         // Only update password if provided
         if ($request->has('password')) {
             $updateData['password'] = Hash::make($request->password);
