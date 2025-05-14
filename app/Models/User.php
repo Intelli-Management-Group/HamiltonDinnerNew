@@ -38,6 +38,7 @@ class User extends Authenticatable implements JWTSubject
         "role_id",
         "role",
         "settings",
+        'is_admin'
         
     ];
 
