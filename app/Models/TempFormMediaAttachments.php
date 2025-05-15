@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Models;
-use Storage;
+use Illuminate\Support\Facades\Storage;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;

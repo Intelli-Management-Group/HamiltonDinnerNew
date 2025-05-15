@@ -30,7 +30,7 @@ use App\Http\Controllers\Api\Admin\UserController;
 
 Route::post('login', [DinningController::class, 'login']); // APIToken
 
-Route::post('backend/ios/login', [DinningController::class, 'iosFormLogin']); // APIToken
+Route::post('backend/ios/login', [DinningController::class, 'iosFormLogin']); // jwt auth
 
 Route::group(['prefix' => 'admin'], function () {
     Route::post('login', [AuthController::class, 'login'])->name('login');
