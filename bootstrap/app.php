@@ -22,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'permission' =>  CheckPermission::class,
             'jwt.auth' => JwtMiddleware::class,
+            'APIToken' => \App\Http\Middleware\APIToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
