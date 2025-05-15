@@ -44,53 +44,50 @@ Route::group(['prefix' => 'admin'], function () {
 // auth , roles, permissions are same for all these three
 
 Route::group(['middleware' => 'APIToken'], function () {
-    
+
     // Route::get('rooms-list', [DinningController::class, 'getRoomList']);
-    Route::post('order-list', [DinningController::class, 'getOrderList']);
     // Route::post('item-list', [DinningController::class, 'getItemList']);
-    Route::post('update-order', [DinningController::class, 'updateOrder']);
     // Route::post('demo-get-report-data', [DinningController::class, 'getCategoryWiseData']);
     // Route::post('demo-get-room-data', [DinningController::class, 'getRoomData']);
-    Route::post('get-user-data', [DinningController::class, 'getUserData']);
     // Route::post('print-order-data', [DinningController::class, 'printOrderData']);
     // Route::post('general-form-submit', [DinningController::class, 'saveForm']);
-    Route::post('send-email', [DinningController::class, 'sendEmail']);
-    Route::post('form-details', [DinningController::class, 'getFormDetails']);
     // Route::post('edit-form', [DinningController::class, 'editGeneratedFormResponse']); // old working api stage 0
-    Route::post('list-forms', [DinningController::class, 'getGeneratedForms']);
-    Route::post('delete-form', [DinningController::class, 'deleteFormResponse']);
-    Route::post('complete-log', [DinningController::class, 'completeFormLog']);
     // Route::post('get-report-data', [DinningController::class, 'getCategoryWiseDataDemo']);
     // Route::post('demo-order-list', [DinningController::class, 'getDemoOrderList']);
     // Route::post('demo-form-submit', [DinningController::class, 'saveForm1']);
     // Route::post('delete-form-attachment', [DinningController::class, 'deleteFormAttachment']);
     // Route::post('add-form-attachment', [DinningController::class, 'addAttachmentsToExistingForm']); 
+    // Route::post('general-form-submit', [DinningController::class, 'saveForm']); // stage 0 , old pdf ui
+    // Route::post('temp-form-save-by-user', [DinningController::class, 'saveTempFormByUser']); //Get-temp-form-list
+    // Route::get('temp-form-template-download', [DinningController::class, 'getTempFormDownload']);
+    // Route::post('save-temp-form-pdf', [DinningController::class, 'saveFormTempPdf']);
+    
+    Route::post('order-list', [DinningController::class, 'getOrderList']);
+    Route::post('update-order', [DinningController::class, 'updateOrder']);
+    Route::post('get-user-data', [DinningController::class, 'getUserData']);
+    Route::post('send-email', [DinningController::class, 'sendEmail']);
+    Route::post('form-details', [DinningController::class, 'getFormDetails']);
+    Route::post('list-forms', [DinningController::class, 'getGeneratedForms']);
+    Route::post('delete-form', [DinningController::class, 'deleteFormResponse']);
+    Route::post('complete-log', [DinningController::class, 'completeFormLog']);
     Route::post('guest-order-list', [DinningController::class, 'getGuestOrderList']);
     
+    Route::post('general-form-submit-phase1', [DinningController::class, 'saveFormPhase1']); // new pdf with images stage 1
     Route::post('edit-form-phase1', [DinningController::class, 'editGeneratedFormResponsePhase1']); // new api stage 1
     Route::post('add-form-attachment-phase1', [DinningController::class, 'addAttachmentsToExistingFormPhase1']); // new api stage 1
     Route::post('delete-form-attachment-phase1', [DinningController::class, 'deleteFormAttachmentPhase1']); // new api stage 1
 
-    // Route::post('general-form-submit', [DinningController::class, 'saveForm']); // stage 0 , old pdf ui
-
-    Route::post('general-form-submit-phase1', [DinningController::class, 'saveFormPhase1']); // new pdf with images stage 1
-
     Route::post('get-report-data', [DinningController::class, 'getCategoryWiseDataDemo']);
 
     Route::get('get-move-in-summary-values', [DinningController::class, 'getMoveInSummaryValues']);
-
-    Route::post('get-charges-report', [DinningController::class, 'reportData']);
-    // Route::post('temp-form-save-by-user', [DinningController::class, 'saveTempFormByUser']); //Get-temp-form-list
     
-        
-    // Route::get('temp-form-template-download', [DinningController::class, 'getTempFormDownload']);
-    // Route::post('save-temp-form-pdf', [DinningController::class, 'saveFormTempPdf']);
+    Route::post('get-charges-report', [DinningController::class, 'reportData']);
     Route::post('print-combined-order-data', [DinningController::class, 'printOrderDataTemp']);
 
     Route::post('temp-get-charges-report', [DinningController::class, 'reportDataTemp2']);
 
     Route::post('multi-order-update', [DinningController::class, 'updateOrderBulk']);
-
+    
 });
 
 
@@ -113,17 +110,10 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
     Route::get('temp-form-type/{id}/delete', [DinningController::class, 'deleteTempFormType']);
     Route::get('temp-form-type-list', [DinningController::class, 'tempFormTypeList']);
     Route::get('{id}/temp-form-type-by-id', [DinningController::class, 'tempFormTypeById']);
-    
     Route::post('edit-temp-form', [DinningController::class, 'editGeneratedTempFormResponse']);
-    // Route::post('temp-form-details', [DinningController::class, 'getTempFormDetails']);
-    
     Route::post('delete-temp-form-attachment', [DinningController::class, 'deleteTempFormAttachment']);
     Route::post('add-temp-form-attachment', [DinningController::class, 'addAttachmentsToExistingTempForm']);
-    
-    // Route::get('get-move-in-summary-values', [DinningController::class, 'getMoveInSummaryValues']);
-
     Route::post('temp-form-details', [DinningController::class, 'getTempFormDetails']);
-
 
     // --------------------------------------------------------------------
 
