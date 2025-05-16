@@ -118,7 +118,7 @@ class DinningController extends Controller
                             ];
                         }
 
-                        
+
 
 
                         return $this->sendResultJSON("1", "Successfully Login", array("room_id" => 0, 'rooms' => $rooms_array, 'guideline' => $settingsArray['site.app_msg'], 'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'], "room_number" => "", "occupancy" => 0, "resident_name" => "", "language" => 0, "last_menu_date" => $last_date, "authentication_token" => $user_token, "role" => $roleName[0]['name'], "form_types" => $formTypes, 'user_list' => $userData, 'user_id' => $user->id));
