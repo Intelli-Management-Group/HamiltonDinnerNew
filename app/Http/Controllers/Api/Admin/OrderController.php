@@ -44,7 +44,14 @@ class OrderController extends Controller
             $is_first = true;
             $total = array();
             foreach (count($all_rooms) > 0 ? $all_rooms : array() as $r) {
-                $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["breakfast"]) . ")")->orderBy("cat_id")->get();
+                $qb = ItemDetail::selectRaw("id,item_name,cat_id");
+
+                if (!empty($menu_items["breakfast"])) {
+                    $qb->whereRaw("id IN (" . implode(",", $menu_items["breakfast"]) . ")");
+                }
+                
+                $all_items = $qb->orderBy("cat_id")->get();
+
                 $item_array[$r->id] = array("room_id" => $r->room_name);
 
                 $count = 1;
@@ -66,7 +73,15 @@ class OrderController extends Controller
                 }
                 $count1 = 1;
                 $ab_count = 'A';
-                $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["lunch"]) . ")")->orderBy("cat_id")->get();
+
+                $qb  = ItemDetail::selectRaw("id,item_name,cat_id");
+                
+                if (!empty($menu_items["lunch"])) {
+                    $qb->whereRaw("id IN (" . implode(",", $menu_items["lunch"]) . ")");
+                }
+                
+                $all_items = $qb->orderBy("cat_id")->get();
+
                 foreach (count($all_items) > 0 ? $all_items : array() as $a) {
                     $title = (in_array($a->cat_id, $alternative) ? "L" . $count1 : (in_array($a->cat_id, $ab_alternative) ? "L" . $ab_count : $cat_id[$a->cat_id]));
                     if ($is_first) {
@@ -86,7 +101,14 @@ class OrderController extends Controller
                 }
                 $count2 = 1;
                 $ab_count = 'A';
-                $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["dinner"]) . ")")->orderBy("cat_id")->get();
+
+                $qb  = ItemDetail::selectRaw("id,item_name,cat_id");
+                
+                if (!empty($menu_items["dinner"])) {
+                    $qb->whereRaw("id IN (" . implode(",", $menu_items["dinner"]) . ")");
+                }
+                
+                $all_items = $qb->orderBy("cat_id")->get();
                 
                 foreach (count($all_items) > 0 ? $all_items : array() as $a) {
                     $title = (in_array($a->cat_id, $alternative) ? "D" . $count2 : (in_array($a->cat_id, $ab_alternative) ? "D" . $ab_count : $cat_id[$a->cat_id]));
