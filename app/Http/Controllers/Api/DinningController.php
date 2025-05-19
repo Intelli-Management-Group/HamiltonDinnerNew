@@ -68,7 +68,7 @@ class DinningController extends Controller
             $last_date = "";
             $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
             if ($menu_data) {
-                $last_date = $menu_data->date;
+                $last_date = Carbon::parse($menu_data->date)->format('Y-m-d');
             }
 
             $rooms = RoomDetail::where("is_active", 1)->get();
@@ -695,7 +695,7 @@ class DinningController extends Controller
         }
 
         if ($menu_data) {
-            $last_date = $menu_data->date;
+            $last_date = Carbon::parse($menu_data->date)->format('Y-m-d');
         }
 
         $settings = DB::table('settings')->get();
