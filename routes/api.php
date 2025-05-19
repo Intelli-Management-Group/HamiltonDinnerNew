@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\DinningController;
 use App\Http\Controllers\Api\Admin\PermissionController;
 use App\Http\Controllers\Api\Admin\RoleController;
 use App\Http\Controllers\Api\Admin\UserController;
+use App\Http\Controllers\Api\Admin\SettingController;
 
 /*
 |--------------------------------------------------------------------------
