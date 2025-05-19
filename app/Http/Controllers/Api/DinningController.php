@@ -89,7 +89,7 @@ class DinningController extends Controller
                 $user = User::where("user_name", $room_no)->first();
 
                 if ($user) {
-                    if (Hash::check($password, $user->password)) {
+                    if (!Hash::check($password, $user->password)) {
                         return $this->sendResultJSON("2", "User not Found");
                     } else {
                         $role = intval($user->role_id) == 1 ? "admin" : "kitchen";
