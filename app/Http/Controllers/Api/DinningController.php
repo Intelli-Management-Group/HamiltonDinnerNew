@@ -2934,7 +2934,7 @@ class DinningController extends Controller
                 }
             }
 
-            $allPermissionsResult = BackendPermission::select('name')->pluck('name')->toArray();
+            $allPermissionsResult = Permission::select('name')->pluck('name')->toArray();
 
             $allPermissions = [];
 
@@ -2943,7 +2943,7 @@ class DinningController extends Controller
                 $allPermissions[$item] = 0;
             }
 
-            $newUser = BackendUser::with('permissions', 'role')->where('id', $user->id)->get()->toArray();
+            $newUser = User::with('permissionList', 'role')->where('id', $user->id)->get()->toArray();
 
             $data = [];
 
