@@ -2912,7 +2912,7 @@ class DinningController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
 
-            $newUser = User::with('permissions', 'role')->where('id', $user->id)->get()->toArray();
+            $newUser = User::with('permissionList', 'role')->where('id', $user->id)->get()->toArray();
 
             if (empty($newUser)) {
                 // return $this->sendResultJSON("11", "Unauthorised");
