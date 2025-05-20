@@ -2953,12 +2953,12 @@ class DinningController extends Controller
                 $data['user_name'] = $result['name'];
                 $data['role'] = !empty($result['role']) ? $result['role']['name'] : null;
 
-                foreach ($result['permissionList'] as $permission) {
+                foreach ($result['permission_list'] as $permission) {
 
                     $allPermissions[$permission['name']] = 1;
                 }
 
-                $data['permissionList'] = $allPermissions;
+                $data['permission_list'] = $allPermissions;
             }
 
 
