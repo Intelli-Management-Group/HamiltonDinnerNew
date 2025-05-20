@@ -2958,7 +2958,7 @@ class DinningController extends Controller
                     $allPermissions[$permission['name']] = 1;
                 }
 
-                $data['permission_list'] = $allPermissions;
+                $data['permissions'] = $allPermissions;
             }
 
 
