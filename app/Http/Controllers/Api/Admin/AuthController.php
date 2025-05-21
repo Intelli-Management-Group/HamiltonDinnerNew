@@ -46,6 +46,9 @@ class AuthController extends Controller
 
             $loggedInUser = User::with('permissionList')->where('id', $user->id)->get()->toArray();
 
+            print_r($loggedInUser);
+            die;
+
             foreach ($loggedInUser['permission_list'] as $permission) {
 
                 $allPermissions[$permission['name']] = 1;
