@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use App\Http\Controllers\Api\Admin\Controller;
+use App\Models\Permission;
 
 class AuthController extends Controller
 {
@@ -32,7 +33,32 @@ class AuthController extends Controller
                 return response()->json(['error' => 'Email or Password is incorrect'], 401);
             }
 
-            return $this->respondWithToken($token);
+            $user = auth()->user();
+
+            $allPermissionsResult = Permission::select('name')->pluck('name')->toArray();
+
+            $allPermissions = [];
+
+            foreach ($allPermissionsResult as $item) {
+
+                $allPermissions[$item] = 0;
+            }
+
+            $loggedInUser = User::with('permissionList')->where('id', $user->id)->get()->toArray();
+
+            foreach ($loggedInUser['permission_list'] as $permission) {
+
+                $allPermissions[$permission['name']] = 1;
+            }
+
+            return response()->json([
+                'access_token' => $token,
+                'token_type' => 'bearer',
+                'expires_in' => config('jwt.ttl', 60) * 60, // Use config value instead of factory method
+                'user' => auth()->user(),
+                'permissions' => $allPermissions,
+            ]);
+
         } catch (\Exception $e) {
             return response()->json(['error' => 'An error occurred while processing your request.', 'message' => $e->getMessage()], 500);
         }
