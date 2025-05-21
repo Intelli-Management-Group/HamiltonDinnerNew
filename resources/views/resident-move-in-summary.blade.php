@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
     <head>
         <title>RESIDENT MOVE-IN SUMMARY</title>
@@ -293,19 +294,19 @@
                     <span>Contract Term:</span>
                 </div>
                 <div class="checkbox-label">
-                    {{ Form::checkbox('admin', 'yes', $contract_term_yearly) }}
+                    <input type="checkbox" name="admin" value="yes" {{ $contract_term_yearly ? 'checked' : '' }}>
                     <label for="resident">Yearly</label>
                 </div>
                 <div class="checkbox-label">
-                    {{ Form::checkbox('admin', 'yes', $contract_term_monthly) }}
+                    <input type="checkbox" name="admin" value="yes" {{ $contract_term_monthly ? 'checked' : '' }}>
                     <label for="visitor">Monthly</label>
                 </div>
                 <div class="checkbox-label">
-                    {{ Form::checkbox('admin', 'yes', $contract_term_weekly) }}
+                    <input type="checkbox" name="admin" value="yes" {{ $contract_term_weekly ? 'checked' : '' }}>
                     <label for="staff">Weekly</label>
                 </div>
                  <div class="checkbox-label">
-                    {{ Form::checkbox('admin', 'yes', $contract_term_daily) }}
+                    <input type="checkbox" name="admin" value="yes" {{ $contract_term_daily ? 'checked' : '' }}>
                     <label for="staff">Daily</label>
                 </div>
                
@@ -370,7 +371,7 @@
                     <span><strong>1<sup>st</sup> Month Payment: </strong></span>
                 </div>
                 <div class="checkbox-label">
-                    {{ Form::checkbox('admin', 'yes', $first_month_payment_received) }}
+                    <input type="checkbox" name="admin" value="yes" {{ $first_month_payment_received ? 'checked' : '' }}>
                     <label for="resident">Received cheque #</label>
                     <span><u>{{ !empty($first_month_payment_received_cheque_note) ? $first_month_payment_received_cheque_note : "" }}</u></span>
                 </div>
@@ -422,7 +423,7 @@
                     <span><strong>1<sup>st</sup> Security Deposit: </strong></span>
                 </div>
                 <div class="checkbox-label">
-                    {{ Form::checkbox('admin', 'yes', $security_deposit_received) }}
+                    <input type="checkbox" name="admin" value="yes" {{ $security_deposit_received ? 'checked' : '' }}>
                     <label for="resident">Received cheque #</label>
                     <span><u>{{ !empty($security_deposit_received_cheque_note) ? $security_deposit_received_cheque_note : "" }}</u></span>
                 </div>
@@ -469,19 +470,18 @@
             <div class="customsContainer justifyStart rowTopPaddig" style="text-align:left" >
                     <span><strong> Payor Information: </strong></span>
                      <div class="checkbox-label">
-                        
-                        {{ Form::checkbox('admin', 'yes', $payor_information_PAD) }}
+                        <input type="checkbox" name="admin" value="yes" {{ $payor_information_PAD ? 'checked' : '' }}>
                         <label for="resident">PAD</label>
                     </div>
                       <div class="checkbox-label">
-                        {{ Form::checkbox('admin', 'yes', $payor_information_Post_Dated_Cheque) }}
+                        <input type="checkbox" name="admin" value="yes" {{ $payor_information_Post_Dated_Cheque ? 'checked' : '' }}>
                         <label for="resident">Post Dated-Cheque</label>
                     </div>
             </div>
             
             <div class="customsContainer rowTopPaddig" >
                 <div>
-                    <span>Payor’s Name: </span><span><u>{{ !empty($payor_name) ? $payor_name : "" }}</u></span>
+                    <span>Payor's Name: </span><span><u>{{ !empty($payor_name) ? $payor_name : "" }}</u></span>
                 </div>               
                 <div>
                     <span>Bank Name: </span></span><span><u>{{ !empty($bank_name) ? $bank_name : "" }}</u></span>
@@ -508,12 +508,12 @@
             
             <div class="customsContainer rowTopPaddig" style="text-align:left" >
                      <div class="checkbox-label">
-                        {{ Form::checkbox('admin', 'yes', $unit_key) }}
+                        <input type="checkbox" name="admin" value="yes" {{ $unit_key ? 'checked' : '' }}>
                         <label for="resident">Unit Key</label>
                          <span><u>{{ !empty($unit_key_value) ? $unit_key_value : "" }}</u></span>
                     </div>
                       <div class="checkbox-label">
-                        {{ Form::checkbox('admin', 'yes', $elpas_fob) }}
+                        <input type="checkbox" name="admin" value="yes" {{ $elpas_fob ? 'checked' : '' }}>
                         <label for="resident">Elpas Fob</label>
                          <span><u>{{ !empty($elpas_fob_value) ? $elpas_fob_value : "" }}</u></span>
                     </div>
@@ -526,12 +526,12 @@
             
             <div class="customsContainer rowTopPaddig" style="text-align:left" >
                      <div class="checkbox-label">
-                        {{ Form::checkbox('admin', 'yes', $suite_insurance_copy_received) }}
+                        <input type="checkbox" name="admin" value="yes" {{ $suite_insurance_copy_received ? 'checked' : '' }}>
                         <label for="resident">Suite Insurance Copy Received</label>
                          <span>{{ !empty($suite_insurance_copy_received_date) ? $suite_insurance_copy_received_date : "" }}</span>
                     </div>
                       <div class="checkbox-label">
-                        {{ Form::checkbox('admin', 'yes', $suite_insurance_coverage_approved) }}
+                        <input type="checkbox" name="admin" value="yes" {{ $suite_insurance_coverage_approved ? 'checked' : '' }}>
                         <label for="resident">Suite Insurance Coverage Approved</label>
                         
                     </div>

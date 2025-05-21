@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -154,19 +152,19 @@
             <span>INCIDENT INVOLVED:</span>
         </div>
         <div>
-            {{ Form::checkbox('admin', 'yes', $inc_invl_resident) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_resident ? 'checked' : '' }}>
             <label for="resident">Resident</label>
         </div>
         <div>
-            {{ Form::checkbox('admin', 'yes', $inc_invl_visitor) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_visitor ? 'checked' : '' }}>
             <label for="visitor">Visitor</label>
         </div>
         <div>
-            {{ Form::checkbox('admin', 'yes', $inc_invl_staff) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_staff ? 'checked' : '' }}>
             <label for="staff">Staff</label>
         </div>
         <div>
-            {{ Form::checkbox('admin', 'yes', $inc_invl_other) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_other ? 'checked' : '' }}>
             <label for="other">Other <u>{{ !empty($inc_invl_other_text) ? $inc_invl_other_text : "" }}</u></label>
         </div>
     </div> -->
@@ -175,19 +173,19 @@
             <span>INCIDENT INVOLVED:</span>
         </div>
         <div class="checkbox-label">
-            {{ Form::checkbox('admin', 'yes', $inc_invl_resident) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_resident ? 'checked' : '' }}>
             <label for="resident">Resident</label>
         </div>
         <div class="checkbox-label">
-            {{ Form::checkbox('admin', 'yes', $inc_invl_visitor) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_visitor ? 'checked' : '' }}>
             <label for="visitor">Visitor</label>
         </div>
         <div class="checkbox-label">
-            {{ Form::checkbox('admin', 'yes', $inc_invl_staff) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_staff ? 'checked' : '' }}>
             <label for="staff">Staff</label>
         </div>
         <div class="checkbox-label">
-            {{ Form::checkbox('admin', 'yes', $inc_invl_other) }}
+            <input type="checkbox" name="admin" value="yes" {{ $inc_invl_other ? 'checked' : '' }}>
             <label for="other">Other <u>{{ !empty($inc_invl_other_text) ? $inc_invl_other_text : "" }}</u></label>
         </div>
     </div>
@@ -255,53 +253,53 @@
                             <td style="border: none; text-align: left;">
                                 <!-- <div>
                                     <div class="checkbox-container" style="display: block;"> 
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_fall) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_fall ? 'checked' : '' }}>
                                         <label for="fall" style="padding-bottom: 10px;">Fall</label>
                                     </div>
                                     <div class="checkbox-container">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_fire) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_fire ? 'checked' : '' }}>
                                         <label for="fire">Fire</label>
                                     </div>
                                     <div class="checkbox-container">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_security) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_security ? 'checked' : '' }}>
                                         <label for="security">Security</label>
                                     </div>
                                     <div class="checkbox-container">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_elopement) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_elopement ? 'checked' : '' }}>
                                         <label for="elopement">Elopement</label>
                                     </div>
                                     <div class="checkbox-container">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_aggresiveBeh) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_aggresiveBeh ? 'checked' : '' }}>
                                         <label for="aggressive">Aggressive Behavior</label>
                                     </div>
                                     <div class="checkbox-container">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_other) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_other ? 'checked' : '' }}>
                                         <label for="other-type">Other <u>{{ !empty($type_of_inc_other_text) ? $type_of_inc_other_text : "" }}</u></label>
                                     </div>                                  
                                 </div> -->
                                 <div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_fall) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_fall ? 'checked' : '' }}>
                                         <label for="fall">Fall</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_fire) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_fire ? 'checked' : '' }}>
                                         <label for="fire">Fire</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_security) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_security ? 'checked' : '' }}>
                                         <label for="security">Security</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_elopement) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_elopement ? 'checked' : '' }}>
                                         <label for="elopement">Elopement</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_aggresiveBeh) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_aggresiveBeh ? 'checked' : '' }}>
                                         <label for="aggressive">Aggressive Behavior</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_other) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_other ? 'checked' : '' }}>
                                         <label for="other-type">Other <u>{{ !empty($type_of_inc_other_text) ? $type_of_inc_other_text : "" }}</u></label>
                                     </div>
                                 </div>
@@ -310,42 +308,42 @@
                             <td style="border: none; text-align: left;">
                                 <div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_resAbase) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_resAbase ? 'checked' : '' }}>
                                         <label for="resident-abuse">Resident Abuse</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_treatment) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_treatment ? 'checked' : '' }}>
                                         <label for="treatment">Treatment</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_lossOfProp) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_lossOfProp ? 'checked' : '' }}>
                                         <label for="loss-property">Loss of Property</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_choking) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_choking ? 'checked' : '' }}>
                                         <label for="choking">Choking</label>
                                     </div>
                                     <div class="checkbox-label">
-                                        {{ Form::checkbox('admin', 'yes', $type_of_inc_death) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_death ? 'checked' : '' }}>
                                         <label for="death">Death</label>
                                     </div>
                                 </div>
 
                                 <!-- <div>
                                     
-                                    {{ Form::checkbox('admin', 'yes', $type_of_inc_resAbase) }}
+                                    <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_resAbase ? 'checked' : '' }}>
                                     <label for="resident-abuse">Resident Abuse</label><br>
                                     
-                                    {{ Form::checkbox('admin', 'yes', $type_of_inc_treatment) }}
+                                    <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_treatment ? 'checked' : '' }}>
                                     <label for="treatment">Treatment</label><br>
                                     
-                                    {{ Form::checkbox('admin', 'yes', $type_of_inc_lossOfProp) }}
+                                    <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_lossOfProp ? 'checked' : '' }}>
                                     <label for="loss-property">Loss of Property</label><br>
                                     
-                                    {{ Form::checkbox('admin', 'yes', $type_of_inc_choking) }}
+                                    <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_choking ? 'checked' : '' }}>
                                     <label for="choking">Choking</label><br>
                                     
-                                    {{ Form::checkbox('admin', 'yes', $type_of_inc_death) }}
+                                    <input type="checkbox" name="admin" value="yes" {{ $type_of_inc_death ? 'checked' : '' }}>
                                     <label for="death">Death</label>
                                 </div> -->
                             </td>
@@ -361,9 +359,9 @@
                         <div class="checkbox-label">
                             <span>Fob was within reach</span>
                             <div class="checkbox-group">
-                                {{ Form::checkbox('admin', 'yes', $safety_fob == "Yes" ? true: false ) }}
-                                {{ Form::checkbox('admin', 'yes', $safety_fob == "No" ? true: false ) }}
-                                {{ Form::checkbox('admin', 'yes', $safety_fob == "N/A" ? true: false ) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_fob == "Yes" ? 'checked' : '' }}>
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_fob == "No" ? 'checked' : '' }}>
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_fob == "N/A" ? 'checked' : '' }}>
 
                                 
                             </div>
@@ -372,9 +370,9 @@
                             <span>Call bell within reach</span>
                             <div class="checkbox-group">
                                 
-                                {{ Form::checkbox('admin', 'yes', $safety_callbell == "Yes" ? true: false ) }}
-                                {{ Form::checkbox('admin', 'yes', $safety_callbell == "No" ? true: false ) }}
-                                {{ Form::checkbox('admin', 'yes', $safety_callbell == "N/A" ? true: false ) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_callbell == "Yes" ? 'checked' : '' }}>
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_callbell == "No" ? 'checked' : '' }}>
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_callbell == "N/A" ? 'checked' : '' }}>
                                 
                             </div>
                         </div>
@@ -382,9 +380,9 @@
                             <span>Caution signs in place</span>
                             <div class="checkbox-group">
                                 
-                                {{ Form::checkbox('admin', 'yes', $safety_caution == "Yes" ? true: false ) }}
-                                {{ Form::checkbox('admin', 'yes', $safety_caution == "No" ? true: false ) }}
-                                {{ Form::checkbox('admin', 'yes', $safety_caution == "N/A" ? true: false ) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_caution == "Yes" ? 'checked' : '' }}>
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_caution == "No" ? 'checked' : '' }}>
+                                <input type="checkbox" name="admin" value="yes" {{ $safety_caution == "N/A" ? 'checked' : '' }}>
 
                             </div>
                         </div>
@@ -401,17 +399,17 @@
                         <!-- <div class="checkbox-label" style="margin-left: 30px;">
                             <div class="checkbox-group">
                                 
-                                {{ Form::checkbox('admin', 'yes', $other_witnesses == "Yes" ? true: false ) }} Yes
-                                {{ Form::checkbox('admin', 'yes', $other_witnesses == "No" ? true: false ) }} No
+                                <input type="checkbox" name="admin" value="yes" {{ $other_witnesses == "Yes" ? 'checked' : '' }}> Yes
+                                <input type="checkbox" name="admin" value="yes" {{ $other_witnesses == "No" ? 'checked' : '' }}> No
                                 
                                 
                             </div>
                         </div> -->
                         <div class="checkbox-label" style="margin-left: 30px;">
                             <div class="checkbox-group">
-                                {{ Form::checkbox('admin', 'yes', $other_witnesses == "Yes" ? true : false) }} 
+                                <input type="checkbox" name="admin" value="yes" {{ $other_witnesses == "Yes" ? 'checked' : '' }}> 
                                 <label for="yes" style="margin-right:10px">Yes</label>
-                                {{ Form::checkbox('admin', 'yes', $other_witnesses == "No" ? true : false) }} 
+                                <input type="checkbox" name="admin" value="yes" {{ $other_witnesses == "No" ? 'checked' : '' }}> 
                                 <label for="no">No</label>
                             </div>
                         </div>
@@ -431,34 +429,34 @@
                         <p style="margin-top: 0px;">Condition At Time Of Incident</p>
                         <!-- <div>
                             
-                            {{ Form::checkbox('admin', 'yes', $condition_at_inc_oriented) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_oriented ? 'checked' : '' }}>
                             <label for="oriented">Oriented</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $condition_at_inc_sedated) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_sedated ? 'checked' : '' }}>
                             <label for="sedated">Sedated</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $condition_at_inc_disOriented) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_disOriented ? 'checked' : '' }}>
                             <label for="disoriented">Disoriented </label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $condition_at_inc_other) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_other ? 'checked' : '' }}>
                             <label for="other">Other (Specify)</label><br>
                             
                         </div> -->
                         <div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $condition_at_inc_oriented) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_oriented ? 'checked' : '' }}>
                                 <label for="oriented">Oriented</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $condition_at_inc_sedated) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_sedated ? 'checked' : '' }}>
                                 <label for="sedated">Sedated</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $condition_at_inc_disOriented) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_disOriented ? 'checked' : '' }}>
                                 <label for="disoriented">Disoriented</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $condition_at_inc_other) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $condition_at_inc_other ? 'checked' : '' }}>
                                 <label for="other">Other (Specify)</label>
                             </div>
                         </div>
@@ -469,48 +467,48 @@
                     <div>
                         <p style="margin-top: 0px;">Fall Assessment </p>
                         <!-- <div>
-                            {{ Form::checkbox('admin', 'yes', $fall_assess_mediChange) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $fall_assess_mediChange ? 'checked' : '' }}>
                             <label for="medicationChange">Medication Change</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $fall_assess_cardMedi) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $fall_assess_cardMedi ? 'checked' : '' }}>
                             <label for="cardiacMedications">Cardiac Medications</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $fall_assess_moodAltMedi) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $fall_assess_moodAltMedi ? 'checked' : '' }}>
                             <label for="moodAlteringMedications">Mood Altering Medications</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $fall_assess_visDef) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $fall_assess_visDef ? 'checked' : '' }}>
                             <label for="visualDeficit">Visual Deficit</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $fall_assess_relocation) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $fall_assess_relocation ? 'checked' : '' }}>
                             <label for="relocation ">Relocation</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $fall_assess_tempIllness) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $fall_assess_tempIllness ? 'checked' : '' }}>
                             <label for="temporaryIllness">Temporary Illness</label><br>
                             
                         </div> -->
                         <div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $fall_assess_mediChange) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fall_assess_mediChange ? 'checked' : '' }}>
                                 <label for="medicationChange">Medication Change</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $fall_assess_cardMedi) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fall_assess_cardMedi ? 'checked' : '' }}>
                                 <label for="cardiacMedications">Cardiac Medications</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $fall_assess_moodAltMedi) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fall_assess_moodAltMedi ? 'checked' : '' }}>
                                 <label for="moodAlteringMedications">Mood Altering Medications</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $fall_assess_visDef) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fall_assess_visDef ? 'checked' : '' }}>
                                 <label for="visualDeficit">Visual Deficit</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $fall_assess_relocation) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fall_assess_relocation ? 'checked' : '' }}>
                                 <label for="relocation">Relocation</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $fall_assess_tempIllness) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fall_assess_tempIllness ? 'checked' : '' }}>
                                 <label for="temporaryIllness">Temporary Illness</label>
                             </div>
                         </div>
@@ -522,49 +520,49 @@
                     <div>
                         <p style="margin-top: 0px;">Ambulation</p>
                         <!-- <div>
-                            {{ Form::checkbox('admin', 'yes', $ambulation_unlimited) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $ambulation_unlimited ? 'checked' : '' }}>
                             <label for="unlimited ">Unlimited</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $ambulation_limited) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $ambulation_limited ? 'checked' : '' }}>
                             <label for="limited">Limited</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $ambulation_reqAssist) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $ambulation_reqAssist ? 'checked' : '' }}>
                             <label for="requiredAssistance">Required assistance</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $ambulation_wheelChair) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $ambulation_wheelChair ? 'checked' : '' }}>
                             <label for="wheelchair">Wheelchair</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $ambulation_walker) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $ambulation_walker ? 'checked' : '' }}>
                             <label for="walker">Walker</label><br>
                             
-                            {{ Form::checkbox('admin', 'yes', $ambulation_other) }}
+                            <input type="checkbox" name="admin" value="yes" {{ $ambulation_other ? 'checked' : '' }}>
                             <label for="other">Other (Specify)</label><br> <br>
                             <u> {{ !empty($ambulation_other_text) ? $ambulation_other_text : "" }}</u>
                             
                         </div> -->
                         <div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $ambulation_unlimited) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $ambulation_unlimited ? 'checked' : '' }}>
                                 <label for="unlimited">Unlimited</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $ambulation_limited) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $ambulation_limited ? 'checked' : '' }}>
                                 <label for="limited">Limited</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $ambulation_reqAssist) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $ambulation_reqAssist ? 'checked' : '' }}>
                                 <label for="requiredAssistance">Required assistance</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $ambulation_wheelChair) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $ambulation_wheelChair ? 'checked' : '' }}>
                                 <label for="wheelchair">Wheelchair</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $ambulation_walker) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $ambulation_walker ? 'checked' : '' }}>
                                 <label for="walker">Walker</label>
                             </div>
                             <div class="checkbox-label">
-                                {{ Form::checkbox('admin', 'yes', $ambulation_other) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $ambulation_other ? 'checked' : '' }}>
                                 <label for="other">Other (Specify)</label>
                             </div>
                             <br>
@@ -587,29 +585,29 @@
                         <div style="width: 100%;">
                            <div class="checkbox-label">
                                 <label for="alarmPulled" style="margin-right:10px">Alarm pulled</label>
-                                {{ Form::checkbox('admin', 'yes', $fire_alarm_pulled == "Yes" ? true: false ) }} 
-                                {{ Form::checkbox('admin', 'yes', $fire_alarm_pulled == "No" ? true: false ) }} 
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_alarm_pulled == "Yes" ? 'checked' : '' }}> 
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_alarm_pulled == "No" ? 'checked' : '' }}> 
                             </div>
                             <div class="checkbox-label">
                                 <label for="falseAlarm" style="margin-right:10px">False alarm</label>
-                                {{ Form::checkbox('admin', 'yes', $fire_false_alarm == "Yes" ? true: false ) }} 
-                                {{ Form::checkbox('admin', 'yes', $fire_false_alarm == "No" ? true: false ) }}  
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_false_alarm == "Yes" ? 'checked' : '' }}> 
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_false_alarm == "No" ? 'checked' : '' }}> 
                             </div>
                             <div class="checkbox-label">
                                 <label for="extinguisherUsed" style="margin-right:1px">Extinguisher used</label>
-                                {{ Form::checkbox('admin', 'yes', $fire_extinguisher_used == "Yes" ? true: false ) }} 
-                                {{ Form::checkbox('admin', 'yes', $fire_extinguisher_used == "No" ? true: false ) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_extinguisher_used == "Yes" ? 'checked' : '' }}> 
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_extinguisher_used == "No" ? 'checked' : '' }}>
                             </div>
                             <div class="checkbox-label">
                                 <label for="personalnjury" style="margin-right:10px">Personal injury</label>
-                                {{ Form::checkbox('admin', 'yes', $fire_personal_injury == "Yes" ? true: false ) }} 
-                                {{ Form::checkbox('admin', 'yes', $fire_personal_injury == "No" ? true: false ) }} 
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_personal_injury == "Yes" ? 'checked' : '' }}> 
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_personal_injury == "No" ? 'checked' : '' }}> 
                             </div>
                             
                             <div class="checkbox-label">
                                 <label for="residentProperty" style="margin-right:10px">Resident or facility property damage</label>
-                                {{ Form::checkbox('admin', 'yes', $fire_property_damage == "Yes" ? true: false ) }} 
-                                {{ Form::checkbox('admin', 'yes', $fire_property_damage == "No" ? true: false ) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_property_damage == "Yes" ? 'checked' : '' }}> 
+                                <input type="checkbox" name="admin" value="yes" {{ $fire_property_damage == "No" ? 'checked' : '' }}>
                             </div>
                         </div>
                         <!-- <table style="width: 100%; border: none;">
@@ -744,22 +742,22 @@
                         <!-- <tr>
                             <td style="border: none; text-align: left;">
                                 
-                                {{ Form::checkbox('admin', 'yes', $informed_of_inc_AGM) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_AGM ? 'checked' : '' }}>
                                 <div>
                                     <p for="">Assistant General Manager</p>
                                 </div>
                                 
-                                {{ Form::checkbox('admin', 'yes', $informed_of_inc_GM) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_GM ? 'checked' : '' }}>
                                 <div>
                                     <p for="">General Manager</p>
                                 </div>
                                 
-                                {{ Form::checkbox('admin', 'yes', $informed_of_inc_RMC) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_RMC ? 'checked' : '' }}>
                                 <div>
                                     <p for="">Risk Management Committee</p>
                                 </div>
                                 
-                                {{ Form::checkbox('admin', 'yes', $informed_of_inc_other) }}
+                                <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_other ? 'checked' : '' }}>
                                 <div>
                                     <p for="">Other <u>{{ !empty($informed_of_inc_other_text) ? $informed_of_inc_other_text : "" }}</u></p>
                                 </div>
@@ -785,19 +783,19 @@
                             <td style="border: none; text-align: left;">
                                 <div style="display: flex; flex-direction: column;">
                                     <div class="checkbox-label" style="width: 230px;">
-                                        {{ Form::checkbox('admin', 'yes', $informed_of_inc_AGM) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_AGM ? 'checked' : '' }}>
                                         <label for="AGM">Assistant General Manager</label>
                                     </div>
                                     <div class="checkbox-label" style="width: 230px;">
-                                        {{ Form::checkbox('admin', 'yes', $informed_of_inc_GM) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_GM ? 'checked' : '' }}>
                                         <label for="GM">General Manager</label>
                                     </div>
                                     <div class="checkbox-label" style="width: 230px;">
-                                        {{ Form::checkbox('admin', 'yes', $informed_of_inc_RMC) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_RMC ? 'checked' : '' }}>
                                         <label for="RMC">Risk Management Committee</label>
                                     </div>
                                     <div class="checkbox-label" style="width: 230px;">
-                                        {{ Form::checkbox('admin', 'yes', $informed_of_inc_other) }}
+                                        <input type="checkbox" name="admin" value="yes" {{ $informed_of_inc_other ? 'checked' : '' }}>
                                         <label for="other">Other <u>{{ !empty($informed_of_inc_other_text) ? $informed_of_inc_other_text : "" }}</u></label>
                                     </div>
                                 </div>
@@ -839,22 +837,22 @@
                     </div>
                 </th>
                 <th>
-                    <p style="">NOTIFIED RESIDENT’S RESPONSIBLE PARTY</p>
+                    <p style="">NOTIFIED RESIDENT'S RESPONSIBLE PARTY</p>
                    
                     <div style="width: 100%;">
                         <!-- <div class="checkbox-label" style="margin-left: 30px;">
                             <div class="checkbox-group">
                                 
-                                {{ Form::checkbox('admin', 'yes', $notified_resident_responsible_party == "Yes" ? true: false ) }}  Yes
-                                {{ Form::checkbox('admin', 'yes', $notified_resident_responsible_party == "No" ? true: false ) }} No
+                                <input type="checkbox" name="admin" value="yes" {{ $notified_resident_responsible_party == "Yes" ? 'checked' : '' }}>  Yes
+                                <input type="checkbox" name="admin" value="yes" {{ $notified_resident_responsible_party == "No" ? 'checked' : '' }}> No
                                 
                             </div>
                         </div> -->
                         <div class="checkbox-label" style="margin-left: 30px;">
                             <div class="checkbox-group">
-                                {{ Form::checkbox('admin', 'yes', $notified_resident_responsible_party == "Yes" ? true : false) }} 
+                                <input type="checkbox" name="admin" value="yes" {{ $notified_resident_responsible_party == "Yes" ? 'checked' : '' }}> 
                                 <label for="yes" style="margin-right:10px">Yes</label>
-                                {{ Form::checkbox('admin', 'yes', $notified_resident_responsible_party == "No" ? true : false) }} 
+                                <input type="checkbox" name="admin" value="yes" {{ $notified_resident_responsible_party == "No" ? 'checked' : '' }}> 
                                 <label for="no">No</label>
                             </div>
                         </div>
