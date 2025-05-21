@@ -46,12 +46,13 @@ class AuthController extends Controller
 
             $loggedInUser = User::with('permissionList')->where('id', $user->id)->get()->toArray();
 
-            print_r($loggedInUser);
-            die;
+            foreach ($loggedInUser as $result) {
 
-            foreach ($loggedInUser['permission_list'] as $permission) {
+                foreach ($result['permission_list'] as $permission) {
 
-                $allPermissions[$permission['name']] = 1;
+                    $allPermissions[$permission['name']] = 1;
+                }
+
             }
 
             return response()->json([
