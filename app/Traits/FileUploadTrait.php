@@ -12,13 +12,7 @@ trait FileUploadTrait
     protected string $file_attribute_name = "";
     protected ?string $upload_disk = null;
 
-    /**
-     * Get the URL for a file path
-     *
-     * @param string|null $file_path
-     * @return string
-     */
-    public function getFileUrl(?string $file_path): string
+    public function getFileUrl( $file_path)
     {
         if (empty($file_path)) {
             return "";
@@ -31,22 +25,13 @@ trait FileUploadTrait
         }
     }
 
-    /**
-     * Save a file to storage
-     *
-     * @param mixed $value
-     * @param string $attribute_name
-     * @param string $destination_path
-     * @param string $disk
-     * @return bool
-     */
-    public function saveFile($value, string $attribute_name = "image", string $destination_path = "", string $disk = ""): bool
+    public function saveFile($value, $attribute_name = "image",  $destination_path = "",  $disk = "")
     {
         $this->file_attribute_name = $attribute_name;
         $this->upload_disk = !empty($disk) ? $disk : Config::get('filesystems.default');
 
         // Remove existing file if present
-        $this->removeFile();
+        // $this->removeFile();
 
         // Handle null values
         if ($value === null) {
@@ -54,7 +39,7 @@ trait FileUploadTrait
         }
 
         // Handle uploaded files
-        if ($value instanceof UploadedFile) {
+        if (is_object($value)) {
             $appName = Str::slug(Config::get('app.name'));
             $filename = "{$appName}-" . md5($value->getClientOriginalName() . time());
             $fileext = '.' . $value->getClientOriginalExtension();
@@ -80,12 +65,7 @@ trait FileUploadTrait
         return false;
     }
 
-    /**
-     * Delete a file from storage
-     *
-     * @return void
-     */
-    private function removeFile(): void
+    private function removeFile()
     {
         if (isset($this->attributes[$this->file_attribute_name]) && 
             !empty($this->attributes[$this->file_attribute_name])) {
