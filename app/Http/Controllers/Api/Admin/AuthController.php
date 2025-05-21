@@ -61,10 +61,17 @@ class AuthController extends Controller
                 'expires_in' => config('jwt.ttl', 60) * 60, // Use config value instead of factory method
                 'user' => auth()->user(),
                 'permissions' => $allPermissions,
+                "ResponseCode" => "1",
+                "ResponseText" => "success",
             ]);
 
         } catch (\Exception $e) {
-            return response()->json(['error' => 'An error occurred while processing your request.', 'message' => $e->getMessage()], 500);
+            return response()->json([
+                'error' => 'An error occurred while processing your request.',
+                'message' => $e->getMessage(),
+                "ResponseCode" => "11",
+                "ResponseText" => "Error",
+            ], 500);
         }
     }
 
