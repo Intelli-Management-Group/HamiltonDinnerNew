@@ -89,6 +89,7 @@ class UserController extends Controller
             'role' => $request->role,
             'email_verified_at' => $request->email_verified_at,
             'is_admin' => $request->is_admin,
+            'avatar' => $request->avatar,
 
         ]);
         
@@ -160,7 +161,7 @@ class UserController extends Controller
             ], 422);
         }
 
-        $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin']);
+        $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin' , 'avatar']);
 
         // Only update password if provided
         if ($request->has('password')) {
