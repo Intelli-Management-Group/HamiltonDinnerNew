@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\FileUploadTrait;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 use Tymon\JWTAuth\Contracts\JWTSubject;
@@ -14,7 +15,7 @@ class User extends Authenticatable implements JWTSubject
 
 {
 
-    use Notifiable,SoftDeletes,HasRoles;
+    use Notifiable,SoftDeletes,HasRoles,FileUploadTrait;
 
     // Rest omitted for brevity
 
@@ -65,22 +66,32 @@ class User extends Authenticatable implements JWTSubject
     
      public function permissionList()
     {
-        // get relation from
-
-        // user.role_id >> role.id >> role_has_permissions.permission_id and role_has_permissions.role_id and get permission rows from permissions table
-
         return $this->hasManyThrough(
             Permission::class,
             RoleHasPermissions::class,
-            'role_id', // Foreign key on RoleHasPermission table...
-            'id', // Foreign key on Permission table...
-            'role_id', // Local key on User table...
-            'permission_id' // Local key on RoleHasPermission table...
+            'role_id', 
+            'id', 
+            'role_id', 
+            'permission_id'
         );
     }
 
     public function role(){
         return $this->hasOne(Role::class, 'id', 'role_id');
+    }
+
+    public function setAvatarAttribute($value)
+    {
+        $this->saveFile($value, 'avatar', "user/" . date('Y/m'));
+    }
+
+    public function getAvatarAttribute()
+    {
+        if (empty($this->attributes['avatar'])) {
+            return config('app.url') . "/images/user.webp";
+        } else {
+            return $this->getFileUrl($this->attributes['avatar']);
+        }
     }
 
 
