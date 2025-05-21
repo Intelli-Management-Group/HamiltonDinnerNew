@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Models;
-use Storage;
+
+use Illuminate\Support\Facades\Storage;
 use App\Models\FormMediaAttachments;
 
 
