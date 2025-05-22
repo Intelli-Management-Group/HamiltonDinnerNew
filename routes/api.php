@@ -44,7 +44,7 @@ Route::group(['prefix' => 'admin'], function () {
 // routes related to adminpanel , ios form app and dynamic form app website 
 // auth , roles, permissions are same for all these three
 
-Route::post('list-forms', [DinningController::class, 'getGeneratedForms']);
+
 
 Route::group(['middleware' => 'APIToken'], function () {
 
@@ -74,6 +74,8 @@ Route::group(['middleware' => 'APIToken'], function () {
     Route::post('delete-form', [DinningController::class, 'deleteFormResponse']);
     Route::post('complete-log', [DinningController::class, 'completeFormLog']);
     Route::post('guest-order-list', [DinningController::class, 'getGuestOrderList']);
+
+    Route::post('list-forms', [DinningController::class, 'getGeneratedForms']);
     
     Route::post('general-form-submit-phase1', [DinningController::class, 'saveFormPhase1']); // new pdf with images stage 1
     Route::post('edit-form-phase1', [DinningController::class, 'editGeneratedFormResponsePhase1']); // new api stage 1
