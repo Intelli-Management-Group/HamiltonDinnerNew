@@ -9,69 +9,95 @@ use Illuminate\Http\UploadedFile;
 
 trait FileUploadTrait
 {
-    protected string $file_attribute_name = "";
-    protected ?string $upload_disk = null;
+      protected $file_meta_data_attributes = [];
+    protected $file_attribute_name       = "";
+    protected $upload_disk;
 
-    public function getFileUrl( $file_path)
+    public function getFileUrl($file_path)
     {
-        if (empty($file_path)) {
-            return "";
-        }
+
+        $disk = Config::get('filesystems.default');
+
+        $tmp       = explode('.', $file_path);
+        $extension = end($tmp);
+
+        $name             = basename($file_path, "." . $extension);
+        $destination_path = dirname($file_path) . "/";
 
         try {
-            return Storage::url($file_path);
-        } catch (\Exception $e) {
+            return $this->getDiskUrl($file_path);
+        } catch (\InvalidArgumentException $e) {
             return "";
         }
     }
 
-    public function saveFile($value, $attribute_name = "image",  $destination_path = "",  $disk = "")
+    public function saveFile($value, $attribute_name = "image", $destination_path = "", $disk = "")
     {
+
         $this->file_attribute_name = $attribute_name;
-        $this->upload_disk = !empty($disk) ? $disk : Config::get('filesystems.default');
 
-        // Remove existing file if present
+        if (empty($disk)) {
+            $this->upload_disk = $disk = Config::get('filesystems.default');
+        } else {
+            $this->upload_disk = $disk;
+        }
+
         $this->removeFile();
-
-        // Handle null values
-        if ($value === null) {
+        if ($value == null) {
             return false;
         }
 
-        // Handle uploaded files
         if (is_object($value)) {
-            $appName = Str::slug(Config::get('app.name'));
-            $filename = "{$appName}-" . md5($value->getClientOriginalName() . time());
-            $fileext = '.' . $value->getClientOriginalExtension();
-            $filepath = "{$destination_path}/{$filename}{$fileext}";
-            
-            // Store file in disk
-            $value->storeAs(
-                $destination_path, 
-                "{$filename}{$fileext}", 
-                $this->upload_disk
-            );
-            
-            $this->attributes[$this->file_attribute_name] = $filepath;
+
+            $filename = Str::slug(Config('app.name')) . "-" . md5($value . time());
+            $fileext  = '.' . $value->getClientOriginalExtension();
+            $this->storeFileInDisk($value, $destination_path . '/' . $filename . $fileext);
+            $this->attributes[$this->file_attribute_name] = $destination_path . '/' . $filename . $fileext;
+
+
             return true;
-        } 
-        
-        // Handle string values (paths)
-        if (is_string($value) && !empty($value)) {
+        } elseif (!empty($value) && is_string($value)) {
             $this->attributes[$this->file_attribute_name] = $value;
             return true;
+        } else {
+            return false;
         }
+    }
 
-        return false;
+    private function storeFileInDisk($value, $destination_path)
+    {
+        $disk       = Config::get('filesystems.default');
+        $path_parts = pathinfo($destination_path);
+
+        if (is_object($value)) {
+            $filename = $path_parts['filename'] . "." . $path_parts['extension'];
+            $value->storeAs($path_parts['dirname'], $filename, $disk);
+
+            return true;
+        } elseif (!empty($value) && is_string($value)) {
+            $this->attributes[$this->file_attribute_name] = $value;
+        } else {
+            return false;
+        }
     }
 
     private function removeFile()
     {
-        if (isset($this->attributes[$this->file_attribute_name]) && 
-            !empty($this->attributes[$this->file_attribute_name])) {
-            
-            Storage::disk($this->upload_disk)->delete($this->attributes[$this->file_attribute_name]);
-            $this->attributes[$this->file_attribute_name] = null;
+        Storage::disk($this->upload_disk)->delete($this->file_attribute_name);
+        $this->attributes[$this->file_attribute_name] = null;
+    }
+
+    private function getDiskUrl($file_path)
+    {
+        if ($this->upload_disk == 's3') {
+            $base_url = Config::get("filesystems.disks.s3.cloudfront_url");
+            if (!empty($base_url)) {
+                return $base_url . "/" . $file_path;
+            } else {
+                return Storage::disk($this->upload_disk)->url($file_path);
+            }
+        } else {
+            return Storage::disk($this->upload_disk)->url($file_path);
         }
     }
 }
