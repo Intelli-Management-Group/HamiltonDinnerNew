@@ -11,6 +11,17 @@ trait FileUploadTrait
 {
     protected string $file_attribute_name = "";
     protected ?string $upload_disk = null;
+    
+    // Define allowed image MIME types
+    protected array $allowed_image_types = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/jpg',
+        'image/webp',
+        'image/svg+xml',
+        'image/bmp'
+    ];
 
     /**
      * Get the URL for a file path
@@ -18,7 +29,7 @@ trait FileUploadTrait
      * @param string|null $file_path
      * @return string
      */
-    public function getFileUrl( $file_path)
+    public function getFileUrl($file_path)
     {
         if (empty($file_path)) {
             return "";
@@ -38,9 +49,9 @@ trait FileUploadTrait
      * @param string $attribute_name
      * @param string $destination_path
      * @param string $disk
-     * @return bool
+     * @return bool|string Returns true on success, error message on failure
      */
-    public function saveFile($value, $attribute_name = "image",  $destination_path = "",  $disk = "")
+    public function saveFile($value, $attribute_name = "image", $destination_path = "", $disk = "")
     {
         $this->file_attribute_name = $attribute_name;
         $this->upload_disk = !empty($disk) ? $disk : Config::get('filesystems.default');
@@ -54,7 +65,12 @@ trait FileUploadTrait
         }
 
         // Handle uploaded files
-        if (is_object($value)) {
+        if (is_object($value) && $value instanceof UploadedFile) {
+            // Check if the file is an image
+            if (!$this->isImage($value)) {
+                return "Only image files are allowed";
+            }
+            
             $appName = Str::slug(Config::get('app.name'));
             $filename = "{$appName}-" . md5($value->getClientOriginalName() . time());
             $fileext = '.' . $value->getClientOriginalExtension();
@@ -93,5 +109,16 @@ trait FileUploadTrait
             Storage::disk($this->upload_disk)->delete($this->attributes[$this->file_attribute_name]);
             $this->attributes[$this->file_attribute_name] = null;
         }
+    }
+    
+    /**
+     * Check if file is an image
+     *
+     * @param UploadedFile $file
+     * @return bool
+     */
+    private function isImage(UploadedFile $file)
+    {
+        return in_array($file->getMimeType(), $this->allowed_image_types);
     }
 }
