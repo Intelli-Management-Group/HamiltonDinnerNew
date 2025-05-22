@@ -187,7 +187,9 @@ class UserController extends Controller
 
         // Update role if specified
         if ($request->has('role_id')) {
-            $user->syncRoles([$request->role_id]);
+            $role = Role::findById($request->role_id);
+        
+            $user->assignRole($role);
         }
 
         return response()->json([
