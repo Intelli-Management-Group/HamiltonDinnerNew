@@ -18,7 +18,7 @@ trait FileUploadTrait
      * @param string|null $file_path
      * @return string
      */
-    public function getFileUrl(?string $file_path): string
+    public function getFileUrl( $file_path)
     {
         if (empty($file_path)) {
             return "";
@@ -40,7 +40,7 @@ trait FileUploadTrait
      * @param string $disk
      * @return bool
      */
-    public function saveFile($value, $attribute_name = "image",  $destination_path = "",  $disk = ""): bool
+    public function saveFile($value, $attribute_name = "image",  $destination_path = "",  $disk = "")
     {
         $this->file_attribute_name = $attribute_name;
         $this->upload_disk = !empty($disk) ? $disk : Config::get('filesystems.default');
@@ -85,7 +85,7 @@ trait FileUploadTrait
      *
      * @return void
      */
-    private function removeFile(): void
+    private function removeFile()
     {
         if (isset($this->attributes[$this->file_attribute_name]) && 
             !empty($this->attributes[$this->file_attribute_name])) {
