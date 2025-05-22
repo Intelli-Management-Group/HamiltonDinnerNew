@@ -16,6 +16,8 @@ class FormResponse extends Model
     
     protected $casts = [
         'form_response' => 'array',
+        'created_at' => 'datetime:Y-m-d H:i:s',
+        'updated_at' => 'datetime:Y-m-d H:i:s',
     ];
     
     protected $appends = ['formLink','jsonData'];
