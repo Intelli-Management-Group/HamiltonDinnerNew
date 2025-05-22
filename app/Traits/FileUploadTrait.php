@@ -31,7 +31,7 @@ trait FileUploadTrait
         $this->upload_disk = !empty($disk) ? $disk : Config::get('filesystems.default');
 
         // Remove existing file if present
-        // $this->removeFile();
+        $this->removeFile();
 
         // Handle null values
         if ($value === null) {
