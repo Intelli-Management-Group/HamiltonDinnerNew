@@ -214,7 +214,7 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
         Route::get('/', [UserController::class, 'index']);
         Route::post('/', [UserController::class, 'store']);
         Route::get('/{id}', [UserController::class, 'show']);
-        Route::put('/{id}', [UserController::class, 'update']);
+        Route::post('/{id}', [UserController::class, 'update']);
         Route::delete('/bulk-delete', [UserController::class, 'bulkDestroy']);
         Route::delete('/{id}', [UserController::class, 'destroy']);
     });
