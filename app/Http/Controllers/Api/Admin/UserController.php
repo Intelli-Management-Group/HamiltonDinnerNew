@@ -80,12 +80,12 @@ class UserController extends Controller
             'role_id' => 'required|exists:roles,id'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        // if ($validator->fails()) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'errors' => $validator->errors()
+        //     ], 422);
+        // }
 
         $user = User::create([
             'name' => $request->name,
@@ -161,12 +161,12 @@ class UserController extends Controller
             'role_id' => 'sometimes|exists:roles,id'
         ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+        // if ($validator->fails()) {
+        //     return response()->json([
+        //         'success' => false,
+        //         'errors' => $validator->errors()
+        //     ], 422);
+        // }
 
         $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin' , 'avatar']);
 
