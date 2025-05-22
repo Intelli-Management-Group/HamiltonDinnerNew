@@ -7,6 +7,7 @@ use App\Models\Role;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
 {
@@ -161,7 +162,12 @@ class UserController extends Controller
             ], 422);
         }
 
-        $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin' , 'avatar']);
+        $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin']);
+
+        // Handle avatar separately to use the model's mutator
+        if ($request->hasFile('avatar')) {
+            $user->avatar = $request->file('avatar');
+        }
 
         // Only update password if provided
         if ($request->has('password')) {
