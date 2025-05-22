@@ -10,7 +10,13 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
-{
+{   
+
+    public function __construct()
+    {
+        ini_set('max_execution_time', 0);
+    }
+
     /**
      * Display a listing of users.
      *
