@@ -170,17 +170,20 @@ class UserController extends Controller
 
         $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin']);
 
-        // Handle avatar separately to use the model's mutator
-        if ($request->hasFile('avatar')) {
-            $user->avatar = $request->file('avatar');
-        }
-
         // Only update password if provided
         if ($request->has('password')) {
             $updateData['password'] = Hash::make($request->password);
         }
         
         $user->update($updateData);
+
+        // Then handle avatar separately to prevent any issues
+        if ($request->hasFile('avatar')) {
+            // Set the avatar property which will trigger the mutator
+            $user->avatar = $request->file('avatar');
+            // Save the model to ensure the avatar is properly saved
+            $user->save();
+        }
 
         // Update role if specified
         if ($request->has('role_id')) {
