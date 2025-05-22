@@ -177,14 +177,6 @@ class UserController extends Controller
         
         $user->update($updateData);
 
-        // Then handle avatar separately to prevent any issues
-        // if ($request->hasFile('avatar')) {
-        //     // Set the avatar property which will trigger the mutator
-        //     $user->avatar = $request->file('avatar');
-        //     // Save the model to ensure the avatar is properly saved
-        //     $user->save();
-        // }
-
         // Update role if specified
         if ($request->has('role_id')) {
             $role = Role::findById($request->role_id);
