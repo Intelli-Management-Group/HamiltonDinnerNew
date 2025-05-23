@@ -74,7 +74,7 @@ class ItemDetailController extends Controller
             'item_image' => 'nullable|string|max:127',
             'options' => 'nullable|string',
             'preference' => 'nullable|string',
-            'item_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'item_image' => 'nullable|image|max:2048',
         ]);
 
         if ($validator->fails()) {
