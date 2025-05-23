@@ -159,7 +159,7 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
         Route::get('/', [ItemDetailController::class, 'index']);
         Route::post('/', [ItemDetailController::class, 'store']);
         Route::get('/{id}', [ItemDetailController::class, 'show']);
-        Route::put('/{id}', [ItemDetailController::class, 'update']);
+        Route::post('/{id}', [ItemDetailController::class, 'update']);
         Route::delete('/bulk-delete', [ItemDetailController::class, 'bulkDestroy']);
         Route::delete('/{id}', [ItemDetailController::class, 'destroy']);
     });
