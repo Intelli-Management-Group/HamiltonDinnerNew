@@ -39,6 +39,8 @@ use App\Models\ItemOption as ItemOptionModel;
 use App\Models\MoveInSummaryValues;
 use App\Models\Permission;
 use App\Models\UserActivity;
+use Tymon\JWTAuth\Facades\JWTAuth;
+
 
 class DinningController extends Controller
 {
@@ -2836,6 +2838,9 @@ class DinningController extends Controller
             $email = $request->input("email");
             $password = $request->input("password");
 
+            JWTAuth::factory()->setTTL(null);
+            JWTAuth::factory()->setRefreshTTL(null);
+
             $token =  auth()->attempt([
                 'email' => $email,
                 'password' => $password
@@ -2893,6 +2898,9 @@ class DinningController extends Controller
 
                 $data['permissions'] = $allPermissions;
             }
+
+            JWTAuth::factory()->setTTL(config('jwt.ttl'));
+            JWTAuth::factory()->setRefreshTTL(config('jwt.refresh_ttl'));
 
             return $this->sendResultJSON("1", "success", $data);
         } catch (\Exception $e) {
