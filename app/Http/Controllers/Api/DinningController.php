@@ -98,10 +98,8 @@ class DinningController extends Controller
                         $roleName = Role::select('name')->where('id', $user->role_id)->get();
                         $user_token = $this->generate_access_token($user->id, $role);
                         $formTypes = "";
-                        // if ($roleName[0]['name'] == "admin" || $roleName[0]['name'] == "concierge"){
 
                         $formTypes = FormType::all();
-                        // }
 
                         $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (1,4,7)";
 
@@ -119,9 +117,6 @@ class DinningController extends Controller
                             ];
                         }
 
-
-
-
                         return $this->sendResultJSON("1", "Successfully Login", array("room_id" => 0, 'rooms' => $rooms_array, 'guideline' => $settingsArray['site.app_msg'], 'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'], "room_number" => "", "occupancy" => 0, "resident_name" => "", "language" => 0, "last_menu_date" => $last_date, "authentication_token" => $user_token, "role" => $roleName[0]['name'], "form_types" => $formTypes, 'user_list' => $userData, 'user_id' => $user->id));
                     }
                 } else {
@@ -131,7 +126,6 @@ class DinningController extends Controller
                     $roomIds = RoomDetail::select('room_name')->where("room_name", 'like', '%' . $room_no . '%')->get();
 
                     $customMessage = "";
-                    $customMessageRoomPhrase = "";
                     $similarRoomFound = [];
 
                     foreach ($roomIds as $roomId) {
