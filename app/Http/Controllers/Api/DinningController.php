@@ -1398,7 +1398,13 @@ class DinningController extends Controller
 
         if ($menu_details) {
 
-            $menu_items = json_decode($menu_details->items, true);
+            $menu_items = $menu_details->items;
+
+            if (is_string($menu_details->items)) {
+                $menu_details->items = json_decode($menu_details->items, true);
+            }
+
+            
             $all_rooms = RoomDetail::where("is_active", 1)->get();
             $is_first = true;
 
@@ -3290,6 +3296,12 @@ class DinningController extends Controller
 
         if ($menu_details) {
 
+            $menu_items = $menu_details->items;
+
+            if (is_string($menu_details->items)) {
+                $menu_items = json_decode($menu_details->items, true);
+            }
+
             $menu_items = json_decode($menu_details->items, true);
             $all_rooms = RoomDetail::where("is_active", 1)->get();
             $is_first = true;
@@ -3566,7 +3578,11 @@ class DinningController extends Controller
 
         if ($menu_details) {
 
-            $menu_items = json_decode($menu_details->items, true);
+            $menu_items = $menu_details->items;
+
+            if (is_string($menu_details->items)) {
+                $menu_items = json_decode($menu_details->items, true);
+            }
 
             if ($menu_items["breakfast"]) {
 
