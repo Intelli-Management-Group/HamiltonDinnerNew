@@ -218,6 +218,11 @@ class DinningController extends Controller
         $menu_data = MenuDetail::selectRaw("items")->whereRaw("date = '" . $date . "'")->get();
         // $menu_data = MenuDetail::selectRaw("items")->whereRaw("date = '" . $date . "' ")->get();
         foreach (count($menu_data) > 0 ? $menu_data : array() as $m) {
+            
+            if (is_string($m->items)) {
+                $m->items = json_decode($m->items, true);
+            }
+
             $menu_items = json_decode($m->items, true);
             foreach (count($menu_items) > 0 ? $menu_items : array() as $mi) {
                 if (count($mi) > 0)
