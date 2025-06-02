@@ -37,5 +37,6 @@ class MenuDetail extends Model
     protected $casts = [
         'date' => 'date',
         'is_allday' => 'boolean',
+        'items' => 'array',
     ];
 }

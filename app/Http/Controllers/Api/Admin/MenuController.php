@@ -77,7 +77,7 @@ class MenuController extends Controller
             'success' => true,
             'message' => 'Menu detail created successfully',
             'data' => $menu
-        ], 201);
+        ], 200);
     }
 
     /**
