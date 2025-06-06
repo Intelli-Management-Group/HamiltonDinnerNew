@@ -3592,8 +3592,6 @@ class DinningController extends Controller
 
                 foreach (count($all_items) > 0 ? $all_items : array() as $a) {
 
-
-
                     $title = (in_array($a->cat_id, $alternative) ? null : $cat_id[$a->cat_id]);
                     if (!isset($breakfast[$a->id]) && !empty($title))
                         $breakfast[$a->id] = array();
