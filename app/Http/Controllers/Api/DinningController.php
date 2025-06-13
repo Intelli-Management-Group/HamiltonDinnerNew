@@ -117,7 +117,7 @@ class DinningController extends Controller
                             ];
                         }
 
-                        return $this->sendResultJSON("1", "Successfully Login", array("room_id" => 0, 'rooms' => $rooms_array, 'guideline' => $settingsArray['site.app_msg'], 'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'], "room_number" => "", "occupancy" => 0, "resident_name" => "", "language" => 0, "last_menu_date" => $last_date, "authentication_token" => $user_token, "role" => $roleName[0]['name'], "form_types" => $formTypes, 'user_list' => $userData, 'user_id' => $user->id));
+                        return $this->sendResultJSON("1", "Successfully Login", array("room_id" => 0, 'rooms' => $rooms_array, 'guideline' => $settingsArray['site.app_msg'], 'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'], "room_number" => "", "occupancy" => 0, "resident_name" => "", "language" => 0, "last_menu_date" => $last_date, "authentication_token" => $user_token, "role" => $roleName[0]['name'], "form_types" => $formTypes, 'user_list' => $userData, 'user_id' => $user->id , 'show_incident' => $settingsArray['show_incident'] , 'show_dining' => $settingsArray['show_dining']));
                     }
                 } else {
 
@@ -742,7 +742,7 @@ class DinningController extends Controller
                 ];
             }
 
-            return $this->sendResultJSON('1', '', array("occupancy" => 0, "language" => 0, "last_menu_date" => $last_date, "role" => $role, 'guideline' => $settingsArray['site.app_msg'], 'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'], 'form_types' => $formTypes, 'rooms' => $rooms_array, 'user_list' => $userData, 'user_id' => $user->id));
+            return $this->sendResultJSON('1', '', array("occupancy" => 0, "language" => 0, "last_menu_date" => $last_date, "role" => $role, 'guideline' => $settingsArray['site.app_msg'], 'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'], 'form_types' => $formTypes, 'rooms' => $rooms_array, 'user_list' => $userData, 'user_id' => $user->id , 'show_incident' => $settingsArray['show_incident'] , 'show_dining' => $settingsArray['show_dining']));
         }
     }
 
