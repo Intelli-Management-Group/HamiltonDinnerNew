@@ -5196,5 +5196,48 @@ class DinningController extends Controller
         return $this->sendResultJSON('1', '', array('Data' => $finalData));
     }
 
+    public function getRoomDetails($room_id)
+    {
+
+        try{
+
+            $roomDetails = RoomDetail::find($room_id);
+
+            if (!$roomDetails) {
+                return $this->sendResultJSON("0", "Room Not Found");
+            }
+
+            return $this->sendResultJSON("1", "Room Details Found", array('Data' => $roomDetails));
+
+        }
+
+        catch (\Exception $e) {
+            return $this->sendResultJSON("0", "Error in fetching room details: " . $e->getMessage());
+        }
+
+    }
+
+    public function updateRoomDetails(Request $request , $room_id){
+
+        try{
+
+            $roomDetails = RoomDetail::find($room_id);
+
+            if (!$roomDetails) {
+                return $this->sendResultJSON("0", "Room Not Found");
+            }
+
+            $roomDetails->update($request->all());
+
+            return $this->sendResultJSON("1", "Room Details Updated Successfully");
+
+        }
+
+        catch (\Exception $e) {
+            return $this->sendResultJSON("0", "Error in updating room details: " . $e->getMessage());
+        }
+
+    }
+
     public function logActivity() {}
 }

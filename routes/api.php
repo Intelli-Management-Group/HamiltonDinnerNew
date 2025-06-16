@@ -92,6 +92,10 @@ Route::group(['middleware' => 'APIToken'], function () {
     Route::post('temp-get-charges-report', [DinningController::class, 'reportDataTemp2']);
 
     Route::post('multi-order-update', [DinningController::class, 'updateOrderBulk']);
+
+    Route::get('/{room_id}/get-room-details' , [DinningController::class , 'getRoomDetails']);
+
+    Route::post('/{room_id}/update-room-details', [DinningController::class, 'updateRoomDetails']);
 });
 
 
