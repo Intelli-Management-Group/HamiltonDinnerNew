@@ -420,8 +420,17 @@ class DinningController extends Controller
 
         $room_id = $request->input('room_id');
         $date = $request->input('date');
-        $special_instructions = $request->input('special_instructions');
-        $remember = $request->input('remember_instruction');
+
+        if (!empty($room_id) && !empty($date)) {
+
+            $room = RoomDetail::where("id", $room_id)->first();
+
+            if (!$room) {
+                return $this->sendResultJSON("2", "Room not found");
+            }
+        } else {
+            return $this->sendResultJSON("2", "Room id or date is missing");
+        }
 
         $is_for_guest = !empty($request->input('is_for_guest')) ? $request->input('is_for_guest') : 0;
 
@@ -5236,6 +5245,25 @@ class DinningController extends Controller
         catch (\Exception $e) {
             return $this->sendResultJSON("0", "Error in updating room details: " . $e->getMessage());
         }
+
+    }
+
+    public function getCategorySpecificItems(Request $request){
+
+        $categoryId = $request->input('categoryId');
+
+        try{
+            $items = ItemDetail::where('cat_id', $categoryId)
+                ->where('deleted_at', NULL)
+                ->get();
+
+            return $this->sendResultJSON("1", "Items Found", array('Data' => $items));
+        }
+
+        catch (\Exception $e) {
+            return $this->sendResultJSON("0", "Error in fetching items: " . $e->getMessage());
+        }
+
 
     }
 

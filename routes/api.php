@@ -96,6 +96,8 @@ Route::group(['middleware' => 'APIToken'], function () {
     Route::get('/{room_id}/get-room-details' , [DinningController::class , 'getRoomDetails']);
 
     Route::post('/{room_id}/update-room-details', [DinningController::class, 'updateRoomDetails']);
+
+    Route::post('/get-category-specific-items', [DinningController::class, 'getCategorySpecificItems']);
 });
 
 
