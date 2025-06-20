@@ -5267,6 +5267,7 @@ class DinningController extends Controller
 
                 $results[] = [
                     'type' => empty($item->parent_id) ? 'item' : 'sub_cat_item',
+                    'parent_id' => $item->parent_id,
 
                     'item_name' => $item->item_name,
                     'item_id' => $item->id,
