@@ -349,7 +349,7 @@ class DinningController extends Controller
             }
             foreach (count($sub_cat_details) > 0 ? $sub_cat_details : array() as $sc) {
                 if (isset($cat_array[$sc['parent_id']])) {
-                    array_push($cat_array[$sc['parent_id']]["items"], array("type" => "sub_cat", "item_id" => $sc["cat_id"] , "parent_id" => $sc["parent_id"], "item_name" => $sc["cat_name"], "chinese_name" => $sc["chinese_name"], "options" => [], "preference" => [], "item_image" => "", "qty" => 0, "comment" => "", "order_id" => 0));
+                    array_push($cat_array[$sc['parent_id']]["items"], array("type" => "sub_cat", "item_id" => $sc["item_id"] , "parent_id" => $sc["parent_id"], "item_name" => $sc["cat_name"], "chinese_name" => $sc["chinese_name"], "options" => [], "preference" => [], "item_image" => "", "qty" => 0, "comment" => "", "order_id" => 0));
                     foreach (count($sc["items"]) > 0 ? $sc["items"] : array() as $sci) {
                         $sc_item = array("type" => "sub_cat_item", "item_id" => $sci["item_id"],'parent_id' =>  $sci["parent_id"], "item_name" => $sci["item_name"], "chinese_name" => $sci["chinese_name"], "item_image" => $sci["item_image"], "options" => $sci["options"], "preference" => $sci["preference"], "qty" => $sci["qty"], "comment" => $sci["comment"], "order_id" => $sci["order_id"]);
                         if (isset($sci["is_expanded"])) {
@@ -5252,9 +5252,18 @@ class DinningController extends Controller
 
         $categoryId = $request->input('categoryId');
 
+
+        
+        
+        
         try{
-            $items = ItemDetail::where('cat_id', $categoryId)
-                ->where('deleted_at', NULL)
+
+            // item_details left join category_details on item_details.cat_id = category_details.id my 
+
+            $items = ItemDetail::select('item_details.*', 'category_details.parent_id')
+                ->leftJoin('category_details', 'item_details.cat_id', '=', 'category_details.id')
+                ->where('item_details.deleted_on', NULL)
+                ->where('category_details.deleted_on', NULL)
                 ->get();
 
             $results = [];
@@ -5269,7 +5278,7 @@ class DinningController extends Controller
                     'options' => $item->options,
                     'chinese_name' => $item->item_chinese_name,
                     'item_image' => $item->image,
-                    
+
                     'comment' => '',
                     'qty' => 0,
                     'order_id' => 0
