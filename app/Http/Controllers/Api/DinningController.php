@@ -1731,7 +1731,7 @@ class DinningController extends Controller
                             }
                         }
                     }
-                    array_push($cat_array[$c->id]["items"], array("type" => "item", "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? $order_data->quantity : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push($cat_array[$c->id]["items"], array("type" => "item", "parent_id" => $c->parent_id,"item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? $order_data->quantity : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
                 } else {
                     $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $c->item_id)->groupBy("item_id")->first();
 
@@ -1745,7 +1745,7 @@ class DinningController extends Controller
                         }
                     }
 
-                    array_push($cat_array[$c->id]["items"], array("type" => "item", "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => 0));
+                    array_push($cat_array[$c->id]["items"], array("type" => "item", "parent_id" => $c->parent_id, "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => 0));
                 }
             }
             $sub_category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")->selectRaw("category_details.*,item_details.id as item_id,item_details.item_name,item_details.item_image,item_details.item_chinese_name,item_details.options,item_details.preference")->where("category_details.parent_id", "!=", 0)->whereRaw("item_details.id IN (" . $items . ")")->whereRaw("item_details.deleted_at IS NULL")->orderBy("category_details.id", "asc")->orderBy("item_details.id", "asc")->get();
@@ -1785,7 +1785,7 @@ class DinningController extends Controller
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? $order_data->quantity : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id, "parent_id" => $sc->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? $order_data->quantity : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
                 } else {
                     $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $sc->item_id)->groupBy("item_id")->first();
 
@@ -1799,14 +1799,14 @@ class DinningController extends Controller
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id, "parent_id" => $sc->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
                 }
             }
             foreach (count($sub_cat_details) > 0 ? $sub_cat_details : array() as $sc) {
                 if (isset($cat_array[$sc['parent_id']])) {
                     array_push($cat_array[$sc['parent_id']]["items"], array("type" => "sub_cat", "item_id" => $sc["cat_id"], "item_name" => $sc["cat_name"], "chinese_name" => $sc["chinese_name"], "options" => [], "preference" => [], "item_image" => "", "qty" => 0, "comment" => "", "order_id" => 0));
                     foreach (count($sc["items"]) > 0 ? $sc["items"] : array() as $sci) {
-                        $sc_item = array("type" => "sub_cat_item", "item_id" => $sci["item_id"], "item_name" => $sci["item_name"], "chinese_name" => $sci["chinese_name"], "item_image" => $sci["item_image"], "options" => $sci["options"], "preference" => $sci["preference"], "qty" => $sci["qty"], "comment" => $sci["comment"], "order_id" => $sci["order_id"]);
+                        $sc_item = array("type" => "sub_cat_item","parent_id" => $sc['parent_id'], "item_id" => $sci["item_id"], "item_name" => $sci["item_name"], "chinese_name" => $sci["chinese_name"], "item_image" => $sci["item_image"], "options" => $sci["options"], "preference" => $sci["preference"], "qty" => $sci["qty"], "comment" => $sci["comment"], "order_id" => $sci["order_id"]);
                         if (isset($sci["is_expanded"])) {
                             $sc_item["is_expanded"] = $sci["is_expanded"];
                         }
@@ -2166,7 +2166,7 @@ class DinningController extends Controller
                             }
                         }
                     }
-                    array_push($cat_array[$c->id]["items"], array("type" => "item", "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push($cat_array[$c->id]["items"], array("type" => "item",'parent_id' => $c->parent_id, "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
                 } else {
                     $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $c->item_id)->groupBy("item_id")->first();
 
@@ -2180,7 +2180,7 @@ class DinningController extends Controller
                         }
                     }
 
-                    array_push($cat_array[$c->id]["items"], array("type" => "item", "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => 0));
+                    array_push($cat_array[$c->id]["items"], array("type" => "item",'parent_id' => $c->parent_id, "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => 0));
                 }
             }
             $sub_category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")->selectRaw("category_details.*,item_details.id as item_id,item_details.item_name,item_details.item_image,item_details.item_chinese_name,item_details.options,item_details.preference")->where("category_details.parent_id", "!=", 0)->whereRaw("item_details.id IN (" . $items . ")")->whereRaw("item_details.deleted_at IS NULL")->orderBy("category_details.id", "asc")->orderBy("item_details.id", "asc")->get();
@@ -2220,7 +2220,7 @@ class DinningController extends Controller
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id,'parent_id' => $c->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
                 } else {
                     $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $sc->item_id)->groupBy("item_id")->first();
 
@@ -2234,14 +2234,14 @@ class DinningController extends Controller
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id,'parent_id' => $c->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
                 }
             }
             foreach (count($sub_cat_details) > 0 ? $sub_cat_details : array() as $sc) {
                 if (isset($cat_array[$sc['parent_id']])) {
                     array_push($cat_array[$sc['parent_id']]["items"], array("type" => "sub_cat", "item_id" => $sc["cat_id"], "item_name" => $sc["cat_name"], "chinese_name" => $sc["chinese_name"], "options" => [], "preference" => [], "item_image" => "", "qty" => 0, "comment" => "", "order_id" => 0));
                     foreach (count($sc["items"]) > 0 ? $sc["items"] : array() as $sci) {
-                        $sc_item = array("type" => "sub_cat_item", "item_id" => $sci["item_id"], "item_name" => $sci["item_name"], "chinese_name" => $sci["chinese_name"], "item_image" => $sci["item_image"], "options" => $sci["options"], "preference" => $sci["preference"], "qty" => $sci["qty"], "comment" => $sci["comment"], "order_id" => $sci["order_id"]);
+                        $sc_item = array("type" => "sub_cat_item", "item_id" => $sci["item_id"],'parent_id' => $sci["parent_id"], "item_name" => $sci["item_name"], "chinese_name" => $sci["chinese_name"], "item_image" => $sci["item_image"], "options" => $sci["options"], "preference" => $sci["preference"], "qty" => $sci["qty"], "comment" => $sci["comment"], "order_id" => $sci["order_id"]);
                         if (isset($sci["is_expanded"])) {
                             $sc_item["is_expanded"] = $sci["is_expanded"];
                         }
