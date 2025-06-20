@@ -5257,7 +5257,27 @@ class DinningController extends Controller
                 ->where('deleted_at', NULL)
                 ->get();
 
-            return $this->sendResultJSON("1", "Items Found", array('Data' => $items));
+            $results = [];
+
+            foreach ($items as $item){
+
+                $results[] = [
+                    'type' => 'sub_cat_item',
+                    'item_name' => $item->item_name,
+                    'item_id' => $item->id,
+                    'preference' => $item->preference,
+                    'options' => $item->options,
+                    'chinese_name' => $item->item_chinese_name,
+                    'item_image' => $item->image,
+                    
+                    'comment' => '',
+                    'qty' => 0,
+                    'order_id' => 0
+                ];
+
+            }
+
+            return $this->sendResultJSON("1", "Items Found", array('Data' => $results));
         }
 
         catch (\Exception $e) {
