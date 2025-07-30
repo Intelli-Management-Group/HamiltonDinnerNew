@@ -720,15 +720,22 @@ class DinningController extends Controller
 
         if ($role == "user") {
 
-            $settings = DB::table('settings')->get();
+            // $settings = DB::table('settings')->get();
 
-            $settings_array = array();
+            // $settings_array = array();
 
-            foreach (count($settings) > 0 ? $settings : array() as $s) {
-                $settings_array[$s->name] = $s->value;
-            }
+            // foreach (count($settings) > 0 ? $settings : array() as $s) {
+            //     $settings_array[$s->name] = $s->value;
+            // }
 
-            return $this->sendResultJSON('1', '', array("occupancy" => $user->occupancy, "language" => intval($user->language), "last_menu_date" => $last_date, "role" => $role, 'guideline' => $settings_array['site.app_msg'], 'guideline_cn' => $settings_array['site.app_msg_cn'] != "" ? $settings_array['site.app_msg_cn'] : $settings_array['site.app_msg'], 'rooms' => $rooms_array));
+            return $this->sendResultJSON('1', '', array(
+                "occupancy" => $user->occupancy,
+                "language" => intval($user->language),
+                "last_menu_date" => $last_date,
+                "role" => $role,
+                'guideline' => $settingsArray['site.app_msg'],
+                'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'],
+                'rooms' => $rooms_array));
         } else {
             $formTypes = "";
             // if ($role == "admin" || $role == "concierge"){
