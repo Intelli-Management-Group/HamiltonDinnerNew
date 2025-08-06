@@ -74,15 +74,52 @@ class UserController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'user_name' => 'required|string|max:255|unique:users',
-            'email' => 'required|string|email|max:255|unique:users',
+            'user_name' => 'required|string|max:255|unique:users,user_name,NULL,id,deleted_at,NULL',
+            'email' => 'required|string|email|max:255|unique:users,email,NULL,id,deleted_at,NULL',
             'password' => 'required|string|min:6',
             'role_id' => 'required|exists:roles,id'
         ]);
 
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
 
-        
+        // Check for a soft-deleted user
+        $existing = User::withTrashed()
+            ->where('email', $request->email)
+            ->where('user_name', $request->user_name)
+            ->first();
 
+        // Restore the soft-deleted user
+        if ($existing && $existing->trashed()) {
+            $existing->restore();
+
+            $existing->update([
+                'name' => $request->name,
+                'email' => $request->email,
+                'user_name' => $request->user_name,
+                'password' => Hash::make($request->password),
+                'role_id' => $request->role_id,
+                'role' => $request->role,
+                'email_verified_at' => $request->email_verified_at,
+                'is_admin' => $request->is_admin,
+                'avatar' => $request->avatar,
+            ]);
+
+            $role = Role::findById($request->role_id);
+            $existing->syncRoles([$role]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'User restored and updated successfully',
+                'data' => $existing
+            ], 200);
+        }
+
+        // Create a new user
         $user = User::create([
             'name' => $request->name,
             'user_name' => $request->user_name,
