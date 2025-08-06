@@ -101,7 +101,7 @@ class DinningController extends Controller
 
                         $formTypes = FormType::all();
 
-                        $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (1,4,7)";
+                        $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (2,3,4,5,6,7) AND u.deleted_at IS NULL";
 
                         $userResults = DB::select($userQuery);
 
@@ -120,25 +120,27 @@ class DinningController extends Controller
                         return $this->sendResultJSON("1", "Successfully Login", array("room_id" => 0, 'rooms' => $rooms_array, 'guideline' => $settingsArray['site.app_msg'], 'guideline_cn' => $settingsArray['site.app_msg_cn'] != "" ? $settingsArray['site.app_msg_cn'] : $settingsArray['site.app_msg'], "room_number" => "", "occupancy" => 0, "resident_name" => "", "language" => 0, "last_menu_date" => $last_date, "authentication_token" => $user_token, "role" => $roleName[0]['name'], "form_types" => $formTypes, 'user_list' => $userData, 'user_id' => $user->id , 'show_incident' => $settingsArray['show_incident'] , 'show_dining' => $settingsArray['show_dining']));
                     }
                 } else {
+                    //if room exists
+                    if (RoomDetail::where("room_name", $room_no)->first()) {
+                        return $this->sendResultJSON("2", "Wrong password");
+                    } else {
+                        $message = "User not Found";
 
-                    $message = "User not Found";
+                        $roomIds = RoomDetail::select('room_name')->where("room_name", 'like', '%' . $room_no . '%')->get();
 
-                    $roomIds = RoomDetail::select('room_name')->where("room_name", 'like', '%' . $room_no . '%')->get();
+                        $customMessage = "";
+                        $similarRoomFound = [];
 
-                    $customMessage = "";
-                    $similarRoomFound = [];
+                        foreach ($roomIds as $roomId) {
+                            $similarRoomFound[] = $roomId->room_name;
+                        }
 
-                    foreach ($roomIds as $roomId) {
-                        $similarRoomFound[] = $roomId->room_name;
+                        if (count($similarRoomFound) > 1) {
+                            $customMessage = "There are " . count($similarRoomFound) . " residents in room " . $room_no . ". Please enter " . implode(" OR ", $similarRoomFound);
+                        }
+
+                        return $this->sendResultJSON("2", !empty($customMessage) ? $customMessage : $message);
                     }
-
-                    if (count($similarRoomFound) > 1) {
-
-                        $customMessage = "There are " . count($similarRoomFound) . " residents in room " . $room_no . ". Please enter " . implode(" OR ", $similarRoomFound);
-                    }
-
-
-                    return $this->sendResultJSON("2", !empty($customMessage) ? $customMessage : $message);
                 }
             }
 
@@ -742,7 +744,7 @@ class DinningController extends Controller
             $formTypes = FormType::all();
             // }
 
-            $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (1,4,7)";
+            $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (2,3,4,5,6,7) AND u.deleted_at IS NULL";
 
             $userResults = DB::select($userQuery);
 
