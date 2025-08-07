@@ -59,7 +59,7 @@ class MenuController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'menu_name' => 'required|string',
-            'date' => 'required|date|unique:menu_details,date',
+            'date' => 'required|date|unique:menu_details,date,NULL,id,deleted_at,NULL',
             'items' => 'nullable|array',
             'is_allday' => 'nullable|boolean'
         ]);
@@ -71,6 +71,29 @@ class MenuController extends Controller
             ], 422);
         }
 
+        // Check for soft-deleted menu on same date
+        $existing = MenuDetail::withTrashed()
+            ->where('date', $request->date)
+            ->first();
+
+        // Restore the soft-deleted menu
+        if ($existing && $existing->trashed()) {
+            $existing->restore();
+
+            $existing->update([
+                'menu_name' => $request->menu_name,
+                'items' => $request->items,
+                'is_allday' => $request->is_allday,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Menu detail restored and updated successfully',
+                'data' => $existing
+            ], 200);
+        }
+
+        // Create new menu detail
         $menu = MenuDetail::create($request->all());
 
         return response()->json([
