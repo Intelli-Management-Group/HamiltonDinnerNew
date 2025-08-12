@@ -76,7 +76,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'user_name' => 'required|string|max:255|unique:users,user_name,NULL,id,deleted_at,NULL',
             'email' => 'required|string|email|max:255|unique:users,email,NULL,id,deleted_at,NULL',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:4',
             'role_id' => 'required|exists:roles,id'
         ]);
 
@@ -190,7 +190,7 @@ class UserController extends Controller
             'name' => 'sometimes|string|max:255',
             'user_name' => 'sometimes|string|max:255|unique:users,user_name,'.$id,
             'email' => 'sometimes|string|email|max:255|unique:users,email,'.$id,
-            'password' => 'sometimes|string|min:6',
+            'password' => 'sometimes|string|min:4',
             'role_id' => 'sometimes|exists:roles,id'
         ]);
 
