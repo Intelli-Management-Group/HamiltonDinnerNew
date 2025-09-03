@@ -101,7 +101,7 @@ class DinningController extends Controller
 
                         $formTypes = FormType::all();
 
-                        $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (2,3,4,5,6,7) AND u.deleted_at IS NULL";
+                        $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (3,4,5,6,7) AND u.deleted_at IS NULL";
 
                         $userResults = DB::select($userQuery);
 
@@ -744,7 +744,7 @@ class DinningController extends Controller
             $formTypes = FormType::all();
             // }
 
-            $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (2,3,4,5,6,7) AND u.deleted_at IS NULL";
+            $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (3,4,5,6,7) AND u.deleted_at IS NULL";
 
             $userResults = DB::select($userQuery);
 
