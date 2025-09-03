@@ -122,7 +122,7 @@ class DinningController extends Controller
                 } else {
                     //if room exists
                     if (RoomDetail::where("room_name", $room_no)->first()) {
-                        return $this->sendResultJSON("2", "Wrong password");
+                        return $this->sendResultJSON("2", "Room Number or Password is incorrect");
                     } else {
                         $message = "User not Found";
 
