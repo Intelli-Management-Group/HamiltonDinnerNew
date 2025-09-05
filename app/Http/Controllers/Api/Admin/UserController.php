@@ -90,7 +90,6 @@ class UserController extends Controller
         // Check for a soft-deleted user
         $existing = User::withTrashed()
             ->where('email', $request->email)
-            ->where('user_name', $request->user_name)
             ->first();
 
         // Restore the soft-deleted user
@@ -99,8 +98,8 @@ class UserController extends Controller
 
             $existing->update([
                 'name' => $request->name,
-                'email' => $request->email,
                 'user_name' => $request->user_name,
+                'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role_id' => $request->role_id,
                 'role' => $request->role,
@@ -116,7 +115,7 @@ class UserController extends Controller
                 'success' => true,
                 'message' => 'User restored and updated successfully',
                 'data' => $existing
-            ], 200);
+            ], 201);
         }
 
         // Create a new user
@@ -130,7 +129,6 @@ class UserController extends Controller
             'email_verified_at' => $request->email_verified_at,
             'is_admin' => $request->is_admin,
             'avatar' => $request->avatar,
-
         ]);
         
         // Assign role using Spatie permissions
@@ -188,8 +186,8 @@ class UserController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
-            'user_name' => 'sometimes|string|max:255|unique:users,user_name,'.$id,
-            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$id,
+            'user_name' => 'sometimes|string|max:255|unique:users,user_name,'.$id.',id,deleted_at,NULL',
+            'email' => 'sometimes|string|email|max:255|unique:users,email,'.$id.',id,deleted_at,NULL',
             'password' => 'sometimes|string|min:4',
             'role_id' => 'sometimes|exists:roles,id'
         ]);
