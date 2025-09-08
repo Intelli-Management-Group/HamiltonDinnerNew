@@ -23,7 +23,6 @@ class MenuDetail extends Model
      * @var array<int, string>
      */
     protected $fillable = [
-        'menu_name',
         'date',
         'items',
         'is_allday',

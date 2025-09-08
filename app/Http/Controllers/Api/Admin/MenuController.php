@@ -58,7 +58,6 @@ class MenuController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'menu_name' => 'required|string',
             'date' => 'required|date|unique:menu_details,date,NULL,id,deleted_at,NULL',
             'items' => 'nullable|array',
             'is_allday' => 'nullable|boolean'
@@ -81,7 +80,6 @@ class MenuController extends Controller
             $existing->restore();
 
             $existing->update([
-                'menu_name' => $request->menu_name,
                 'items' => $request->items,
                 'is_allday' => $request->is_allday,
             ]);
@@ -145,7 +143,6 @@ class MenuController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'menu_name' => 'required|string',
             'date' => 'required|date|unique:menu_details,date,'.$id,
             'items' => 'nullable|array',
             'is_allday' => 'nullable|boolean'
