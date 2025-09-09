@@ -16,8 +16,6 @@ class Role extends SpatieRole
 
     protected $fillable = [
         'name',
-        'display_name',
-       
     ];
 
     public function permissionList()

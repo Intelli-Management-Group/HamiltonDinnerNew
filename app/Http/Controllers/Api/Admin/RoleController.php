@@ -18,8 +18,7 @@ class RoleController extends Controller
     {   
 
         $query = Role::with('permissionList')->when($request->has('search'), function($query) use ($request) {
-                return $query->where('name', 'LIKE', '%' . $request->search . '%')
-                      ->orWhere('display_name', 'LIKE', '%' . $request->search . '%');
+                return $query->where('name', 'LIKE', '%' . $request->search . '%');
             })
             ->latest();
         
@@ -61,8 +60,7 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:roles,name',
-            'display_name' => 'required|string|max:255'
+            'name' => 'required|string|max:255|unique:roles,name,NULL,id,deleted_at,NULL'
         ]);
 
         if ($validator->fails()) {
@@ -74,12 +72,34 @@ class RoleController extends Controller
         }
 
         try {
+            // Check for soft-deleted role with same name
+            $existing = Role::withTrashed()
+                ->where('name', $request->name)
+                ->first();
 
             $permissions = $request->input('permissions', []); // should be permission array ['edit articles', 'delete articles']
 
+            // Restore the soft-deleted role
+            if ($existing && $existing->trashed()) {
+                $existing->restore();
+
+                $existing->update([
+                    'guard_name' => 'api' // Default guard for this application
+                ]);
+
+                $existing->syncPermissions($permissions);
+                $existing->refresh();
+
+                return response()->json([
+                    'status' => 'success',
+                    'message' => 'Role restored and updated successfully',
+                    'data' => $existing
+                ], 200);
+            }
+
+            // Create new role
             $role = Role::create([
                 'name' => $request->name,
-                'display_name' => $request->display_name,
                 'guard_name' => 'api' // Default guard for this application
             ]);
 
@@ -139,8 +159,7 @@ class RoleController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:roles,name,' . $id,
-            'display_name' => 'required|string|max:255'
+            'name' => 'required|string|max:255|unique:roles,name,' . $id . ',id,deleted_at,NULL'
         ]);
 
         if ($validator->fails()) {
@@ -151,12 +170,25 @@ class RoleController extends Controller
             ], 422);
         }
 
+        // Check if the name is already used by a deleted role
+        $conflict = Role::withTrashed()
+            ->where('name', $request->name)
+            ->whereNotNull('deleted_at')
+            ->where('id', '<>', $id)
+            ->exists();
+
+        if ($conflict) {
+            return response()->json([
+                'status' => 'error',
+                'errors' => ['name' => 'A deleted role already uses this name. Restore it by creating a new role with its name.']
+            ], 422);
+        }
+
         $permissions = $request->input('permissions', []); // should be permission array ['edit articles', 'delete articles']
         
         try {
             $role = Role::findOrFail($id);
             $role->name = $request->name;
-            $role->display_name = $request->display_name;
             $role->save();
 
             $role->syncPermissions($permissions);
