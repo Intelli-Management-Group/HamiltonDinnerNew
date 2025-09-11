@@ -49,7 +49,7 @@ class ItemDetail extends Model
     public function getItemImageAttribute()
     {
         if (empty($this->attributes['item_image'])) {
-            return config('app.url') . "/images/user.webp";
+            return null;
         } else {
             return $this->getFileUrl($this->attributes['item_image']);
         }
