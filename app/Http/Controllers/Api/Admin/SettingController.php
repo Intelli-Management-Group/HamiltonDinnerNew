@@ -108,13 +108,13 @@ class SettingController extends Controller
                     'group' => 'nullable|string|max:127',
                 ]);
 
-                // if ($validator->fails()) {
-                //     return response()->json([
-                //         'success' => false,
-                //         'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
-                //         'errors' => $validator->errors()
-                //     ], 422);
-                // }
+                if ($validator->fails()) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
 
                 // Create the setting
                 $setting = Setting::create($settingData);
@@ -202,6 +202,14 @@ class SettingController extends Controller
                             'group' => 'nullable|string|max:127',
                         ]);
 
+                        if ($validator->fails()) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
+                                'errors' => $validator->errors()
+                            ], 422);
+                        }
+
                         // if ($validator->fails()) {
                         //     continue; // Skip invalid items
                         // }
@@ -220,6 +228,14 @@ class SettingController extends Controller
                             'order' => 'nullable|integer',
                             'group' => 'nullable|string|max:127',
                         ]);
+
+                        if ($validator->fails()) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
+                                'errors' => $validator->errors()
+                            ], 422);
+                        }
 
                         // if ($validator->fails()) {
                         //     continue; // Skip invalid items
