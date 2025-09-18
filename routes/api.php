@@ -244,7 +244,10 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
         Route::delete('/{id}', [FormTypeController::class, 'destroy']);
     });
 
-
     // Order routes (moved inside admin group)
-    Route::get('reports', [OrderController::class, 'reportList']);
+    Route::prefix('reports')->group(function () {
+        Route::get('/', [OrderController::class, 'reportList']);
+        Route::get('/range', [OrderController::class, 'reportListRange']);
+    });
+
 });
