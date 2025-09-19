@@ -245,9 +245,5 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
     });
 
     // Order routes (moved inside admin group)
-    Route::prefix('reports')->group(function () {
-        Route::get('/', [OrderController::class, 'reportList']);
-        Route::get('/range', [OrderController::class, 'reportListRange']);
-    });
-
+    Route::get('reports', [OrderController::class, 'reportList']);
 });
