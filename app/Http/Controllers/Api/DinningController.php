@@ -3774,9 +3774,12 @@ class DinningController extends Controller
 
             ],
             [
+                'item_name' => 'TO',
+                'real_item_name' => 'TakeOut',
+            ],
+            [
                 'item_name' => 'G',
                 'real_item_name' => 'No. Of Guests',
-
             ]
         ];
 
@@ -3947,6 +3950,7 @@ class DinningController extends Controller
                         od.is_for_guest as isForGuest,
                         od.is_brk_tray_service brkTrayService,
                         od.is_brk_escort_service brkEscortService,
+                        od.is_brk_takeout_service brkTakeoutService,
                         od.id as orderId,
                         
                         rd.room_name as roomName,
@@ -3970,7 +3974,7 @@ class DinningController extends Controller
                         where od.date = '" . $date . "' AND 
                         od.item_id IN (SELECT id FROM item_details WHERE cat_id
                         IN (SELECT id FROM category_details WHERE type = '1')) AND 
-                        (od.is_brk_tray_service = 1 OR od.is_brk_escort_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
+                        (od.is_brk_tray_service = 1 OR od.is_brk_escort_service = 1 OR od.is_brk_takeout_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
                         group by od.room_id,od.is_for_guest";
 
         $breakFastData = DB::select($breakfastSql);
@@ -3984,10 +3988,12 @@ class DinningController extends Controller
                 $breakfastQuantity = [
                     (!empty($breakFastRow->brkTrayService) ? 1 : 0),
                     (!empty($breakFastRow->brkEscortService) ? 1 : 0),
+                    (!empty($breakFastRow->brkTakeoutService) ? 1 : 0),
                     0
                 ];
 
                 $option = [
+                    "",
                     "",
                     "",
                     ""
@@ -4036,10 +4042,12 @@ class DinningController extends Controller
                 $breakfastQuantity = [
                     (!empty($breakFastRow->brkTrayService) ? 1 : 0),
                     (!empty($breakFastRow->brkEscortService) ? 1 : 0),
+                    (!empty($breakFastRow->brkTakeoutService) ? 1 : 0),
                     $breakFastRow->noOfGuest
                 ];
 
                 $option = [
+                    "",
                     "",
                     "",
                     ""
@@ -4090,6 +4098,7 @@ class DinningController extends Controller
                         od.is_for_guest as isForGuest,
                         od.is_lunch_tray_service lunchTrayService,
                         od.is_lunch_escort_service lunchEscortService,
+                        od.is_lunch_takeout_service lunchTakeoutService,
                         od.id as orderId,
                         
                         rd.room_name as roomName,
@@ -4113,7 +4122,7 @@ class DinningController extends Controller
                         where od.date = '" . $date . "' AND 
                         od.item_id IN (SELECT id FROM item_details WHERE cat_id
                         IN (SELECT id FROM category_details WHERE type = '2')) AND 
-                        (od.is_lunch_tray_service = 1 OR od.is_lunch_escort_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
+                        (od.is_lunch_tray_service = 1 OR od.is_lunch_escort_service = 1 OR od.is_lunch_takeout_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
                         group by od.room_id,od.is_for_guest";
 
         $lunchData = DB::select($lunchSql);
@@ -4128,10 +4137,12 @@ class DinningController extends Controller
                 $lunchQuantity = [
                     (!empty($lunchRow->lunchTrayService) ? 1 : 0),
                     (!empty($lunchRow->lunchEscortService) ? 1 : 0),
+                    (!empty($lunchRow->lunchTakeoutService) ? 1 : 0),
                     0
                 ];
 
                 $option = [
+                    "",
                     "",
                     "",
                     ""
@@ -4179,10 +4190,12 @@ class DinningController extends Controller
                 $lunchQuantity = [
                     (!empty($lunchRow->lunchTrayService) ? 1 : 0),
                     (!empty($lunchRow->lunchEscortService) ? 1 : 0),
+                    (!empty($lunchRow->lunchTakeoutService) ? 1 : 0),
                     $lunchRow->noOfGuest
                 ];
 
                 $option = [
+                    "",
                     "",
                     "",
                     ""
@@ -4233,6 +4246,7 @@ class DinningController extends Controller
                         od.is_for_guest as isForGuest,
                         od.is_dinner_tray_service dinnerTrayService,
                         od.is_dinner_escort_service dinnerEscortService,
+                        od.is_dinner_takeout_service dinnerTakeoutService,
                         od.id as orderId,
                         
                         rd.room_name as roomName,
@@ -4256,7 +4270,7 @@ class DinningController extends Controller
                         where od.date = '" . $date . "' AND 
                         od.item_id IN (SELECT id FROM item_details WHERE cat_id
                         IN (SELECT id FROM category_details WHERE type = '3')) AND 
-                        (od.is_dinner_tray_service = 1 OR od.is_dinner_escort_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
+                        (od.is_dinner_tray_service = 1 OR od.is_dinner_escort_service = 1 OR od.is_dinner_takeout_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
                         group by od.room_id,od.is_for_guest";
 
         $dinnerData = DB::select($dinnerSql);
@@ -4270,10 +4284,12 @@ class DinningController extends Controller
                 $dinnerQuantity = [
                     (!empty($dinnerRow->dinnerTrayService) ? 1 : 0),
                     (!empty($dinnerRow->dinnerEscortService) ? 1 : 0),
+                    (!empty($dinnerRow->dinnerTakeoutService) ? 1 : 0),
                     0
                 ];
 
                 $option = [
+                    "",
                     "",
                     "",
                     ""
@@ -4323,10 +4339,12 @@ class DinningController extends Controller
                 $dinnerQuantity = [
                     (!empty($dinnerRow->dinnerTrayService) ? 1 : 0),
                     (!empty($dinnerRow->dinnerEscortService) ? 1 : 0),
+                    (!empty($dinnerRow->dinnerTakeoutService) ? 1 : 0),
                     $dinnerRow->noOfGuest
                 ];
 
                 $option = [
+                    "",
                     "",
                     "",
                     ""
