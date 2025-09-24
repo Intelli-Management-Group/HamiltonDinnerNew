@@ -575,7 +575,23 @@ class DinningController extends Controller
                 $is_lunch_escort_service = !empty($request['is_lunch_escort_service']) ? $request['is_lunch_escort_service'] : 0;
                 $is_dinner_escort_service = !empty($request['is_dinner_escort_service']) ? $request['is_dinner_escort_service'] : 0;
 
-                OrderDetail::where("date", $internalDate)->where("room_id", $room_id)->update(['is_brk_tray_service' => $is_brk_tray_service, 'is_lunch_tray_service' => $is_lunch_tray_service, 'is_dinner_tray_service' => $is_dinner_tray_service, 'is_brk_escort_service' => $is_brk_escort_service, 'is_lunch_escort_service' => $is_lunch_escort_service, 'is_dinner_escort_service' => $is_dinner_escort_service]);
+                $is_brk_takeout_service = !empty($request['is_brk_takeout_service']) ? $request['is_brk_takeout_service'] : 0;
+                $is_lunch_takeout_service = !empty($request['is_lunch_takeout_service']) ? $request['is_lunch_takeout_service'] : 0;
+                $is_dinner_takeout_service = !empty($request['is_dinner_takeout_service']) ? $request['is_dinner_takeout_service'] : 0;
+
+                OrderDetail::where("date", $internalDate)
+                    ->where("room_id", $room_id)
+                    ->update([
+                        'is_brk_tray_service' => $is_brk_tray_service,
+                        'is_lunch_tray_service' => $is_lunch_tray_service,
+                        'is_dinner_tray_service' => $is_dinner_tray_service,
+                        'is_brk_escort_service' => $is_brk_escort_service,
+                        'is_lunch_escort_service' => $is_lunch_escort_service,
+                        'is_dinner_escort_service' => $is_dinner_escort_service,
+                        'is_brk_takeout_service' => $is_brk_takeout_service,
+                        'is_lunch_takeout_service' => $is_lunch_takeout_service,
+                        'is_dinner_takeout_service' => $is_dinner_takeout_service
+                    ]);
 
                 if ($request['items'] && $request['items'] != "") {
 
@@ -608,6 +624,10 @@ class DinningController extends Controller
                                 $order->is_brk_escort_service = $is_brk_escort_service;
                                 $order->is_lunch_escort_service = $is_lunch_escort_service;
                                 $order->is_dinner_escort_service = $is_dinner_escort_service;
+
+                                $order->is_brk_takeout_service = $is_brk_takeout_service;
+                                $order->is_lunch_takeout_service = $is_lunch_takeout_service;
+                                $order->is_dinner_takeout_service = $is_dinner_takeout_service;
 
                                 $order->save();
 
