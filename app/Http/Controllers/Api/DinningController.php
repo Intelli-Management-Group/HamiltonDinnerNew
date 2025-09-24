@@ -294,7 +294,27 @@ class DinningController extends Controller
                 $preference = array();
 
                 if ($room_id != 0) {
-                    $order_data = OrderDetail::selectRaw("id,quantity,item_options,preference,is_for_guest,is_brk_tray_service,is_lunch_tray_service,is_dinner_tray_service,is_brk_escort_service,is_lunch_escort_service,is_dinner_escort_service")->where("room_id", $room_id)->where("date", $date)->where("item_id", $c->item_id)->where("is_for_guest", 0)->first();
+                    $order_data = OrderDetail::selectRaw(
+                        "id,
+                        quantity,
+                        item_options,
+                        preference,
+                        is_for_guest,
+                        is_brk_tray_service,
+                        is_lunch_tray_service,
+                        is_dinner_tray_service,
+                        is_brk_escort_service,
+                        is_lunch_escort_service,
+                        is_dinner_escort_service,
+                        is_brk_takeout_service,
+                        is_lunch_takeout_service,
+                        is_dinner_takeout_service"
+                    )
+                    ->where("room_id", $room_id)
+                    ->where("date", $date)
+                    ->where("item_id", $c->item_id)
+                    ->where("is_for_guest", 0)
+                    ->first();
 
                     if ($c->options != "") {
                         $c_options = json_decode($c->options);
@@ -347,7 +367,27 @@ class DinningController extends Controller
                 $preference = array();
 
                 if ($room_id != 0) {
-                    $order_data = OrderDetail::selectRaw("id,quantity,item_options,preference,is_for_guest,is_brk_tray_service,is_lunch_tray_service,is_dinner_tray_service,is_brk_escort_service,is_lunch_escort_service,is_dinner_escort_service")->where("room_id", $room_id)->where("date", $date)->where("item_id", $sc->item_id)->where("is_for_guest", 0)->first();
+                    $order_data = OrderDetail::selectRaw(
+                        "id,
+                        quantity,
+                        item_options,
+                        preference,
+                        is_for_guest,
+                        is_brk_tray_service,
+                        is_lunch_tray_service,
+                        is_dinner_tray_service,
+                        is_brk_escort_service,
+                        is_lunch_escort_service,
+                        is_dinner_escort_service,
+                        is_brk_takeout_service,
+                        is_lunch_takeout_service,
+                        is_dinner_takeout_service"
+                    )
+                    ->where("room_id", $room_id)
+                    ->where("date", $date)
+                    ->where("item_id", $sc->item_id)
+                    ->where("is_for_guest", 0)
+                    ->first();
 
                     if ($sc->options != "") {
                         $c_options = json_decode($sc->options);
@@ -421,14 +461,48 @@ class DinningController extends Controller
         $instruction = "";
         $spi_data = RoomDetail::select("special_instrucations")->where("id", $room_id)->first();
 
-        $tray_service_data = OrderDetail::selectRaw("is_brk_tray_service,is_lunch_tray_service,is_dinner_tray_service,is_brk_escort_service,is_lunch_escort_service,is_dinner_escort_service")->where("room_id", $room_id)->where("date", $date)->where("is_for_guest", 0)->orderBy("id", "DESC")->first();
+        $tray_service_data = OrderDetail::selectRaw(
+            "is_brk_tray_service,
+            is_lunch_tray_service,
+            is_dinner_tray_service,
+            is_brk_escort_service,
+            is_lunch_escort_service,
+            is_dinner_escort_service,
+            is_brk_takeout_service,
+            is_lunch_takeout_service,
+            is_dinner_takeout_service"
+        )
+        ->where("room_id", $room_id)
+        ->where("date", $date)
+        ->where("is_for_guest", 0)
+        ->orderBy("id", "DESC")
+        ->first();
         // echo $tray_service_data->is_brk_tray_service;die;
         // print_r($tray_service_data);die;
 
         if ($spi_data)
             $instruction = $spi_data->special_instrucations;
 
-        return $this->sendResultJSON('1', '', array('breakfast' => $breakfast, 'lunch' => $lunch, 'dinner' => $dinner, 'last_menu_date' => $last_date, 'special_instruction' => $instruction, 'is_brk_tray_service' => $tray_service_data ? $tray_service_data->is_brk_tray_service : 0, 'is_lunch_tray_service' => $tray_service_data ? $tray_service_data->is_lunch_tray_service : 0, 'is_dinner_tray_service' => $tray_service_data ? $tray_service_data->is_dinner_tray_service : 0, 'is_brk_escort_service' => $tray_service_data ? $tray_service_data->is_brk_escort_service : 0, 'is_lunch_escort_service' => $tray_service_data ? $tray_service_data->is_lunch_escort_service : 0, 'is_dinner_escort_service' => $tray_service_data ? $tray_service_data->is_dinner_escort_service : 0));
+        return $this->sendResultJSON(
+            '1',
+            '',
+            array(
+                'breakfast' => $breakfast,
+                'lunch' => $lunch,
+                'dinner' => $dinner,
+                'last_menu_date' => $last_date,
+                'special_instruction' => $instruction,
+                'is_brk_tray_service' => $tray_service_data ? $tray_service_data->is_brk_tray_service : 0,
+                'is_lunch_tray_service' => $tray_service_data ? $tray_service_data->is_lunch_tray_service : 0,
+                'is_dinner_tray_service' => $tray_service_data ? $tray_service_data->is_dinner_tray_service : 0,
+                'is_brk_escort_service' => $tray_service_data ? $tray_service_data->is_brk_escort_service : 0,
+                'is_lunch_escort_service' => $tray_service_data ? $tray_service_data->is_lunch_escort_service : 0,
+                'is_dinner_escort_service' => $tray_service_data ? $tray_service_data->is_dinner_escort_service : 0,
+                'is_brk_takeout_service' => $tray_service_data ? $tray_service_data->is_brk_takeout_service : 0,
+                'is_lunch_takeout_service' => $tray_service_data ? $tray_service_data->is_lunch_takeout_service : 0,
+                'is_dinner_takeout_service' => $tray_service_data ? $tray_service_data->is_dinner_takeout_service : 0
+            )
+        );
     }
 
     public function getItemList(Request $request)
