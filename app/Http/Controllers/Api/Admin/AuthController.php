@@ -11,73 +11,71 @@ use App\Models\Permission;
 
 class AuthController extends Controller
 {
+    /**
+     * Apply API middleware to all methods except login and register.
+     */
     public function __construct()
     {
         $this->middleware('api', ['except' => ['login', 'register']]);
     }
 
+    /**
+     * Authenticate user and return JWT token with permissions.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function login(Request $request)
     {
         try {
+            // Validate login credentials
             $validator = Validator::make($request->all(), [
                 'email' => 'required|email',
                 'password' => 'required|string',
             ]);
 
             if ($validator->fails()) {
-                return response()->json($validator->errors(), 422);
+                return $this->errorResponse($validator->errors(), 422);
             }
 
+            // Attempt authentication and generate JWT token
             $credentials = $request->only('email', 'password');
             if (!$token = auth()->attempt($credentials)) {
-                return response()->json(['error' => 'Email or Password is incorrect'], 201);
+                return $this->errorResponse(['error' => 'Email or Password is incorrect'], 401);
             }
 
+            // Build permissions map for the authenticated user
             $user = auth()->user();
-
             $allPermissionsResult = Permission::select('name')->pluck('name')->toArray();
-
             $allPermissions = [];
-
             foreach ($allPermissionsResult as $item) {
-
-                $allPermissions[$item] = 0;
+                $allPermissions[$item] = 0; // Default: no permission
             }
-
+            
             $loggedInUser = User::with('permissionList')->where('id', $user->id)->get()->toArray();
-
             foreach ($loggedInUser as $result) {
-
                 foreach ($result['permission_list'] as $permission) {
-
-                    $allPermissions[$permission['name']] = 1;
+                    $allPermissions[$permission['name']] = 1; // User has this permission
                 }
-
             }
 
-            return response()->json([
-                'access_token' => $token,
-                'token_type' => 'bearer',
-                'expires_in' => config('jwt.ttl', 60) * 60, // Use config value instead of factory method
-                'user' => auth()->user(),
-                'permissions' => $allPermissions,
-                "ResponseCode" => "1",
-                "ResponseText" => "success",
-            ]);
+            return $this->respondWithToken($token, $allPermissions);
 
         } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while processing your request.',
-                'message' => $e->getMessage(),
-                "ResponseCode" => "11",
-                "ResponseText" => "Error",
-            ], 500);
+            return $this->errorResponse(['error' => 'An error occurred while processing your request.', 'message' => $e->getMessage()], 500);
         }
     }
 
+    /**
+     * Register a new user and return user info.
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function register(Request $request)
     {
         try {
+            // Validate registration fields
             $validator = Validator::make($request->all(), [
                 'name' => 'required|string|max:255',
                 'user_name' => 'required|string|max:255|unique:users',
@@ -90,11 +88,12 @@ class AuthController extends Controller
                 return response()->json($validator->errors(), 422);
             }
 
+            // Create new user record
             $user = User::create([
                 'name' => $request->name,
                 'user_name' => $request->user_name,
                 'email' => $request->email,
-                'password' => bcrypt($request->password),
+                'password' => bcrypt($request->password), // Hash password
                 'role_id' => $request->role_id,
             ]);
 
@@ -107,6 +106,11 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * Return the authenticated user's info.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function me()
     {
         try {
@@ -116,6 +120,11 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * Log out the authenticated user.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function logout()
     {
         try {
@@ -126,26 +135,63 @@ class AuthController extends Controller
         }
     }
 
+    /**
+     * Refresh JWT token for the authenticated user.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function refresh()
     {
         try {
             return $this->respondWithToken(auth()->refresh());
         } catch (\Exception $e) {
-            return response()->json(['error' => 'An error occurred while processing your request.', 'message' => $e->getMessage()], 500);
+            return $this->errorResponse(['error' => 'An error occurred while processing your request.', 'message' => $e->getMessage()], 500);
         }
     }
 
-    protected function respondWithToken($token)
+    /**
+     * Build a standard token response for authentication endpoints.
+     *
+     * @param string $token
+     * @param array|null $permissions
+     * @return \Illuminate\Http\JsonResponse
+     */
+    protected function respondWithToken($token, $permissions = null)
     {
         try {
-            return response()->json([
+            $response = [
                 'access_token' => $token,
                 'token_type' => 'bearer',
-                'expires_in' => config('jwt.ttl', 60) * 60, // Use config value instead of factory method
-                'user' => auth('api')->user()
-            ]);
+                'expires_in' => config('jwt.ttl', 60) * 60,
+                'user' => auth('api')->user(),
+                'ResponseCode' => '1',
+                'ResponseText' => 'success',
+            ];
+            if ($permissions !== null) {
+                $response['permissions'] = $permissions;
+            }
+            return response()->json($response);
         } catch (\Exception $e) {
-            return response()->json(['error' => 'An error occurred while processing your request.', 'message' => $e->getMessage()], 500);
+            return $this->errorResponse(['error' => 'An error occurred while processing your request.', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Build a standard error response for API endpoints.
+     *
+     * @param array $data
+     * @param int $code
+     * @return \Illuminate\Http\JsonResponse
+     */
+    protected function errorResponse($data, $code = 500)
+    {
+        $response = $data;
+        if (!isset($response['ResponseCode'])) {
+            $response['ResponseCode'] = '11';
+        }
+        if (!isset($response['ResponseText'])) {
+            $response['ResponseText'] = 'Error';
+        }
+        return response()->json($response, $code);
     }
 }
