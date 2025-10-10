@@ -12,6 +12,18 @@ use App\Models\OrderDetail;
 class OrderController extends Controller
 {
     /**
+     * Retrieve item details by their IDs.
+     * 
+     * @param array $item_ids
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    private function retrieveItemDetails($item_ids) {
+        return ItemDetail::selectRaw("id,item_name,cat_id")
+            ->whereIn("id", $item_ids)
+            ->orderBy("cat_id")->get();
+    }
+
+    /**
      * Get room-wise orders for a given single day.
      * 
      * @param  \Illuminate\Http\Request  $request
@@ -74,22 +86,20 @@ class OrderController extends Controller
             
             // Pre-fetch all order data for the date to avoid N+1 query problem
             $order_data_map = [];
-            if (!empty($menu_items["breakfast"]) || !empty($menu_items["lunch"]) || !empty($menu_items["dinner"])) {
-                $item_ids = array_merge(
-                    $menu_items["breakfast"], 
-                    $menu_items["lunch"], 
-                    $menu_items["dinner"]
-                );
+            $item_ids = array_merge(
+                $menu_items["breakfast"], 
+                $menu_items["lunch"], 
+                $menu_items["dinner"]
+            );
+
+            if (!empty($item_ids)) {
+                $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
+                    ->where("date", $search_date)
+                    ->whereIn("item_id", $item_ids)
+                    ->get();
                 
-                if (!empty($item_ids)) {
-                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
-                        ->where("date", $search_date)
-                        ->whereIn("item_id", $item_ids)
-                        ->get();
-                    
-                    foreach ($all_order_data as $order) {
-                        $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
-                    }
+                foreach ($all_order_data as $order) {
+                    $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
                 }
             }
             
@@ -99,21 +109,15 @@ class OrderController extends Controller
             $dinner_items = [];
             
             if (!empty($menu_items["breakfast"])) {
-                $breakfast_items = ItemDetail::selectRaw("id,item_name,cat_id")
-                    ->whereIn("id", $menu_items["breakfast"])
-                    ->orderBy("cat_id")->get();
+                $breakfast_items = $this->retrieveItemDetails($menu_items["breakfast"]);
             }
             
             if (!empty($menu_items["lunch"])) {
-                $lunch_items = ItemDetail::selectRaw("id,item_name,cat_id")
-                    ->whereIn("id", $menu_items["lunch"])
-                    ->orderBy("cat_id")->get();
+                $lunch_items = $this->retrieveItemDetails($menu_items["lunch"]);
             }
             
             if (!empty($menu_items["dinner"])) {
-                $dinner_items = ItemDetail::selectRaw("id,item_name,cat_id")
-                    ->whereIn("id", $menu_items["dinner"])
-                    ->orderBy("cat_id")->get();
+                $dinner_items = $this->retrieveItemDetails($menu_items["dinner"]);
             }
             
             // Process each room only once
@@ -121,83 +125,44 @@ class OrderController extends Controller
                 $item_array[$r->id] = ["room_id" => $r->room_name];
                 $room_id = $r->id;
 
-                // Process breakfast items
-                $count = 1;
-                foreach ($breakfast_items as $a) {
-                    $title = (in_array($a->cat_id, $alternative) ? "B" . $count : $cat_id[$a->cat_id] ?? '');
-                    
-                    if ($is_first) {
-                        $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
-                    }
-                    
-                    // Set default to 0
-                    $item_array[$room_id][$title] = 0;
-                    
-                    // Check if we have order data for this room and item
-                    if (isset($order_data_map[$room_id][$a->id])) {
-                        $item_array[$room_id][$title] = intval($order_data_map[$room_id][$a->id]);
-                    }
-                    
-                    // Update totals
-                    $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id][$title];
-                    
-                    if (in_array($a->cat_id, $alternative)) $count++;
-                }
-                
-                // Process lunch items
-                $count1 = 1;
-                $ab_count = 'A';
-                foreach ($lunch_items as $a) {
-                    $title = (in_array($a->cat_id, $alternative) ? "L" . $count1 : 
-                            (in_array($a->cat_id, $ab_alternative) ? "L" . $ab_count : $cat_id[$a->cat_id] ?? ''));
-                    
-                    if ($is_first) {
-                        $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
-                    }
-                    
-                    // Set default to 0
-                    $item_array[$room_id][$title] = 0;
-                    
-                    // Check if we have order data for this room and item
-                    if (isset($order_data_map[$room_id][$a->id])) {
-                        $item_array[$room_id][$title] = intval($order_data_map[$room_id][$a->id]);
-                    }
-                    
-                    // Update totals
-                    $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id][$title];
-                    
-                    if (in_array($a->cat_id, $alternative)) $count1++;
-                    if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                }
-                
-                // Process dinner items
-                $count2 = 1;
-                $ab_count = 'A';
-                foreach ($dinner_items as $a) {
-                    $title = (in_array($a->cat_id, $alternative) ? "D" . $count2 : 
-                            (in_array($a->cat_id, $ab_alternative) ? "D" . $ab_count : $cat_id[$a->cat_id] ?? ''));
-                    
-                    if ($is_first) {
-                        $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
-                    }
-                    
-                    // Set default to 0
-                    $item_array[$room_id][$title] = 0;
-                    
-                    // Check if we have order data for this room and item
-                    if (isset($order_data_map[$room_id][$a->id])) {
-                        $item_array[$room_id][$title] = intval($order_data_map[$room_id][$a->id]);
-                    }
-                    
-                    // Update totals
-                    $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id][$title];
-                    
-                    if (in_array($a->cat_id, $alternative)) $count2++;
-                    if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                }
-                
-                $final_array[] = $item_array[$r->id];
-                $is_first = false;
+                    // DRY: process all meal items with a helper
+                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count) use ($alternative, $ab_alternative, $cat_id, $room_id, &$item_array, &$order_data_map, &$total, &$table_column, $is_first) {
+                        foreach ($items as $a) {
+                            if ($mealPrefix === 'B') {
+                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : $cat_id[$a->cat_id] ?? '');
+                            } else {
+                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : (in_array($a->cat_id, $ab_alternative) ? $mealPrefix . $ab_count : $cat_id[$a->cat_id] ?? ''));
+                            }
+                            if ($is_first) {
+                                $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                            }
+                            $item_array[$room_id][$title] = 0;
+                            if (isset($order_data_map[$room_id][$a->id])) {
+                                $item_array[$room_id][$title] = intval($order_data_map[$room_id][$a->id]);
+                            }
+                            $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id][$title];
+                            if (in_array($a->cat_id, $alternative)) $count++;
+                            if ($mealPrefix !== 'B' && in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
+                        }
+                    };
+
+                    // Process breakfast
+                    $count = 1;
+                    $ab_count = 'A';
+                    $processMealItems($breakfast_items, 'B', $count, $ab_count);
+
+                    // Process lunch
+                    $count1 = 1;
+                    $ab_count1 = 'A';
+                    $processMealItems($lunch_items, 'L', $count1, $ab_count1);
+
+                    // Process dinner
+                    $count2 = 1;
+                    $ab_count2 = 'A';
+                    $processMealItems($dinner_items, 'D', $count2, $ab_count2);
+
+                    $final_array[] = $item_array[$r->id];
+                    $is_first = false;
             }
 
             // Optimize the total loop using array_map
@@ -302,22 +267,20 @@ class OrderController extends Controller
 
                 // Pre-fetch all order data for the date to avoid N+1 query problem
                 $order_data_map = [];
-                if (!empty($menu_items["breakfast"]) || !empty($menu_items["lunch"]) || !empty($menu_items["dinner"])) {
-                    $item_ids = array_merge(
-                        $menu_items["breakfast"], 
-                        $menu_items["lunch"], 
-                        $menu_items["dinner"]
-                    );
+                $item_ids = array_merge(
+                    $menu_items["breakfast"], 
+                    $menu_items["lunch"], 
+                    $menu_items["dinner"]
+                );
 
-                    if (!empty($item_ids)) {
-                        $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
-                            ->where("date", $search_date)
-                            ->whereIn("item_id", $item_ids)
-                            ->get();
+                if (!empty($item_ids)) {
+                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
+                        ->where("date", $search_date)
+                        ->whereIn("item_id", $item_ids)
+                        ->get();
 
-                        foreach ($all_order_data as $order) {
-                            $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
-                        }
+                    foreach ($all_order_data as $order) {
+                        $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
                     }
                 }
 
@@ -327,102 +290,56 @@ class OrderController extends Controller
                 $dinner_items = [];
 
                 if (!empty($menu_items["breakfast"])) {
-                    $breakfast_items = ItemDetail::selectRaw("id,item_name,cat_id")
-                        ->whereIn("id", $menu_items["breakfast"])
-                        ->orderBy("cat_id")->get();
+                    $breakfast_items = $this->retrieveItemDetails($menu_items["breakfast"]);
                 }
 
                 if (!empty($menu_items["lunch"])) {
-                    $lunch_items = ItemDetail::selectRaw("id,item_name,cat_id")
-                        ->whereIn("id", $menu_items["lunch"])
-                        ->orderBy("cat_id")->get();
+                    $lunch_items = $this->retrieveItemDetails($menu_items["lunch"]);
                 }
 
                 if (!empty($menu_items["dinner"])) {
-                    $dinner_items = ItemDetail::selectRaw("id,item_name,cat_id")
-                        ->whereIn("id", $menu_items["dinner"])
-                        ->orderBy("cat_id")->get();
+                    $dinner_items = $this->retrieveItemDetails($menu_items["dinner"]);
                 }
 
-                // Process each room only once
                 foreach ($all_rooms as $r) {
                     $curr_item_array[$r->id] = ["room_id" => $r->room_name];
                     $room_id = $r->id;
 
-                    // Process breakfast items
+                    // DRY: process all meal items with a helper
+                    $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count) use ($alternative, $ab_alternative, $cat_id, $room_id, &$curr_item_array, &$order_data_map, &$total, &$curr_day_tooltips, $is_first) {
+                        foreach ($items as $a) {
+                            if ($mealPrefix === 'B') {
+                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : $cat_id[$a->cat_id] ?? '');
+                            } else {
+                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : (in_array($a->cat_id, $ab_alternative) ? $mealPrefix . $ab_count : $cat_id[$a->cat_id] ?? ''));
+                            }
+                            if ($is_first) {
+                                $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                            }
+                            $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
+                            if (isset($order_data_map[$room_id][$a->id])) {
+                                $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
+                            }
+                            $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
+                            if (in_array($a->cat_id, $alternative)) $count++;
+                            if ($mealPrefix !== 'B' && in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
+                        }
+                    };
+
+                    // Process breakfast
                     $count = 1;
-                    foreach ($breakfast_items as $a) {
-                        $title = (in_array($a->cat_id, $alternative) ? "B" . $count : $cat_id[$a->cat_id] ?? '');
+                    $ab_count = 'A';
+                    $processMealItemsRange($breakfast_items, 'B', $count, $ab_count);
 
-                        if ($is_first) {
-                            $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
-                        }
-
-                        // Set default to 0
-                        $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
-
-                        // Check if we have order data for this room and item
-                        if (isset($order_data_map[$room_id][$a->id])) {
-                            $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
-                        }
-
-                        // Update totals
-                        $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
-
-                        if (in_array($a->cat_id, $alternative)) $count++;
-                    }
-
-                    // Process lunch items
+                    // Process lunch
                     $count1 = 1;
-                    $ab_count = 'A';
-                    foreach ($lunch_items as $a) {
-                        $title = (in_array($a->cat_id, $alternative) ? "L" . $count1 : 
-                                (in_array($a->cat_id, $ab_alternative) ? "L" . $ab_count : $cat_id[$a->cat_id] ?? ''));
+                    $ab_count1 = 'A';
+                    $processMealItemsRange($lunch_items, 'L', $count1, $ab_count1);
 
-                        if ($is_first) {
-                            $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
-                        }
-
-                        // Set default to 0 if unset
-                        $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
-
-                        // Check if we have order data for this room and item
-                        if (isset($order_data_map[$room_id][$a->id])) {
-                            $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
-                        }
-
-                        // Update totals
-                        $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
-
-                        if (in_array($a->cat_id, $alternative)) $count1++;
-                        if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                    }
-
-                    // Process dinner items
+                    // Process dinner
                     $count2 = 1;
-                    $ab_count = 'A';
-                    foreach ($dinner_items as $a) {
-                        $title = (in_array($a->cat_id, $alternative) ? "D" . $count2 : 
-                                (in_array($a->cat_id, $ab_alternative) ? "D" . $ab_count : $cat_id[$a->cat_id] ?? ''));
-
-                        if ($is_first) {
-                            $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
-                        }
-
-                        // Set default to 0 if unset
-                        $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
-
-                        // Check if we have order data for this room and item
-                        if (isset($order_data_map[$room_id][$a->id])) {
-                            $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
-                        }
-
-                        // Update totals
-                        $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
-
-                        if (in_array($a->cat_id, $alternative)) $count2++;
-                        if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                    }
+                    $ab_count2 = 'A';
+                    $processMealItemsRange($dinner_items, 'D', $count2, $ab_count2);
 
                     foreach ($curr_item_array as $row) {
                         $room_id = $row['room_id'];
@@ -434,13 +351,12 @@ class OrderController extends Controller
                                     if (!isset($final_array[$room_id][$key])) {
                                         $final_array[$room_id][$key] = intval($value);
                                     } else {
-                                    $final_array[$room_id][$key] += intval($value);
+                                        $final_array[$room_id][$key] += intval($value);
                                     }
                                 }
                             }
                         }
                     }
-
                     $is_first = false;
                     $curr_item_array = [];
                 }
