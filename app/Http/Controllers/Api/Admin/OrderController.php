@@ -11,6 +11,16 @@ use App\Models\OrderDetail;
 
 class OrderController extends Controller
 {
+    // Meal/category constants
+    private const CAT_ID = [
+        1 => 'BA',
+        2 => 'LS',
+        7 => 'LD',
+        13 => 'DD',
+    ];
+    private const ALTERNATIVE = [4, 8, 11];
+    private const AB_ALTERNATIVE = [5, 3];
+
     /**
      * Retrieve item details by their IDs.
      * 
@@ -40,15 +50,6 @@ class OrderController extends Controller
         $table_column[2] = [];
 
         $table_column[0][] = ["title" => 'Room No', "field" => 'room_id', "rowspan" => 3];
-
-        $cat_id = [
-            1 => 'BA',
-            2 => 'LS',
-            7 => 'LD',
-           13 => 'DD',
-        ];
-        $alternative = [4, 8, 11];
-        $ab_alternative = [5, 3];
         
         $all_rooms = RoomDetail::where("is_active", 1)->get();
         
@@ -126,12 +127,19 @@ class OrderController extends Controller
                 $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
-                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count) use ($alternative, $ab_alternative, $cat_id, $room_id, &$item_array, &$order_data_map, &$total, &$table_column, $is_first) {
+                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count) use (
+                        $room_id,
+                        &$item_array,
+                        &$order_data_map,
+                        &$total,
+                        &$table_column,
+                        $is_first,
+                    ) {
                         foreach ($items as $a) {
                             if ($mealPrefix === 'B') {
-                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : $cat_id[$a->cat_id] ?? '');
+                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : self::CAT_ID[$a->cat_id] ?? '');
                             } else {
-                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : (in_array($a->cat_id, $ab_alternative) ? $mealPrefix . $ab_count : $cat_id[$a->cat_id] ?? ''));
+                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : (in_array($a->cat_id, self::AB_ALTERNATIVE) ? $mealPrefix . $ab_count : self::CAT_ID[$a->cat_id] ?? ''));
                             }
                             if ($is_first) {
                                 $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
@@ -141,8 +149,8 @@ class OrderController extends Controller
                                 $item_array[$room_id][$title] = intval($order_data_map[$room_id][$a->id]);
                             }
                             $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id][$title];
-                            if (in_array($a->cat_id, $alternative)) $count++;
-                            if ($mealPrefix !== 'B' && in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
+                            if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
+                            if ($mealPrefix !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE)) $ab_count = 'B';
                         }
                     };
 
@@ -199,15 +207,6 @@ class OrderController extends Controller
         $table_column[2] = [];
 
         $table_column[0][] = ["title" => 'Room No', "field" => 'room_id', "rowspan" => 3];
-
-        $cat_id = [
-            1 => 'BA',
-            2 => 'LS',
-            7 => 'LD',
-           13 => 'DD',
-        ];
-        $alternative = [4, 8, 11];
-        $ab_alternative = [5, 3];
 
         // init outside of loop to avoid re-initialization
         $breakfast_count = 0;
@@ -306,12 +305,19 @@ class OrderController extends Controller
                     $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
-                    $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count) use ($alternative, $ab_alternative, $cat_id, $room_id, &$curr_item_array, &$order_data_map, &$total, &$curr_day_tooltips, $is_first) {
+                    $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count) use (
+                        $room_id,
+                        &$curr_item_array,
+                        &$order_data_map,
+                        &$total,
+                        &$curr_day_tooltips,
+                        $is_first,
+                    ) {
                         foreach ($items as $a) {
                             if ($mealPrefix === 'B') {
-                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : $cat_id[$a->cat_id] ?? '');
+                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : self::CAT_ID[$a->cat_id] ?? '');
                             } else {
-                                $title = (in_array($a->cat_id, $alternative) ? $mealPrefix . $count : (in_array($a->cat_id, $ab_alternative) ? $mealPrefix . $ab_count : $cat_id[$a->cat_id] ?? ''));
+                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : (in_array($a->cat_id, self::AB_ALTERNATIVE) ? $mealPrefix . $ab_count : self::CAT_ID[$a->cat_id] ?? ''));
                             }
                             if ($is_first) {
                                 $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
@@ -321,8 +327,8 @@ class OrderController extends Controller
                                 $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
                             }
                             $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
-                            if (in_array($a->cat_id, $alternative)) $count++;
-                            if ($mealPrefix !== 'B' && in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
+                            if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
+                            if ($mealPrefix !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE)) $ab_count = 'B';
                         }
                     };
 
