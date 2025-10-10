@@ -265,6 +265,9 @@ class OrderController extends Controller
         foreach ($period as $date) {
             $search_date = $date->format('Y-m-d');
             $menu_details = MenuDetail::where("date", $search_date)->first();
+
+            $is_first = true;  // Reset for each date (stopgap fix)
+            $curr_day_tooltips = [];
             
             if ($menu_details) {
                 $menu_items = $menu_details->items;
@@ -351,8 +354,8 @@ class OrderController extends Controller
                     foreach ($breakfast_items as $a) {
                         $title = (in_array($a->cat_id, $alternative) ? "B" . $count : $cat_id[$a->cat_id] ?? '');
 
-                        if ($search_date == $breakfast_longest_day) {
-                            $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                        if ($is_first) {
+                            $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
                         }
 
                         // Set default to 0
@@ -376,8 +379,8 @@ class OrderController extends Controller
                         $title = (in_array($a->cat_id, $alternative) ? "L" . $count1 : 
                                 (in_array($a->cat_id, $ab_alternative) ? "L" . $ab_count : $cat_id[$a->cat_id] ?? ''));
 
-                        if ($search_date == $lunch_longest_day) {
-                            $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                        if ($is_first) {
+                            $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
                         }
 
                         // Set default to 0 if unset
@@ -402,8 +405,8 @@ class OrderController extends Controller
                         $title = (in_array($a->cat_id, $alternative) ? "D" . $count2 : 
                                 (in_array($a->cat_id, $ab_alternative) ? "D" . $ab_count : $cat_id[$a->cat_id] ?? ''));
 
-                        if ($search_date == $dinner_longest_day) {
-                            $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                        if ($is_first) {
+                            $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
                         }
 
                         // Set default to 0 if unset
@@ -438,9 +441,11 @@ class OrderController extends Controller
                         }
                     }
 
+                    $is_first = false;
                     $curr_item_array = [];
                 }
             }
+            $table_column[2][] = $curr_day_tooltips;
         }
 
         // Custom sort function to order keys as required
