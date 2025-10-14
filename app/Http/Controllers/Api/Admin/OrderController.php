@@ -347,22 +347,8 @@ class OrderController extends Controller
                     $ab_count2 = 'A';
                     $processMealItemsRange($dinner_items, 'D', $count2, $ab_count2);
 
-                    foreach ($curr_item_array as $row) {
-                        $room_id = $row['room_id'];
-                        if (!isset($final_array[$room_id])) {
-                            $final_array[$room_id] = $row;
-                        } else {
-                            foreach ($row as $key => $value) {
-                                if ($key !== 'room_id') {
-                                    if (!isset($final_array[$room_id][$key])) {
-                                        $final_array[$room_id][$key] = intval($value);
-                                    } else {
-                                        $final_array[$room_id][$key] += intval($value);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    $final_array[] = $curr_item_array[$r->id];
+
                     $is_first = false;
                     $curr_item_array = [];
                 }
