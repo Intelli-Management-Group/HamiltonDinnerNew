@@ -347,14 +347,30 @@ class OrderController extends Controller
                     $ab_count2 = 'A';
                     $processMealItemsRange($dinner_items, 'D', $count2, $ab_count2);
 
-                    $final_array[] = $curr_item_array[$r->id];
-
+                    foreach ($curr_item_array as $row) {
+                        $room_id = $row['room_id'];
+                        if (!isset($final_array[$room_id])) {
+                            $final_array[$room_id] = $row;
+                        } else {
+                            foreach ($row as $key => $value) {
+                                if ($key !== 'room_id') {
+                                    if (!isset($final_array[$room_id][$key])) {
+                                        $final_array[$room_id][$key] = intval($value);
+                                    } else {
+                                        $final_array[$room_id][$key] += intval($value);
+                                    }
+                                }
+                            }
+                        }
+                    }
                     $is_first = false;
                     $curr_item_array = [];
                 }
             }
             $table_column[2][] = $curr_day_tooltips;
         }
+
+        
 
         // Custom sort function to order keys as required
         // TODO: the room loop above should be optimized to avoid this step
@@ -386,6 +402,9 @@ class OrderController extends Controller
             $customSort($row);
         }
         unset($row); // break reference
+
+        // turn $final_array into indexed array
+        $final_array = array_values($final_array);
         
         // Apply to $total
         $customSort($total);
