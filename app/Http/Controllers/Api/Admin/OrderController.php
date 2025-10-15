@@ -63,24 +63,6 @@ class OrderController extends Controller
             if (!isset($menu_items["breakfast"])) $menu_items["breakfast"] = [];
             if (!isset($menu_items["lunch"])) $menu_items["lunch"] = [];
             if (!isset($menu_items["dinner"])) $menu_items["dinner"] = [];
-            
-            // Get counts for column spans
-            $breakfast_count = count($menu_items["breakfast"]);
-            $lunch_count = count($menu_items["lunch"]);
-            $dinner_count = count($menu_items["dinner"]);
-            
-            // Only add columns for meal types that have items
-            if ($breakfast_count > 0) {
-                $table_column[0][] = ["title" => 'Breakfast', "colspan" => $breakfast_count];
-            }
-            
-            if ($lunch_count > 0) {
-                $table_column[0][] = ["title" => 'Lunch', "colspan" => $lunch_count];
-            }
-            
-            if ($dinner_count > 0) {
-                $table_column[0][] = ["title" => 'Dinner', "colspan" => $dinner_count];
-            }
 
             $is_first = true;
             $total = [];
@@ -127,7 +109,7 @@ class OrderController extends Controller
                 $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
-                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count) use (
+                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map) use (
                         $room_id,
                         &$item_array,
                         &$order_data_map,
@@ -136,10 +118,40 @@ class OrderController extends Controller
                         $is_first,
                     ) {
                         foreach ($items as $a) {
+
+                            // Set to track unique items per category
+                            if (array_key_exists($a->cat_id, self::CAT_ID)) {
+                                $cat_id_map[$a->cat_id][$a->id] = true;
+                            }
+
                             if ($mealPrefix === 'B') {
-                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : self::CAT_ID[$a->cat_id] ?? '');
+                                $title = (
+                                    in_array($a->cat_id, self::ALTERNATIVE) ? 
+                                    $mealPrefix . $count 
+                                    : (
+                                        array_key_exists($a->cat_id, self::CAT_ID) ?
+                                        self::CAT_ID[$a->cat_id] . (
+                                            count($cat_id_map[$a->cat_id]) > 1 ?
+                                            count($cat_id_map[$a->cat_id]) : ''
+                                        ) : ''
+                                    )
+                                );
                             } else {
-                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : (in_array($a->cat_id, self::AB_ALTERNATIVE) ? $mealPrefix . $ab_count : self::CAT_ID[$a->cat_id] ?? ''));
+                                $title = (
+                                    in_array($a->cat_id, self::ALTERNATIVE) ?
+                                    $mealPrefix . $count
+                                    : (
+                                        in_array($a->cat_id, self::AB_ALTERNATIVE) ?
+                                        $mealPrefix . $ab_count
+                                        : (
+                                            array_key_exists($a->cat_id, self::CAT_ID) ?
+                                            self::CAT_ID[$a->cat_id] . (
+                                                count($cat_id_map[$a->cat_id]) > 1 ?
+                                                count($cat_id_map[$a->cat_id]) : ''
+                                            ) : ''
+                                        )
+                                    )
+                                );
                             }
                             if ($is_first) {
                                 $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
@@ -157,17 +169,20 @@ class OrderController extends Controller
                     // Process breakfast
                     $count = 1;
                     $ab_count = 'A';
-                    $processMealItems($breakfast_items, 'B', $count, $ab_count);
+                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                    $processMealItems($breakfast_items, 'B', $count, $ab_count, $cat_id_map);
 
                     // Process lunch
-                    $count1 = 1;
-                    $ab_count1 = 'A';
-                    $processMealItems($lunch_items, 'L', $count1, $ab_count1);
+                    $count = 1;
+                    $ab_count = 'A';
+                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                    $processMealItems($lunch_items, 'L', $count, $ab_count, $cat_id_map);
 
                     // Process dinner
-                    $count2 = 1;
-                    $ab_count2 = 'A';
-                    $processMealItems($dinner_items, 'D', $count2, $ab_count2);
+                    $count = 1;
+                    $ab_count = 'A';
+                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                    $processMealItems($dinner_items, 'D', $count, $ab_count, $cat_id_map);
 
                     $final_array[] = $item_array[$r->id];
                     $is_first = false;
@@ -179,6 +194,27 @@ class OrderController extends Controller
                     function($v) { return ["title" => $v]; },
                     $total
                 );
+            }
+
+            // Only add columns for meal types that have items
+            $breakfast_count = 0;
+            $lunch_count = 0;
+            $dinner_count = 0;
+
+            foreach ($total as $key => $value) {
+                if (strpos($key, 'B') === 0) $breakfast_count++;
+                else if (strpos($key, 'L') === 0) $lunch_count++;
+                else if (strpos($key, 'D') === 0) $dinner_count++;
+            }
+
+            if ($breakfast_count > 0) {
+                $table_column[0][] = ["title" => 'Breakfast', "colspan" => $breakfast_count];
+            }
+            if ($lunch_count > 0) {
+                $table_column[0][] = ["title" => 'Lunch', "colspan" => $lunch_count];
+            }
+            if ($dinner_count > 0) {
+                $table_column[0][] = ["title" => 'Dinner', "colspan" => $dinner_count];
             }
         }
         
@@ -244,26 +280,6 @@ class OrderController extends Controller
                 if (!isset($menu_items["lunch"])) $menu_items["lunch"] = [];
                 if (!isset($menu_items["dinner"])) $menu_items["dinner"] = [];
 
-                // Get counts for column spans
-                $breakfast_count = max($breakfast_count, count($menu_items["breakfast"]));
-                $lunch_count = max($lunch_count, count($menu_items["lunch"]));
-                $dinner_count = max($dinner_count, count($menu_items["dinner"]));
-
-                if ($breakfast_count > count($menu_items["breakfast"])) {
-                    $breakfast_count = count($menu_items["breakfast"]);
-                    $breakfast_longest_day = $search_date;
-                }
-
-                if ($lunch_count > count($menu_items["lunch"])) {
-                    $lunch_count = count($menu_items["lunch"]);
-                    $lunch_longest_day = $search_date;
-                }
-
-                if ($dinner_count > count($menu_items["dinner"])) {
-                    $dinner_count = count($menu_items["dinner"]);
-                    $dinner_longest_day = $search_date;
-                }
-
                 // Pre-fetch all order data for the date to avoid N+1 query problem
                 $order_data_map = [];
                 $item_ids = array_merge(
@@ -305,7 +321,7 @@ class OrderController extends Controller
                     $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
-                    $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count) use (
+                    $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map) use (
                         $room_id,
                         &$curr_item_array,
                         &$order_data_map,
@@ -314,11 +330,42 @@ class OrderController extends Controller
                         $is_first,
                     ) {
                         foreach ($items as $a) {
-                            if ($mealPrefix === 'B') {
-                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : self::CAT_ID[$a->cat_id] ?? '');
-                            } else {
-                                $title = (in_array($a->cat_id, self::ALTERNATIVE) ? $mealPrefix . $count : (in_array($a->cat_id, self::AB_ALTERNATIVE) ? $mealPrefix . $ab_count : self::CAT_ID[$a->cat_id] ?? ''));
+
+                            // Set to track unique items per category
+                            if (array_key_exists($a->cat_id, self::CAT_ID)) {
+                                $cat_id_map[$a->cat_id][$a->id] = true;
                             }
+
+                            if ($mealPrefix === 'B') {
+                                $title = (
+                                    in_array($a->cat_id, self::ALTERNATIVE) ? 
+                                    $mealPrefix . $count 
+                                    : (
+                                        array_key_exists($a->cat_id, self::CAT_ID) ?
+                                        self::CAT_ID[$a->cat_id] . (
+                                            count($cat_id_map[$a->cat_id]) > 1 ?
+                                            count($cat_id_map[$a->cat_id]) : ''
+                                        ) : ''
+                                    )
+                                );
+                            } else {
+                                $title = (
+                                    in_array($a->cat_id, self::ALTERNATIVE) ?
+                                    $mealPrefix . $count
+                                    : (
+                                        in_array($a->cat_id, self::AB_ALTERNATIVE) ?
+                                        $mealPrefix . $ab_count
+                                        : (
+                                            array_key_exists($a->cat_id, self::CAT_ID) ?
+                                            self::CAT_ID[$a->cat_id] . (
+                                                count($cat_id_map[$a->cat_id]) > 1 ?
+                                                count($cat_id_map[$a->cat_id]) : ''
+                                            ) : ''
+                                        )
+                                    )
+                                );
+                            }
+
                             if ($is_first) {
                                 $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
                             }
@@ -335,17 +382,20 @@ class OrderController extends Controller
                     // Process breakfast
                     $count = 1;
                     $ab_count = 'A';
-                    $processMealItemsRange($breakfast_items, 'B', $count, $ab_count);
+                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                    $processMealItemsRange($breakfast_items, 'B', $count, $ab_count, $cat_id_map);
 
                     // Process lunch
-                    $count1 = 1;
-                    $ab_count1 = 'A';
-                    $processMealItemsRange($lunch_items, 'L', $count1, $ab_count1);
+                    $count = 1;
+                    $ab_count = 'A';
+                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                    $processMealItemsRange($lunch_items, 'L', $count, $ab_count, $cat_id_map);
 
                     // Process dinner
-                    $count2 = 1;
-                    $ab_count2 = 'A';
-                    $processMealItemsRange($dinner_items, 'D', $count2, $ab_count2);
+                    $count = 1;
+                    $ab_count = 'A';
+                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                    $processMealItemsRange($dinner_items, 'D', $count, $ab_count, $cat_id_map);
 
                     foreach ($curr_item_array as $row) {
                         $room_id = $row['room_id'];
@@ -410,6 +460,16 @@ class OrderController extends Controller
         $customSort($total);
 
         // Only add columns for meal types that have items
+        $breakfast_count = 0;
+        $lunch_count = 0;
+        $dinner_count = 0;
+
+        foreach ($total as $key => $value) {
+            if (strpos($key, 'B') === 0) $breakfast_count++;
+            else if (strpos($key, 'L') === 0) $lunch_count++;
+            else if (strpos($key, 'D') === 0) $dinner_count++;
+        }
+
         if ($breakfast_count > 0) {
             $table_column[0][] = ["title" => 'Breakfast', "colspan" => $breakfast_count];
         }
