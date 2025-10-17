@@ -2249,8 +2249,6 @@ class DinningController extends Controller
         return Storage::url('public/FormResponses/' . $uniqueFileName);
     }
 
-
-
     public function getGuestOrderList(Request $request) // same as getorderlist
     {
         if (!session("user_details")) {
@@ -2458,8 +2456,6 @@ class DinningController extends Controller
     // }
 
     // temp routes for demo ios app
-
-
 
     public function getDynamicFormDemoData()
     {
@@ -3462,8 +3458,6 @@ class DinningController extends Controller
 
         $selectedRoomIds = array_unique($selectedRoomIds);
 
-        // print_r($selectedRoomIds);die;
-
         if ($menu_details) {
 
             $menu_items = $menu_details->items;
@@ -3715,157 +3709,249 @@ class DinningController extends Controller
         return $this->sendResultJSON('1', '', array('breakfast_item_list' => array_values($breakfast), 'lunch_item_list' => array_values($lunch), 'dinner_item_list' => array_values($dinner), 'report_breakfast_list' => array_values($breakfast_rooms_array), 'report_lunch_list' => array_values($lunch_rooms_array), 'report_dinner_list' => array_values($dinner_rooms_array)));
     }
 
-    public function reportDataTemp2(Request $request)
+    // helper constants for chargeReportDateRange
+    // category ids
+    private const CAT_ID = [
+        1 => 'BA',
+        2 => 'LS',
+        7 => 'LD',
+        13 => 'DD',
+    ];
+    private const ALTERNATIVE = [4, 8, 11];
+    private const AB_ALTERNATIVE = [5, 3];
+
+    // meal aliases and category ids
+    private const MEAL_ALIASES = [
+        'breakfast' => 'brk',
+        'lunch' => 'lunch',
+        'dinner' => 'dinner'
+    ];
+    private const MEAL_CATEGORIES = [
+        'breakfast' => '1',
+        'lunch' => '2',
+        'dinner' => '3'
+    ];
+
+    // helper functions for chargeReportDateRange
+    private function getItemDetailsByIds($ids) {
+        return ItemDetail::selectRaw("id,item_name,cat_id")
+            ->whereRaw("id IN (" . implode(",", $ids) . ")")
+            ->orderBy("cat_id")
+            ->get();
+    }
+
+    private function populateMenuArrays(
+        &$menuItemsArray,
+        &$mealArray,
+        &$mealIdsArray,
+        $meal,
+    ) {
+        $allItems = $this->getItemDetailsByIds($menuItemsArray[$meal]);
+        $count = 1;
+        $abCount = 'A';
+        $items = array();
+
+        foreach ($allItems as $a) {
+
+            $mealLetter = strtoupper($meal[0]);
+
+            $title = (
+                in_array($a->cat_id, self::ALTERNATIVE) ?
+                null : (
+                    $mealLetter != 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE) ?
+                    $mealLetter . $abCount : self::CAT_ID[$a->cat_id]
+                )
+            );
+            if (!isset($mealArray[$a->id]) && !empty($title))
+                $mealArray[$a->id] = array();
+
+            if (!empty($title)) {
+
+                $mealArray[$a->id] = array(
+                    "item_name" => $title,
+                    "real_item_name" => $a->item_name,
+                    'item_id' => $a->id
+                );
+                $mealIdsArray[] = $a->id;
+            }
+
+            if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
+            if (in_array($a->cat_id, self::AB_ALTERNATIVE)) $abCount = 'B';
+        }
+    }
+
+    private function constructMealQuery(
+        $meal,
+        $date
+    ) {
+        $meal = self::MEAL_ALIASES[$meal] ?? 'breakfast';
+        $cat = self::MEAL_CATEGORIES[$meal] ?? '1';
+
+        return "SELECT
+            od.room_id                      AS roomId,
+            od.is_for_guest                 AS isForGuest,
+            od.is_{$meal}_tray_service      AS {$meal}TrayService,
+            od.is_{$meal}_escort_service    AS {$meal}EscortService,
+            od.is_{$meal}_takeout_service   AS {$meal}TakeoutService,
+            od.id                           AS orderId,
+
+            rd.room_name                    AS roomName,
+
+            id.item_name                    AS itemName,
+            id.cat_id                       AS itemCategoryId,
+
+            io.id                           AS itemOptionId,
+            io.is_paid_item                 AS isPaidItem,
+            io.option_name                  AS itemOptionName,
+
+            dwo.occupancy                   AS noOfGuest
+
+        FROM order_details              od
+        LEFT JOIN room_details          rd  ON rd.id = od.room_id
+        LEFT JOIN item_details          id  ON id.id = od.item_id
+        LEFT JOIN item_options          io  ON io.id = od.item_options
+        LEFT JOIN category_details      cd  ON cd.id = id.cat_id
+        LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = rd.id 
+                                            AND dwo.date = od.date
+
+        WHERE od.date = '$date'
+            AND od.item_id IN (
+                SELECT id 
+                FROM item_details 
+                WHERE cat_id IN (
+                    SELECT id 
+                    FROM category_details
+                    WHERE type = '$cat'
+                )
+            ) AND (
+                od.is_{$meal}_tray_service = 1
+                OR od.is_{$meal}_escort_service = 1
+                OR od.is_{$meal}_takeout_service = 1
+                OR od.is_for_guest > 0
+                OR (
+                    od.item_options IN (
+                        SELECT id 
+                        FROM item_options 
+                        WHERE is_paid_item = '1'
+                    )
+                )
+            )
+        GROUP BY od.room_id, od.is_for_guest";
+    }
+
+    private function constructQuantityQuery(
+        $roomId,
+        $date,
+        $itemId,
+        $isForGuest,
+    ) {
+        return "SELECT
+            quantity,
+            item_options
+        FROM order_details
+        WHERE room_id = $roomId
+            AND date = '$date'
+            AND is_for_guest = $isForGuest
+            AND item_id = $itemId
+            AND item_options IN (
+                SELECT id 
+                FROM item_options 
+                WHERE is_paid_item = '1'
+            )";
+    }
+
+    private function generateSingleDayMealReport(
+        $date,
+        $meal,
+        &$mealIds,
+        &$paidItemOptions
+    )
     {
+        $meal_alias = self::MEAL_ALIASES[$meal] ?? 'brk';
+        $reportMealList = [];
 
-
-        //  {   
-
-        // quantity and items from this
-
-        $date = $request->input('date');
-        $menu_details = MenuDetail::where("date", $date)->first(); // merge the is_allday data with this also
-
-        $breakfast = $lunch = $dinner = array();
-        $breakfast_rooms_array = $lunch_rooms_array = $dinner_rooms_array = array();
-        $rooms_array = array();
-        $cat_id = array(
-            1 => 'BA',
-            2 => 'LS',
-            7 => 'LD',
-            13 => 'DD',
+        $mealSql = $this->constructMealQuery(
+            $meal,
+            $date,
         );
-        $alternative = array(4, 8, 11);
-        $ab_alternative = array(5, 3);
+        $mealData = DB::select($mealSql);
 
-        $breakfastIds = [];
-        $lunchIds = [];
-        $dinnerIds = [];
+        foreach ($mealData as $mealRow) {
 
-        $breakfastQuantity = [];
-        $lunchQuantity = [];
-        $dinnerQuantity = [];
+            $mealQuantity = null;
+            $is_guest_order = !empty($mealRow->isForGuest);
 
-        if ($menu_details) {
+            $mealQuantity = [
+                (!empty($mealRow->{$meal_alias . 'TrayService'}) ? 1 : 0),
+                (!empty($mealRow->{$meal_alias . 'EscortService'}) ? 1 : 0),
+                (!empty($mealRow->{$meal_alias . 'TakeoutService'}) ? 1 : 0),
+                $is_guest_order ? $mealRow->noOfGuest : 0
+            ];
 
-            $menu_items = $menu_details->items;
+            $option = [
+                "",
+                "",
+                "",
+                ""
+            ];
 
-            if (is_string($menu_details->items)) {
-                $menu_items = json_decode($menu_details->items, true);
-            }
+            foreach ($mealIds as $mealId) {
+                $is_for_guest = $is_guest_order ? 1 : 0;
+                $quantitySql = $this->constructQuantityQuery(
+                    $mealRow->roomId,
+                    $date,
+                    $mealId,
+                    $is_for_guest
+                );
 
-            if ($menu_items["breakfast"]) {
+                $quantityData = DB::select($quantitySql);
 
-                $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["breakfast"]) . ")")->orderBy("cat_id")->get();
-                $count = 1;
-                $items = array();
-
-                foreach (count($all_items) > 0 ? $all_items : array() as $a) {
-
-                    $title = (in_array($a->cat_id, $alternative) ? null : $cat_id[$a->cat_id]);
-                    if (!isset($breakfast[$a->id]) && !empty($title))
-                        $breakfast[$a->id] = array();
-
-                    if (!empty($title)) {
-
-                        $breakfast[$a->id] = array("item_name" => $title, "real_item_name" => $a->item_name, 'item_id' => $a->id);
-                        $breakfastIds[] = $a->id;
+                if (count($quantityData)) {
+                    foreach ($quantityData as $qData) {
+                        $mealQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
+                        if (empty($qData->quantity)) {
+                            $option[] = "";
+                        } else {
+                            if (array_key_exists($qData->item_options, $paid_item_options)) {
+                                $option[] = $paid_item_options[$qData->item_options];
+                            } else {
+                                $option[] = "";
+                            }
+                        }
                     }
-
-                    if (in_array($a->cat_id, $alternative)) $count++;
+                } else {
+                    $mealQuantity[] = 0;
+                    $option[] = "";
                 }
             }
 
-            // print_r($breakfast);die;
-
-            if ($menu_items["lunch"]) {
-
-                $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["lunch"]) . ")")->orderBy("cat_id")->get();
-                $ab_count = 'A';
-                $count = 1;
-                $items = array();
-
-
-                foreach (count($all_items) > 0 ? $all_items : array() as $a) {
-
-
-                    $title = (in_array($a->cat_id, $alternative) ? null : (in_array($a->cat_id, $ab_alternative) ? "L" . $ab_count : $cat_id[$a->cat_id]));
-                    if (!isset($lunch[$a->id]) && !empty($title))
-                        $lunch[$a->id] = array();
-
-                    if (!empty($title)) {
-
-                        $lunch[$a->id] = array("item_name" => $title, "real_item_name" => $a->item_name, 'item_id' => $a->id);
-                        $lunchIds[] = $a->id;
-                    }
-
-                    if (in_array($a->cat_id, $alternative)) $count++;
-                    if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                }
-            }
-
-            if ($menu_items["dinner"]) {
-
-                $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["dinner"]) . ")")->orderBy("cat_id")->get();
-                $count = 1;
-                $ab_count = 'A';
-                $items = array();
-                $guestItems = array();
-
-
-                foreach (count($all_items) > 0 ? $all_items : array() as $a) {
-
-
-                    $title = (in_array($a->cat_id, $alternative) ? null : (in_array($a->cat_id, $ab_alternative) ? "D" . $ab_count : $cat_id[$a->cat_id]));
-                    if (!isset($dinner[$a->id]) && !empty($title))
-                        $dinner[$a->id] = array();
-
-                    if (!empty($title)) {
-
-                        $dinner[$a->id] = array("item_name" => $title, "real_item_name" => $a->item_name, 'item_id' => $a->id);
-                        $dinnerIds[] = $a->id;
-                    }
-
-                    if (in_array($a->cat_id, $alternative)) $count++;
-                    if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                }
-            }
+            $reportMealList[] = [
+                'room_no' => $mealRow->roomName . ($is_guest_order ? " G" : ""),
+                'room_id' => $mealRow->roomId,
+                'is_for_guest' => $is_guest_order ? 1 : 0,
+                'data' => $mealQuantity,
+                "option" => $option
+            ];
         }
 
-        // $last_date = "";
-        // $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
-        // if ($menu_data) {
-        //     $last_date = $menu_data->date;
-        // }
+        return $reportMealList;
+    }
 
-        // if (!$menu_details){
-        //     return $this->sendResultJSON('1', 'Menu Details not Found!!', array('breakfast_item_list' => array_values($breakfast), 'lunch_item_list' => array_values($lunch), 'dinner_item_list' => array_values($dinner), 'report_breakfast_list' => array_values($breakfast_rooms_array), 'report_lunch_list' => array_values($lunch_rooms_array), 'report_dinner_list' => array_values($dinner_rooms_array),'rooms_list' => $rooms_array,"last_menu_date" => $last_date));
-        // }
+    public function chargeReportDateRange(Request $request)
+    {
+        // quantity and items from this
+        $start_date = $request->input('start_date');
+        $end_date = $request->input('end_date');
 
-        //     return $this->sendResultJSON('1', '', array('breakfast_item_list' => array_values($breakfast), 'lunch_item_list' => array_values($lunch), 'dinner_item_list' => array_values($dinner), 'report_breakfast_list' => array_values($breakfast_rooms_array), 'report_lunch_list' => array_values($lunch_rooms_array), 'report_dinner_list' => array_values($dinner_rooms_array),'rooms_list' => $rooms_array,"last_menu_date" => $last_date));
-
-        // }
-
-        $paid_item_options_query = ItemOptionModel::select('id', 'option_name')->where("is_paid_item", 1)->get();
-
-        $paid_item_options = [];
-
-        foreach ($paid_item_options_query as $paid_item_option) {
-            $paid_item_options[$paid_item_option->id] = $paid_item_option->option_name;
-        }
-
-        // print_r($paid_item_options);die;
-
+        // base items
         $baseItemList = [
             [
                 'item_name' => 'T',
                 'real_item_name' => 'Tray Service',
-
             ],
             [
                 'item_name' => 'E',
                 'real_item_name' => 'Escort Service',
-
             ],
             [
                 'item_name' => 'TO',
@@ -3876,611 +3962,177 @@ class DinningController extends Controller
                 'real_item_name' => 'No. Of Guests',
             ]
         ];
+        
+        $menu_details = MenuDetail::whereBetween('date', [$start_date, $end_date])->get();
 
-        $reportBreakfastList = [];
-        $reportLunchList = [];
-        $reportDinnerList = [];
+        $breakfastItemsList = $lunchItemsList = $dinnerItemsList = array();
+        $reportBreakfastList = $reportLunchList = $reportDinnerList = array();
 
-        $selectedRoomIds = [];
+        foreach ($menu_details as $menu_row) {
+            $date = $menu_row->date;
 
-        // $selectedRoomsQuery = "select od.room_id as roomId,
-        //                         od.id as orderId,
-        //                         od.date as date,
-        //                         od.item_id as itemId,
-        //                         od.quantity as quantity,
-        //                         od.is_for_guest as isForGuest,
-        //                         od.is_brk_tray_service as brkTrayService,
-        //                         od.is_lunch_tray_service as lunchTrayService,
-        //                         od.is_dinner_tray_service as dinnerTrayService,
-        //                         od.is_brk_escort_service as brkEscortService,
-        //                         od.is_lunch_escort_service as lunchEscortService,
-        //                         od.is_dinner_escort_service as dinnerEscortService,
-        //                         od.item_options as itemOptions,
+            // init arrays
+            $breakfast = $lunch = $dinner = array();
 
+            $breakfastIds = [];
+            $lunchIds = [];
+            $dinnerIds = [];
 
-        //                         rd.room_name as roomName,
+            // we wrap everything in this if statement.
+            // may be better to check and error out if no menu details found for this date
+            if ($menu_row) {
 
-        //                         id.item_name as itemName,
-        //                         id.cat_id as itemCategoryId,
+                $menu_items = $menu_row->items;
+                if (is_string($menu_items)) $menu_items = json_decode($menu_items, true);
 
-        //                         io1.id as itemOptionId,
-        //                         io1.is_paid_item as isPaidItem,
+                if ($menu_items["breakfast"]) $this->populateMenuArrays(
+                    $menu_items, $breakfast, $breakfastIds, "breakfast"
+                );
+                if ($menu_items["lunch"]) $this->populateMenuArrays(
+                    $menu_items, $lunch, $lunchIds, "lunch"
+                );
+                if ($menu_items["dinner"]) $this->populateMenuArrays(
+                    $menu_items, $dinner, $dinnerIds, "dinner"
+                );
 
+            } // end of if menu details
 
-        //                         cd.id as itemCategoryId,
-        //                         cd.type as itemCategoryType,
+            $paid_item_options_query = ItemOptionModel::select('id', 'option_name')
+                ->where("is_paid_item", 1)
+                ->get();
 
-        //                         dwo.occupancy as noOfGuest
+            $paid_item_options = [];
 
-        //                         from order_details od
-        //                         left join room_details rd on rd.id = od.room_id
-        //                         left join item_options io1 on io1.id = od.item_options
-        //                         left join item_details id on od.item_id = id.id
-        //                         left join category_details cd on cd.id = id.cat_id
-        //                         left join date_wise_occupancies dwo on dwo.room_id = rd.id
-        //                         where (od.deleted_at IS NULL and io1.deleted_at is NULL AND rd.is_active = 1 and od.date = '".$date. "') AND (io1.is_paid_item = 1 OR od.is_for_guest = 1 OR
-        //                         od.is_brk_tray_service = 1 OR od.is_lunch_tray_service = 1 OR od.is_dinner_tray_service = 1 OR od.is_brk_escort_service
-        //                         = 1 OR od.is_lunch_escort_service = 1 OR od.is_dinner_escort_service = 1) group by od.room_id,od.is_for_guest,od.item_id ORDER BY od.id DESC ";
-
-
-
-
-
-
-        // echo $selectedRoomsQuery;die;
-        // $selectedRoomsResults = DB::select($selectedRoomsQuery);
-
-        // print_r($selectedRoomsResults);die;
-        // foreach ($selectedRoomsResults as $selectedRoomsResult){
-
-        //     if ($selectedRoomsResult->itemCategoryType == 1){
-
-        //         if (empty($selectedRoomsResult->isForGuest)){
-
-        //             $reportBreakfastList[] = [
-        //                 'room_no' => $selectedRoomsResult->roomName,
-        //                 'is_for_guest' => 0,
-        //                 'data' => [
-        //                     (!empty($selectedRoomsResult->brkTrayService) ? 1 : 0),
-        //                     (!empty($selectedRoomsResult->brkEscortSerive) ? 1 : 0),
-        //                     0,
-        //                 ]
-        //             ];
-
-        //         }
-
-        //         if (!empty($selectedRoomsResult->isForGuest)){
-
-        //             $reportBreakfastList[] = [
-        //                 'room_no' => $selectedRoomsResult->roomName . " G",
-        //                 'is_for_guest' => 1,
-        //                 'data' => [
-        //                     (!empty($selectedRoomsResult->brkTrayService) ? 1 : 0),
-        //                     (!empty($selectedRoomsResult->brkEscortSerive) ? 1 : 0),
-        //                     $selectedRoomsResult->noOfGuest,
-        //                 ]
-        //             ];
-
-        //         }
-        //     }
-
-        //     else if ($selectedRoomsResult->itemCategoryType == 2){
-        //          if (empty($selectedRoomsResult->isForGuest)){
-
-        //             $reportLunchList[] = [
-        //                 'room_no' => $selectedRoomsResult->roomName,
-        //                 'is_for_guest' => 0,
-        //                 'data' => [
-        //                     (!empty($selectedRoomsResult->lunchTrayService) ? 1 : 0),
-        //                     (!empty($selectedRoomsResult->lunchEscortService) ? 1 : 0),
-        //                     0,
-        //                 ]
-        //             ];
-
-        //         }
-
-        //         if (!empty($selectedRoomsResult->isForGuest)){
-
-        //             $reportLunchList[] = [
-        //                 'room_no' => $selectedRoomsResult->roomName . " G",
-        //                 'is_for_guest' => 1,
-        //                 'data' => [
-        //                     (!empty($selectedRoomsResult->lunchTrayService) ? 1 : 0),
-        //                     (!empty($selectedRoomsResult->lunchEscortService) ? 1 : 0),
-        //                     $selectedRoomsResult->noOfGuest,
-        //                 ]
-        //             ];
-
-        //         }
-        //     }
-
-        //     else if ($selectedRoomsResult->itemCategoryType == 3){
-        //          if (empty($selectedRoomsResult->isForGuest)){
-
-        //             $reportDinnerList[] = [
-        //                 'room_no' => $selectedRoomsResult->roomName,
-        //                 'is_for_guest' => 0,
-        //                 'data' => [
-        //                     (!empty($selectedRoomsResult->dinnerTrayService) ? 1 : 0),
-        //                     (!empty($selectedRoomsResult->dinnerEscortService) ? 1 : 0),
-        //                     0,
-        //                 ]
-        //             ];
-
-        //         }
-
-        //         if (!empty($selectedRoomsResult->isForGuest)){
-
-        //             $reportDinnerList[] = [
-        //                 'room_no' => $selectedRoomsResult->roomName . " G",
-        //                 'is_for_guest' => 1,
-        //                 'data' => [
-        //                     (!empty($selectedRoomsResult->dinnerTrayService) ? 1 : 0),
-        //                     (!empty($selectedRoomsResult->dinnerEscortService) ? 1 : 0),
-        //                     $selectedRoomsResult->noOfGuest,
-        //                 ]
-        //             ];
-
-        //         }
-        //     }
-        // }
-
-        //   rd.room_name as roomName,
-
-        //                         id.item_name as itemName,
-        //                         id.cat_id as itemCategoryId,
-
-        //                         io1.id as itemOptionId,
-        //                         io1.is_paid_item as isPaidItem,
-
-
-        //                         cd.id as itemCategoryId,
-        //                         cd.type as itemCategoryType,
-
-        //                         dwo.occupancy as noOfGuest
-
-        $breakfastSql = "SELECT 
-                        od.room_id as roomId,
-                        od.is_for_guest as isForGuest,
-                        od.is_brk_tray_service brkTrayService,
-                        od.is_brk_escort_service brkEscortService,
-                        od.is_brk_takeout_service brkTakeoutService,
-                        od.id as orderId,
-                        
-                        rd.room_name as roomName,
-                        
-                        id.item_name as itemName,
-                        id.cat_id as itemCategoryId,
-                        
-                        io.id as itemOptionId,
-                        io.is_paid_item as isPaidItem,
-                        io.option_name as itemOptionName,
-                        
-                        dwo.occupancy as noOfGuest
-                        
-                        FROM order_details od
-                        left join room_details rd on rd.id = od.room_id
-                        left join item_details id on id.id = od.item_id
-                        left join item_options io on io.id = od.item_options
-                        left join category_details cd on cd.id = id.cat_id
-                        
-                        left join date_wise_occupancies dwo on dwo.room_id = rd.id and dwo.date = od.date
-                        where od.date = '" . $date . "' AND 
-                        od.item_id IN (SELECT id FROM item_details WHERE cat_id
-                        IN (SELECT id FROM category_details WHERE type = '1')) AND 
-                        (od.is_brk_tray_service = 1 OR od.is_brk_escort_service = 1 OR od.is_brk_takeout_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
-                        group by od.room_id,od.is_for_guest";
-
-        $breakFastData = DB::select($breakfastSql);
-
-        foreach ($breakFastData as $breakFastRow) {
-
-            $breakfastQuantity = null;
-
-            if (empty($breakFastRow->isForGuest)) {
-
-                $breakfastQuantity = [
-                    (!empty($breakFastRow->brkTrayService) ? 1 : 0),
-                    (!empty($breakFastRow->brkEscortService) ? 1 : 0),
-                    (!empty($breakFastRow->brkTakeoutService) ? 1 : 0),
-                    0
-                ];
-
-                $option = [
-                    "",
-                    "",
-                    "",
-                    ""
-                ];
-
-                foreach ($breakfastIds as $breakfastId) {
-
-                    $quantitySql = "SELECT quantity,item_options FROM order_details where room_id = '" . $breakFastRow->roomId . "' AND date = '" . $date . "' AND is_for_guest = 0 AND item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1') AND item_id = " . $breakfastId . " ";
-
-                    $quantityData = DB::select($quantitySql);
-
-                    if (count($quantityData)) {
-
-                        foreach ($quantityData as $qData) {
-
-                            $breakfastQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
-
-                            if (empty($qData->quantity)) {
-                                $option[] = "";
-                            } else {
-                                if (array_key_exists($qData->item_options, $paid_item_options)) {
-                                    $option[] = $paid_item_options[$qData->item_options];
-                                } else {
-                                    $option[] = "";
-                                }
-                            }
-                        }
-                    } else {
-                        $breakfastQuantity[] = 0;
-                        $option[] = "";
-                    }
-                }
-
-
-                $reportBreakfastList[] = [
-                    'room_no' => $breakFastRow->roomName,
-                    'room_id' => $breakFastRow->roomId,
-                    'is_for_guest' => 0,
-                    'data' => $breakfastQuantity,
-                    "option" => $option
-                ];
+            foreach ($paid_item_options_query as $paid_item_option) {
+                $paid_item_options[$paid_item_option->id] = $paid_item_option->option_name;
             }
 
-            if (!empty($breakFastRow->isForGuest)) {
+            // breakfast
+            $breakfastItemsList[] = array_merge($baseItemList, array_values($breakfast));
+            $reportBreakfastList[] = $this->generateSingleDayMealReport(
+                $date,
+                'breakfast',
+                $breakfastIds,
+                $paid_item_options
+            );
 
-                $breakfastQuantity = [
-                    (!empty($breakFastRow->brkTrayService) ? 1 : 0),
-                    (!empty($breakFastRow->brkEscortService) ? 1 : 0),
-                    (!empty($breakFastRow->brkTakeoutService) ? 1 : 0),
-                    $breakFastRow->noOfGuest
-                ];
+            // lunch
+            $lunchItemList[] = array_merge($baseItemList, array_values($lunch));
+            $reportLunchList[] = $this->generateSingleDayMealReport(
+                $date,
+                'lunch',
+                $lunchIds,
+                $paid_item_options
+            );
 
-                $option = [
-                    "",
-                    "",
-                    "",
-                    ""
-                ];
-
-                foreach ($breakfastIds as $breakfastId) {
-
-                    $quantitySql = "SELECT quantity,item_options FROM order_details where room_id = '" . $breakFastRow->roomId . "' AND date = '" . $date . "' AND is_for_guest = 1 AND item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1') AND item_id = " . $breakfastId . " ";
-
-                    $quantityData = DB::select($quantitySql);
-
-                    if (count($quantityData)) {
-
-                        foreach ($quantityData as $qData) {
-
-                            $breakfastQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
-
-                            if (empty($qData->quantity)) {
-                                $option[] = "";
-                            } else {
-                                if (array_key_exists($qData->item_options, $paid_item_options)) {
-                                    $option[] = $paid_item_options[$qData->item_options];
-                                } else {
-                                    $option[] = "";
-                                }
-                            }
-                        }
-                    } else {
-                        $breakfastQuantity[] = 0;
-                        $option[] = "";
-                    }
-                }
-
-                $reportBreakfastList[] = [
-                    'room_no' => $breakFastRow->roomName . " G",
-                    'room_id' => $breakFastRow->roomId,
-                    'is_for_guest' => 1,
-                    'data' => $breakfastQuantity,
-                    "option" => $option
-                ];
-            }
+            // dinner
+            $dinnerItemList[] = array_merge($baseItemList, array_values($dinner));
+            $reportDinnerList[] = $this->generateSingleDayMealReport(
+                $date,
+                'dinner',
+                $dinnerIds,
+                $paid_item_options
+            );
         }
+
+        $finalData = [
+            'breakfast_item_list' => $breakfastItemsList,
+            'report_breakfast_list' => $reportBreakfastList,
+            'lunch_item_list' => $lunchItemsList,
+            'report_lunch_list' => $reportLunchList,
+            'dinner_item_list' => $dinnerItemsList,
+            'report_dinner_list' => $reportDinnerList
+        ];
+
+        return $this->sendResultJSON('1', '', $finalData);
+    }
+
+    public function chargeReportSingleDay(Request $request)
+    {
+        // quantity and items from this
+        $date = $request->input('date');
+
+        // base items
+        $baseItemList = [
+            [
+                'item_name' => 'T',
+                'real_item_name' => 'Tray Service',
+            ],
+            [
+                'item_name' => 'E',
+                'real_item_name' => 'Escort Service',
+            ],
+            [
+                'item_name' => 'TO',
+                'real_item_name' => 'TakeOut',
+            ],
+            [
+                'item_name' => 'G',
+                'real_item_name' => 'No. Of Guests',
+            ]
+        ];
+        
+        $menu_details = MenuDetail::where("date", $date)->first(); // merge the is_allday data with this also
+
+        // init arrays
+        $breakfast = $lunch = $dinner = array();
+
+        $breakfastIds = [];
+        $lunchIds = [];
+        $dinnerIds = [];
+
+        // we wrap everything in this if statement.
+        // may be better to check and error out if no menu details found for this date
+        if ($menu_details) {
+
+            $menu_items = $menu_details->items;
+            if (is_string($menu_items)) $menu_items = json_decode($menu_items, true);
+
+            if ($menu_items["breakfast"]) $this->populateMenuArrays(
+                $menu_items, $breakfast, $breakfastIds, "breakfast"
+            );
+            if ($menu_items["lunch"]) $this->populateMenuArrays(
+                $menu_items, $lunch, $lunchIds, "lunch"
+            );
+            if ($menu_items["dinner"]) $this->populateMenuArrays(
+                $menu_items, $dinner, $dinnerIds, "dinner"
+            );
+
+        } // end of if menu details
+
+        $paid_item_options_query = ItemOptionModel::select('id', 'option_name')
+            ->where("is_paid_item", 1)
+            ->get();
+
+        $paid_item_options = [];
+
+        foreach ($paid_item_options_query as $paid_item_option) {
+            $paid_item_options[$paid_item_option->id] = $paid_item_option->option_name;
+        }
+
+        // breakfast
+        $reportBreakfastList = $this->generateSingleDayMealReport(
+            $date,
+            'breakfast',
+            $breakfastIds,
+            $paid_item_options
+        );
 
         // lunch
-
-        $lunchSql = "SELECT 
-                        od.room_id as roomId,
-                        od.is_for_guest as isForGuest,
-                        od.is_lunch_tray_service lunchTrayService,
-                        od.is_lunch_escort_service lunchEscortService,
-                        od.is_lunch_takeout_service lunchTakeoutService,
-                        od.id as orderId,
-                        
-                        rd.room_name as roomName,
-                        
-                        id.item_name as itemName,
-                        id.cat_id as itemCategoryId,
-                        
-                        io.id as itemOptionId,
-                        io.is_paid_item as isPaidItem,
-                        io.option_name as itemOptionName,
-                        
-                        dwo.occupancy as noOfGuest
-                        
-                        FROM order_details od
-                        left join room_details rd on rd.id = od.room_id
-                        left join item_details id on id.id = od.item_id
-                        left join item_options io on io.id = od.item_options
-                        left join category_details cd on cd.id = id.cat_id
-                        
-                        left join date_wise_occupancies dwo on dwo.room_id = rd.id and dwo.date = od.date
-                        where od.date = '" . $date . "' AND 
-                        od.item_id IN (SELECT id FROM item_details WHERE cat_id
-                        IN (SELECT id FROM category_details WHERE type = '2')) AND 
-                        (od.is_lunch_tray_service = 1 OR od.is_lunch_escort_service = 1 OR od.is_lunch_takeout_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
-                        group by od.room_id,od.is_for_guest";
-
-        $lunchData = DB::select($lunchSql);
-
-
-        foreach ($lunchData as $lunchRow) {
-
-            $lunchQuantity = null;
-
-            if (empty($lunchRow->isForGuest)) {
-
-                $lunchQuantity = [
-                    (!empty($lunchRow->lunchTrayService) ? 1 : 0),
-                    (!empty($lunchRow->lunchEscortService) ? 1 : 0),
-                    (!empty($lunchRow->lunchTakeoutService) ? 1 : 0),
-                    0
-                ];
-
-                $option = [
-                    "",
-                    "",
-                    "",
-                    ""
-                ];
-
-                foreach ($lunchIds as $lunchId) {
-
-                    $quantitySql = "SELECT quantity,item_options FROM order_details where room_id = '" . $lunchRow->roomId . "' AND date = '" . $date . "' AND is_for_guest = 0 AND item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1') AND item_id = " . $lunchId . " ";
-
-                    $quantityData = DB::select($quantitySql);
-
-                    if (count($quantityData)) {
-
-                        foreach ($quantityData as $qData) {
-
-                            $lunchQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
-
-                            if (empty($qData->quantity)) {
-                                $option[] = "";
-                            } else {
-                                if (array_key_exists($qData->item_options, $paid_item_options)) {
-                                    $option[] = $paid_item_options[$qData->item_options];
-                                } else {
-                                    $option[] = "";
-                                }
-                            }
-                        }
-                    } else {
-                        $lunchQuantity[] = 0;
-                        $option[] = "";
-                    }
-                }
-
-                $reportLunchList[] = [
-                    'room_no' => $lunchRow->roomName,
-                    'room_id' => $lunchRow->roomId,
-                    'is_for_guest' => 0,
-                    'data' => $lunchQuantity,
-                    "option" => $option
-                ];
-            }
-
-            if (!empty($lunchRow->isForGuest)) {
-
-                $lunchQuantity = [
-                    (!empty($lunchRow->lunchTrayService) ? 1 : 0),
-                    (!empty($lunchRow->lunchEscortService) ? 1 : 0),
-                    (!empty($lunchRow->lunchTakeoutService) ? 1 : 0),
-                    $lunchRow->noOfGuest
-                ];
-
-                $option = [
-                    "",
-                    "",
-                    "",
-                    ""
-                ];
-
-                foreach ($lunchIds as $lunchId) {
-
-                    $quantitySql = "SELECT quantity,item_options FROM order_details where room_id = '" . $lunchRow->roomId . "' AND date = '" . $date . "' AND is_for_guest = 1 AND item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1') AND item_id = " . $lunchId . " ";
-
-                    $quantityData = DB::select($quantitySql);
-
-                    if (count($quantityData)) {
-
-                        foreach ($quantityData as $qData) {
-
-                            $lunchQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
-
-                            if (empty($qData->quantity)) {
-                                $option[] = "";
-                            } else {
-                                if (array_key_exists($qData->item_options, $paid_item_options)) {
-                                    $option[] = $paid_item_options[$qData->item_options];
-                                } else {
-                                    $option[] = "";
-                                }
-                            }
-                        }
-                    } else {
-                        $lunchQuantity[] = 0;
-                        $option[] = "";
-                    }
-                }
-
-                $reportLunchList[] = [
-                    'room_no' => $lunchRow->roomName . " G",
-                    'room_id' => $lunchRow->roomId,
-                    'is_for_guest' => 1,
-                    'data' => $lunchQuantity,
-                    "option" => $option
-                ];
-            }
-        }
+        $reportLunchList = $this->generateSingleDayMealReport(
+            $date,
+            'lunch',
+            $lunchIds,
+            $paid_item_options
+        );
 
         // dinner
-
-        $dinnerSql = "SELECT 
-                        od.room_id as roomId,
-                        od.is_for_guest as isForGuest,
-                        od.is_dinner_tray_service dinnerTrayService,
-                        od.is_dinner_escort_service dinnerEscortService,
-                        od.is_dinner_takeout_service dinnerTakeoutService,
-                        od.id as orderId,
-                        
-                        rd.room_name as roomName,
-                        
-                        id.item_name as itemName,
-                        id.cat_id as itemCategoryId,
-                        io.option_name as itemOptionName,
-                        
-                        io.id as itemOptionId,
-                        io.is_paid_item as isPaidItem,
-                        
-                        dwo.occupancy as noOfGuest
-                        
-                        FROM order_details od
-                        left join room_details rd on rd.id = od.room_id
-                        left join item_details id on id.id = od.item_id
-                        left join item_options io on io.id = od.item_options
-                        left join category_details cd on cd.id = id.cat_id
-                        
-                        left join date_wise_occupancies dwo on dwo.room_id = rd.id and dwo.date = od.date
-                        where od.date = '" . $date . "' AND 
-                        od.item_id IN (SELECT id FROM item_details WHERE cat_id
-                        IN (SELECT id FROM category_details WHERE type = '3')) AND 
-                        (od.is_dinner_tray_service = 1 OR od.is_dinner_escort_service = 1 OR od.is_dinner_takeout_service = 1 OR od.is_for_guest > 0 OR (od.item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1')))
-                        group by od.room_id,od.is_for_guest";
-
-        $dinnerData = DB::select($dinnerSql);
-
-        foreach ($dinnerData as $dinnerRow) {
-
-            $dinnerQuantity = null;
-
-            if (empty($dinnerRow->isForGuest)) {
-
-                $dinnerQuantity = [
-                    (!empty($dinnerRow->dinnerTrayService) ? 1 : 0),
-                    (!empty($dinnerRow->dinnerEscortService) ? 1 : 0),
-                    (!empty($dinnerRow->dinnerTakeoutService) ? 1 : 0),
-                    0
-                ];
-
-                $option = [
-                    "",
-                    "",
-                    "",
-                    ""
-                ];
-
-                foreach ($dinnerIds as $dinnerId) {
-
-                    $quantitySql = "SELECT quantity,item_options FROM order_details where room_id = '" . $dinnerRow->roomId . "' AND date = '" . $date . "' AND is_for_guest = 0 AND item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1') AND item_id = " . $dinnerId . " ";
-
-                    $quantityData = DB::select($quantitySql);
-
-                    if (count($quantityData)) {
-
-                        foreach ($quantityData as $qData) {
-
-                            $dinnerQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
-
-                            if (empty($qData->quantity)) {
-                                $option[] = "";
-                            } else {
-                                if (array_key_exists($qData->item_options, $paid_item_options)) {
-                                    $option[] = $paid_item_options[$qData->item_options];
-                                } else {
-                                    $option[] = "";
-                                }
-                            }
-                        }
-                    } else {
-                        $dinnerQuantity[] = 0;
-                        $option[] = "";
-                    }
-                }
-
-
-
-                $reportDinnerList[] = [
-                    'room_no' => $dinnerRow->roomName,
-                    'room_id' => $dinnerRow->roomId,
-                    'is_for_guest' => 0,
-                    'data' => $dinnerQuantity,
-                    "option" => $option
-                ];
-            }
-
-            if (!empty($dinnerRow->isForGuest)) {
-
-                $dinnerQuantity = [
-                    (!empty($dinnerRow->dinnerTrayService) ? 1 : 0),
-                    (!empty($dinnerRow->dinnerEscortService) ? 1 : 0),
-                    (!empty($dinnerRow->dinnerTakeoutService) ? 1 : 0),
-                    $dinnerRow->noOfGuest
-                ];
-
-                $option = [
-                    "",
-                    "",
-                    "",
-                    ""
-                ];
-
-                foreach ($dinnerIds as $dinnerId) {
-
-                    $quantitySql = "SELECT quantity,item_options FROM order_details where room_id = '" . $dinnerRow->roomId . "' AND date = '" . $date . "' AND is_for_guest = 1 AND item_options IN (SELECT id FROM item_options WHERE is_paid_item = '1') AND item_id = " . $dinnerId . " ";
-
-                    $quantityData = DB::select($quantitySql);
-
-                    if (count($quantityData)) {
-
-                        foreach ($quantityData as $qData) {
-
-                            $dinnerQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
-
-                            if (empty($qData->quantity)) {
-                                $option[] = "";
-                            } else {
-                                if (array_key_exists($qData->item_options, $paid_item_options)) {
-                                    $option[] = $paid_item_options[$qData->item_options];
-                                } else {
-                                    $option[] = "";
-                                }
-                            }
-                        }
-                    } else {
-                        $dinnerQuantity[] = 0;
-                        $option[] = "";
-                    }
-                }
-
-                $reportDinnerList[] = [
-                    'room_no' => $dinnerRow->roomName . " G",
-                    'room_id' => $dinnerRow->roomId,
-                    'is_for_guest' => 1,
-                    'data' => $dinnerQuantity,
-                    "option" => $option
-                ];
-            }
-        }
+        $reportDinnerList = $this->generateSingleDayMealReport(
+            $date,
+            'dinner',
+            $dinnerIds,
+            $paid_item_options
+        );
 
         $finalData = [
             'breakfast_item_list' => array_merge($baseItemList, array_values($breakfast)),
@@ -4492,6 +4144,17 @@ class DinningController extends Controller
         ];
 
         return $this->sendResultJSON('1', '', $finalData);
+    }
+
+    public function getChargeReport(Request $request)
+    {
+        if ($request->has('start_date') && $request->has('end_date')) {
+            return $this->chargeReportDateRange($request);
+        } elseif ($request->has('date')) {
+            return $this->chargeReportSingleDay($request);
+        } else {
+            return $this->sendResultJSON('0', 'Invalid parameters!!', []);
+        }
     }
 
     public function getTempFormDownload()
