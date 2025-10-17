@@ -631,6 +631,18 @@ class DinningController extends Controller
 
         $room_id = $request->input('room_id');
         $date = $request->input('current_date');
+
+        if (!empty($room_id) && !empty($date)) {
+
+            $room = RoomDetail::where("id", $room_id)->first();
+
+            if (!$room) {
+                return $this->sendResultJSON("2", "Room not found");
+            }
+        } else {
+            return $this->sendResultJSON("2", "Room id or date is missing");
+        }
+
         $fullRequestData = json_decode($request->input('orders_to_change'), true);
 
         $item_array = $order_array = array();
@@ -3709,7 +3721,9 @@ class DinningController extends Controller
         return $this->sendResultJSON('1', '', array('breakfast_item_list' => array_values($breakfast), 'lunch_item_list' => array_values($lunch), 'dinner_item_list' => array_values($dinner), 'report_breakfast_list' => array_values($breakfast_rooms_array), 'report_lunch_list' => array_values($lunch_rooms_array), 'report_dinner_list' => array_values($dinner_rooms_array)));
     }
 
-    // helper constants for chargeReportDateRange
+    // --- CHARGE REPORT FUNCTIONS ---
+
+    // helper constants
     // category ids
     private const CAT_ID = [
         1 => 'BA',
@@ -3871,8 +3885,7 @@ class DinningController extends Controller
         $reportMealList = [];
 
         $mealSql = $this->constructMealQuery(
-            $meal,
-            $date,
+            $meal, $date,
         );
         $mealData = DB::select($mealSql);
 
@@ -3898,26 +3911,17 @@ class DinningController extends Controller
             foreach ($mealIds as $mealId) {
                 $isForGuest = $isGuestOrder ? 1 : 0;
                 $quantitySql = $this->constructQuantityQuery(
-                    $mealRow->roomId,
-                    $date,
-                    $mealId,
-                    $isForGuest
+                    $mealRow->roomId, $date, $mealId, $isForGuest
                 );
 
                 $quantityData = DB::select($quantitySql);
 
                 if (count($quantityData)) {
                     foreach ($quantityData as $qData) {
-                        $mealQuantity[] = empty($qData->quantity) ? 0 : $qData->quantity;
-                        if (empty($qData->quantity)) {
-                            $option[] = "";
-                        } else {
-                            if (array_key_exists($qData->item_options, $paidItemOptions)) {
-                                $option[] = $paidItemOptions[$qData->item_options];
-                            } else {
-                                $option[] = "";
-                            }
-                        }
+                        $mealQuantity[] = !empty($qData->quantity) ? $qData->quantity : 0;
+                        $option[] = !empty($qData->quantity) && array_key_exists($qData->item_options, $paidItemOptions)
+                            ? $paidItemOptions[$qData->item_options]
+                            : "";
                     }
                 } else {
                     $mealQuantity[] = 0;
@@ -4010,28 +4014,19 @@ class DinningController extends Controller
             // breakfast
             $breakfastItemsList[] = array_merge($baseItemList, array_values($breakfast));
             $reportBreakfastList[] = $this->generateSingleDayMealReport(
-                $date,
-                'breakfast',
-                $breakfastIds,
-                $paidItemOptions
+                $date, 'breakfast', $breakfastIds, $paidItemOptions
             );
 
             // lunch
             $lunchItemsList[] = array_merge($baseItemList, array_values($lunch));
             $reportLunchList[] = $this->generateSingleDayMealReport(
-                $date,
-                'lunch',
-                $lunchIds,
-                $paidItemOptions
+                $date, 'lunch', $lunchIds, $paidItemOptions
             );
 
             // dinner
             $dinnerItemsList[] = array_merge($baseItemList, array_values($dinner));
             $reportDinnerList[] = $this->generateSingleDayMealReport(
-                $date,
-                'dinner',
-                $dinnerIds,
-                $paidItemOptions
+                $date, 'dinner', $dinnerIds, $paidItemOptions
             );
         }
 
@@ -4112,26 +4107,17 @@ class DinningController extends Controller
 
         // breakfast
         $reportBreakfastList = $this->generateSingleDayMealReport(
-            $date,
-            'breakfast',
-            $breakfastIds,
-            $paid_item_options
+            $date, 'breakfast', $breakfastIds, $paid_item_options
         );
 
         // lunch
         $reportLunchList = $this->generateSingleDayMealReport(
-            $date,
-            'lunch',
-            $lunchIds,
-            $paid_item_options
+            $date, 'lunch', $lunchIds, $paid_item_options
         );
 
         // dinner
         $reportDinnerList = $this->generateSingleDayMealReport(
-            $date,
-            'dinner',
-            $dinnerIds,
-            $paid_item_options
+            $date, 'dinner', $dinnerIds, $paid_item_options
         );
 
         $finalData = [
@@ -4156,6 +4142,8 @@ class DinningController extends Controller
             return $this->sendResultJSON('0', 'Invalid parameters!!', []);
         }
     }
+
+    // --- END CHARGE REPORT FUNCTIONS ---
 
     public function getTempFormDownload()
     {
