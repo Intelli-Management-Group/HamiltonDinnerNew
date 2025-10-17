@@ -3879,13 +3879,13 @@ class DinningController extends Controller
         foreach ($mealData as $mealRow) {
 
             $mealQuantity = null;
-            $is_guest_order = !empty($mealRow->isForGuest);
+            $isGuestOrder = !empty($mealRow->isForGuest);
 
             $mealQuantity = [
                 (!empty($mealRow->{$meal_alias . 'TrayService'}) ? 1 : 0),
                 (!empty($mealRow->{$meal_alias . 'EscortService'}) ? 1 : 0),
                 (!empty($mealRow->{$meal_alias . 'TakeoutService'}) ? 1 : 0),
-                $is_guest_order ? $mealRow->noOfGuest : 0
+                $isGuestOrder ? $mealRow->noOfGuest : 0
             ];
 
             $option = [
@@ -3896,12 +3896,12 @@ class DinningController extends Controller
             ];
 
             foreach ($mealIds as $mealId) {
-                $is_for_guest = $is_guest_order ? 1 : 0;
+                $isForGuest = $isGuestOrder ? 1 : 0;
                 $quantitySql = $this->constructQuantityQuery(
                     $mealRow->roomId,
                     $date,
                     $mealId,
-                    $is_for_guest
+                    $isForGuest
                 );
 
                 $quantityData = DB::select($quantitySql);
@@ -3912,8 +3912,8 @@ class DinningController extends Controller
                         if (empty($qData->quantity)) {
                             $option[] = "";
                         } else {
-                            if (array_key_exists($qData->item_options, $paid_item_options)) {
-                                $option[] = $paid_item_options[$qData->item_options];
+                            if (array_key_exists($qData->item_options, $paidItemOptions)) {
+                                $option[] = $paidItemOptions[$qData->item_options];
                             } else {
                                 $option[] = "";
                             }
@@ -3926,9 +3926,9 @@ class DinningController extends Controller
             }
 
             $reportMealList[] = [
-                'room_no' => $mealRow->roomName . ($is_guest_order ? " G" : ""),
+                'room_no' => $mealRow->roomName . ($isGuestOrder ? " G" : ""),
                 'room_id' => $mealRow->roomId,
-                'is_for_guest' => $is_guest_order ? 1 : 0,
+                'is_for_guest' => $isGuestOrder ? 1 : 0,
                 'data' => $mealQuantity,
                 "option" => $option
             ];
@@ -3997,14 +3997,14 @@ class DinningController extends Controller
 
             } // end of if menu details
 
-            $paid_item_options_query = ItemOptionModel::select('id', 'option_name')
+            $paidItemOptionsQuery = ItemOptionModel::select('id', 'option_name')
                 ->where("is_paid_item", 1)
                 ->get();
 
-            $paid_item_options = [];
+            $paidItemOptions = [];
 
-            foreach ($paid_item_options_query as $paid_item_option) {
-                $paid_item_options[$paid_item_option->id] = $paid_item_option->option_name;
+            foreach ($paidItemOptionsQuery as $paidItemOption) {
+                $paidItemOptions[$paidItemOption->id] = $paidItemOption->option_name;
             }
 
             // breakfast
@@ -4013,25 +4013,25 @@ class DinningController extends Controller
                 $date,
                 'breakfast',
                 $breakfastIds,
-                $paid_item_options
+                $paidItemOptions
             );
 
             // lunch
-            $lunchItemList[] = array_merge($baseItemList, array_values($lunch));
+            $lunchItemsList[] = array_merge($baseItemList, array_values($lunch));
             $reportLunchList[] = $this->generateSingleDayMealReport(
                 $date,
                 'lunch',
                 $lunchIds,
-                $paid_item_options
+                $paidItemOptions
             );
 
             // dinner
-            $dinnerItemList[] = array_merge($baseItemList, array_values($dinner));
+            $dinnerItemsList[] = array_merge($baseItemList, array_values($dinner));
             $reportDinnerList[] = $this->generateSingleDayMealReport(
                 $date,
                 'dinner',
                 $dinnerIds,
-                $paid_item_options
+                $paidItemOptions
             );
         }
 
