@@ -46,7 +46,6 @@ class DinningController extends Controller
 {
     public function __construct()
     {
-
         ini_set('max_execution_time', 0);
     }
 
@@ -264,7 +263,6 @@ class DinningController extends Controller
                 $menu_items = json_decode($m->items, true);
             }
 
-            
             foreach (count($menu_items) > 0 ? $menu_items : array() as $mi) {
                 if (count($mi) > 0)
                     array_push($items, implode(",", $mi));
@@ -281,7 +279,6 @@ class DinningController extends Controller
             foreach (count($preferences) > 0 ? $preferences : array() as $p) {
                 $preference_details[$p->id] = array("name" => $p->pname, "name_cn" => ($p->pname_cn != null ? $p->pname_cn : $p->pname));
             }
-
 
             $category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")->selectRaw("category_details.*,item_details.id as item_id,item_details.item_name,item_details.item_image,item_details.item_chinese_name,item_details.options,item_details.preference")->where("category_details.parent_id", 0)->whereRaw("item_details.id IN (" . $items . ")")->whereRaw("item_details.deleted_at IS NULL")->orderBy("category_details.id", "asc")->orderBy("item_details.id", "asc")->get();
 
@@ -556,8 +553,6 @@ class DinningController extends Controller
         $is_dinner_escort_service = !empty($request->input('is_dinner_escort_service')) ? $request->input('is_dinner_escort_service') : 0;
 
         OrderDetail::where("is_for_guest", $is_for_guest)->where("date", $date)->where("room_id", $room_id)->update(['is_brk_tray_service' => $is_brk_tray_service, 'is_lunch_tray_service' => $is_lunch_tray_service, 'is_dinner_tray_service' => $is_dinner_tray_service, 'is_brk_escort_service' => $is_brk_escort_service, 'is_lunch_escort_service' => $is_lunch_escort_service, 'is_dinner_escort_service' => $is_dinner_escort_service]);
-
-
 
         $occupancy = $request->input('occupancy');
 
@@ -1556,254 +1551,6 @@ class DinningController extends Controller
 
             return $this->sendResultJSON("0", $e->getMessage());
         }
-    }
-
-    public function getCategoryWiseDataDemo(Request $request)
-    {
-
-        // quantity and items from this
-
-        $date = $request->input('date');
-        $menu_details = MenuDetail::where("date", $date)->first(); // merge the is_allday data with this also
-
-        $breakfast = $lunch = $dinner = array();
-        $breakfast_rooms_array = $lunch_rooms_array = $dinner_rooms_array = array();
-        $rooms_array = array();
-        $cat_id = array(
-            1 => 'BA',
-            2 => 'LS',
-            7 => 'LD',
-            13 => 'DD',
-        );
-        $alternative = array(4, 8, 11);
-        $ab_alternative = array(5, 3);
-
-        if ($menu_details) {
-
-            $menu_items = $menu_details->items;
-
-            if (is_string($menu_details->items)) {
-                $menu_details->items = json_decode($menu_details->items, true);
-            }
-
-            
-            $all_rooms = RoomDetail::where("is_active", 1)->get();
-            $is_first = true;
-
-            foreach (count($all_rooms) > 0 ? $all_rooms : array() as $r) {
-
-                $wereGuestAvailable = false;
-
-                $isOccupiedByGuest = DateWiseOccupancy::select('occupancy')->where('room_id',  $r->id)->where('date', $date)->first();
-
-                if ($isOccupiedByGuest) {
-                    if ($isOccupiedByGuest->occupancy) {
-                        $wereGuestAvailable = true;
-                    }
-                }
-
-                if ($menu_items["breakfast"]) {
-
-                    $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["breakfast"]) . ")")->orderBy("cat_id")->get();
-                    $count = 1;
-                    $items = array();
-                    $guestItems = array();
-
-                    if (!isset($breakfast_rooms_array[$r->id]))
-                        $breakfast_rooms_array[$r->id] = array("room_no" => $r->room_name, "quantity" => array());
-
-                    foreach (count($all_items) > 0 ? $all_items : array() as $a) {
-
-                        $title = (in_array($a->cat_id, $alternative) ? "B" . $count : $cat_id[$a->cat_id]);
-                        if (!isset($breakfast[$a->id]))
-                            $breakfast[$a->id] = array();
-
-                        if ($is_first) {
-                            $breakfast[$a->id] = array("item_name" => $title, "real_item_name" => $a->item_name, "total_count" => 0);
-                        }
-
-                        $order_data = OrderDetail::select("quantity")->where("date", $date)->where("room_id", $r->id)->where("item_id", $a->id)->where("is_for_guest", 0)->first();
-
-                        if ($order_data) {
-
-                            $breakfast[$a->id]["total_count"] += intval($order_data->quantity);
-                            array_push($items, intval($order_data->quantity));
-                        } else {
-                            array_push($items, 0);
-                        }
-
-                        if ($wereGuestAvailable) {
-
-                            $guest_order_data = OrderDetail::select("quantity")->where("date", $date)->where("room_id", $r->id)->where("item_id", $a->id)->where("is_for_guest", 1)->first();
-
-                            if ($guest_order_data) {
-                                array_push($guestItems, intval($guest_order_data->quantity));
-                                $breakfast[$a->id]["total_count"] += intval($guest_order_data->quantity);
-                            } else {
-                                array_push($guestItems, 0);
-                            }
-                        } else {
-                            array_push($guestItems, 0);
-                        }
-
-                        if (in_array($a->cat_id, $alternative)) $count++;
-                    }
-
-
-
-                    $breakfast_rooms_array[$r->id]["quantity"] = $items;
-
-                    if ($wereGuestAvailable) {
-                        $guestRoomName = $r->room_name . " G";
-
-                        $breakfast_rooms_array[$guestRoomName] = [
-                            "room_no" => $guestRoomName,
-                            "quantity" => $guestItems
-                        ];
-                    }
-                }
-
-                if ($menu_items["lunch"]) {
-
-                    $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["lunch"]) . ")")->orderBy("cat_id")->get();
-                    $ab_count = 'A';
-                    $count = 1;
-                    $items = array();
-                    $guestItems = array();
-
-                    if (!isset($lunch_rooms_array[$r->id]))
-                        $lunch_rooms_array[$r->id] = array("room_no" => $r->room_name, "quantity" => array());
-
-                    foreach (count($all_items) > 0 ? $all_items : array() as $a) {
-
-                        $title = (in_array($a->cat_id, $alternative) ? "L" . $count : (in_array($a->cat_id, $ab_alternative) ? "L" . $ab_count : $cat_id[$a->cat_id]));
-                        if (!isset($lunch[$a->id]))
-                            $lunch[$a->id] = array();
-
-                        if ($is_first) {
-                            $lunch[$a->id] = array("item_name" => $title, "real_item_name" => $a->item_name, "total_count" => 0);
-                        }
-
-                        $order_data = OrderDetail::select("quantity")->where("date", $date)->where("room_id", $r->id)->where("item_id", $a->id)->where("is_for_guest", 0)->first();
-
-                        if ($order_data) {
-                            $lunch[$a->id]["total_count"] += intval($order_data->quantity);
-                            array_push($items, intval($order_data->quantity));
-                        } else {
-                            array_push($items, 0);
-                        }
-
-                        if ($wereGuestAvailable) {
-
-                            $guest_order_data = OrderDetail::select("quantity")->where("date", $date)->where("room_id", $r->id)->where("item_id", $a->id)->where("is_for_guest", 1)->first();
-
-                            if ($guest_order_data) {
-                                array_push($guestItems, intval($guest_order_data->quantity));
-                                $lunch[$a->id]["total_count"] += intval($guest_order_data->quantity);
-                            } else {
-                                array_push($guestItems, 0);
-                            }
-                        } else {
-                            array_push($guestItems, 0);
-                        }
-
-                        if (in_array($a->cat_id, $alternative)) $count++;
-                        if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                    }
-                    $lunch_rooms_array[$r->id]["quantity"] = $items;
-
-                    if ($wereGuestAvailable) {
-                        $guestRoomName = $r->room_name . " G";
-
-                        $lunch_rooms_array[$guestRoomName] = [
-                            "room_no" => $guestRoomName,
-                            "quantity" => $guestItems
-                        ];
-                    }
-                }
-
-                if ($menu_items["dinner"]) {
-
-                    $all_items = ItemDetail::selectRaw("id,item_name,cat_id")->whereRaw("id IN (" . implode(",", $menu_items["dinner"]) . ")")->orderBy("cat_id")->get();
-                    $count = 1;
-                    $ab_count = 'A';
-                    $items = array();
-                    $guestItems = array();
-
-                    if (!isset($dinner_rooms_array[$r->id]))
-                        $dinner_rooms_array[$r->id] = array("room_no" => $r->room_name, "quantity" => array());
-                    foreach (count($all_items) > 0 ? $all_items : array() as $a) {
-                        $title = (in_array($a->cat_id, $alternative) ? "D" . $count : (in_array($a->cat_id, $ab_alternative) ? "D" . $ab_count : $cat_id[$a->cat_id]));
-                        if (!isset($dinner[$a->id]))
-                            $dinner[$a->id] = array();
-
-                        if ($is_first) {
-                            $dinner[$a->id] = array("item_name" => $title, "real_item_name" => $a->item_name, "total_count" => 0);
-                        }
-                        $order_data = OrderDetail::select("quantity")->where("date", $date)->where("room_id", $r->id)->where("item_id", $a->id)->where("is_for_guest", 0)->first();
-
-                        if ($order_data) {
-                            $dinner[$a->id]["total_count"] += intval($order_data->quantity);
-                            array_push($items, intval($order_data->quantity));
-                        } else {
-                            array_push($items, 0);
-                        }
-
-                        if ($wereGuestAvailable) {
-
-                            $guest_order_data = OrderDetail::select("quantity")->where("date", $date)->where("room_id", $r->id)->where("item_id", $a->id)->where("is_for_guest", 1)->first();
-
-                            if ($guest_order_data) {
-                                array_push($guestItems, intval($guest_order_data->quantity));
-                                $dinner[$a->id]["total_count"] += intval($guest_order_data->quantity);
-                            } else {
-                                array_push($guestItems, 0);
-                            }
-                        } else {
-                            array_push($guestItems, 0);
-                        }
-
-                        if (in_array($a->cat_id, $alternative)) $count++;
-                        if (in_array($a->cat_id, $ab_alternative)) $ab_count = 'B';
-                    }
-                    $dinner_rooms_array[$r->id]["quantity"] = $items;
-
-                    if ($wereGuestAvailable) {
-                        $guestRoomName = $r->room_name . " G";
-
-                        $dinner_rooms_array[$guestRoomName] = [
-                            "room_no" => $guestRoomName,
-                            "quantity" => $guestItems
-                        ];
-                    }
-                }
-
-                $is_first = false;
-
-                array_push($rooms_array, array("room_id" => $r->id, "room_name" => $r->room_name, "has_special_ins" => ($r->special_instrucations != null ? 1 : 0), "has_breakfast_order" => (count($breakfast_rooms_array) ? (array_sum($breakfast_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0) : 0), "has_lunch_order" => (count($lunch_rooms_array) ?  (array_sum($lunch_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0) : 0), "has_dinner_order" => (count($lunch_rooms_array) ? (array_sum($dinner_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0) : 0), "is_for_guest" => 0));
-
-                if ($isOccupiedByGuest) {
-                    if ($isOccupiedByGuest->occupancy) {
-
-                        $roomName = $r->room_name . " G";
-
-                        array_push($rooms_array, array("room_id" => $r->id, "room_name" => $roomName, "has_special_ins" => 0, "has_breakfast_order" => (count($breakfast_rooms_array) ? (array_sum($breakfast_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0) : 0), "has_lunch_order" => (count($lunch_rooms_array) ?  (array_sum($lunch_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0) : 0), "has_dinner_order" => (count($lunch_rooms_array) ? (array_sum($dinner_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0) : 0), "is_for_guest" => 1));
-                    }
-                }
-            }
-        }
-
-        $last_date = "";
-        $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
-        if ($menu_data) {
-            $last_date = $menu_data->date;
-        }
-
-        if (!$menu_details) {
-            return $this->sendResultJSON('1', 'Menu Details not Found!!', array('breakfast_item_list' => array_values($breakfast), 'lunch_item_list' => array_values($lunch), 'dinner_item_list' => array_values($dinner), 'report_breakfast_list' => array_values($breakfast_rooms_array), 'report_lunch_list' => array_values($lunch_rooms_array), 'report_dinner_list' => array_values($dinner_rooms_array), 'rooms_list' => $rooms_array, "last_menu_date" => $last_date));
-        }
-
-        return $this->sendResultJSON('1', '', array('breakfast_item_list' => array_values($breakfast), 'lunch_item_list' => array_values($lunch), 'dinner_item_list' => array_values($dinner), 'report_breakfast_list' => array_values($breakfast_rooms_array), 'report_lunch_list' => array_values($lunch_rooms_array), 'report_dinner_list' => array_values($dinner_rooms_array), 'rooms_list' => $rooms_array, "last_menu_date" => $last_date));
     }
 
     public function getDemoOrderList(Request $request)
@@ -3721,10 +3468,9 @@ class DinningController extends Controller
         return $this->sendResultJSON('1', '', array('breakfast_item_list' => array_values($breakfast), 'lunch_item_list' => array_values($lunch), 'dinner_item_list' => array_values($dinner), 'report_breakfast_list' => array_values($breakfast_rooms_array), 'report_lunch_list' => array_values($lunch_rooms_array), 'report_dinner_list' => array_values($dinner_rooms_array)));
     }
 
-    // --- CHARGE REPORT FUNCTIONS ---
+    // --- CATEGORY-WISE REPORT FUNCTIONS ---
 
-    // helper constants
-    // category ids
+    // helper constants: meal category ids
     private const CAT_ID = [
         1 => 'BA',
         2 => 'LS',
@@ -3734,7 +3480,287 @@ class DinningController extends Controller
     private const ALTERNATIVE = [4, 8, 11];
     private const AB_ALTERNATIVE = [5, 3];
 
-    // meal aliases and category ids
+    private function updateQuantityData(
+        &$meal_array,
+        &$item_array,
+        $date,
+        $item_id,
+        $room_id,
+        $is_for_guest
+    )
+    {
+        $order_data = OrderDetail::select("quantity")
+            ->where("date", $date)
+            ->where("room_id", $room_id)
+            ->where("item_id", $item_id)
+            ->where("is_for_guest", $is_for_guest ? 1 : 0)
+            ->first();
+        
+        if ($order_data) {
+            $meal_array[$item_id]["total_count"] += intval($order_data->quantity);
+            array_push($item_array, intval($order_data->quantity));
+        } else {
+            array_push($item_array, 0);
+        }
+    }
+
+    private function updateMealArrays(
+        &$menu_items_array,
+        &$meal_array,
+        &$meal_rooms_array,
+        $date,
+        $room,
+        $meal,
+        $is_first,
+        $wereGuestAvailable
+    )
+    {
+        $meal_first_char = strtoupper(substr($meal, 0, 1));
+        $all_items = $this->getItemDetailsByIds($menu_items_array);
+
+        $ab_count = 'A';
+        $count = 1;
+        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+        $items = array();
+        $guestItems = array();
+
+        if (!isset($meal_rooms_array[$room->id]))
+            $meal_rooms_array[$room->id] = array(
+                "room_no" => $room->room_name,
+                "quantity" => array()
+            );
+        
+        foreach ($all_items as $a) {
+
+            // Set to track unique items per category
+            if (array_key_exists($a->cat_id, self::CAT_ID)) {
+                $cat_id_map[$a->cat_id][$a->id] = true;
+            }
+
+            $title = (
+                in_array($a->cat_id, self::ALTERNATIVE) ?
+                $meal_first_char . $count : (
+                    $meal_first_char !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE) ?
+                    $meal_first_char . $ab_count : self::CAT_ID[$a->cat_id] . (
+                        count($cat_id_map[$a->cat_id]) > 1 ?
+                        count($cat_id_map[$a->cat_id]) : ''
+                    )
+                ) 
+            );
+
+            if (!isset($meal_array[$a->id]))
+                $meal_array[$a->id] = array();
+
+            if ($is_first) {
+                $meal_array[$a->id] = array(
+                    "item_name" => $title,
+                    "real_item_name" => $a->item_name,
+                    "total_count" => 0
+                );
+            }
+
+            $this->updateQuantityData(
+                $meal_array, $items, $date, $a->id, $room->id, false
+            );
+
+            if ($wereGuestAvailable) {
+                $this->updateQuantityData(
+                    $meal_array, $guestItems, $date, $a->id, $room->id, true
+                );
+            } else {
+                array_push($guestItems, 0);
+            }
+
+            if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
+            if (in_array($a->cat_id, self::AB_ALTERNATIVE)) $ab_count = 'B';
+        }
+
+        $meal_rooms_array[$room->id]["quantity"] = $items;
+
+        if ($wereGuestAvailable) {
+            $guestRoomName = $room->room_name . " G";
+
+            $meal_rooms_array[$guestRoomName] = [
+                "room_no" => $guestRoomName,
+                "quantity" => $guestItems
+            ];
+        }
+    }
+
+    public function getCategoryWiseDataDemo(Request $request)
+    {
+        // quantity and items from this
+        $date = $request->input('date');
+
+        $menu_details = MenuDetail::where("date", $date)->first(); // merge the is_allday data with this also
+
+        // init arrays
+        $breakfast = $lunch = $dinner = array();
+
+        $breakfast_rooms_array = $lunch_rooms_array = $dinner_rooms_array = array();
+        $rooms_array = array();
+
+        if ($menu_details) {
+
+            $menu_items = $menu_details->items;
+
+            if (is_string($menu_items)) {
+                $menu_items = json_decode($menu_items, true);
+            }
+            
+            $all_rooms = RoomDetail::where("is_active", 1)->get();
+            $is_first = true;
+
+            foreach ($all_rooms as $r) {
+
+                $isOccupiedByGuest = DateWiseOccupancy::select('occupancy')
+                    ->where('room_id',  $r->id)
+                    ->where('date', $date)
+                    ->first();
+
+                $wereGuestAvailable = $isOccupiedByGuest && $isOccupiedByGuest->occupancy;
+
+                if ($menu_items["breakfast"]) {
+                    $this->updateMealArrays(
+                        $menu_items["breakfast"],
+                        $breakfast,
+                        $breakfast_rooms_array,
+                        $date,
+                        $r,
+                        "breakfast",
+                        $is_first,
+                        $wereGuestAvailable
+                    );
+                }
+
+                if ($menu_items["lunch"]) {
+                    $this->updateMealArrays(
+                        $menu_items["lunch"],
+                        $lunch,
+                        $lunch_rooms_array,
+                        $date,
+                        $r,
+                        "lunch",
+                        $is_first,
+                        $wereGuestAvailable
+                    );
+                }
+
+                if ($menu_items["dinner"]) {
+                    $this->updateMealArrays(
+                        $menu_items["dinner"],
+                        $dinner,
+                        $dinner_rooms_array,
+                        $date,
+                        $r,
+                        "dinner",
+                        $is_first,
+                        $wereGuestAvailable
+                    );
+                }
+
+                $is_first = false;
+
+                array_push(
+                    $rooms_array, array(
+                        "room_id" => $r->id,
+                        "room_name" => $r->room_name,
+                        "has_special_ins" => (
+                            $r->special_instrucations != null ? 1 : 0
+                        ),
+                        "has_breakfast_order" => (
+                            count($breakfast_rooms_array) ? (
+                                array_sum($breakfast_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0
+                            ) : 0
+                        ),
+                        "has_lunch_order" => (
+                            count($lunch_rooms_array) ? (
+                                array_sum($lunch_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0
+                            ) : 0
+                        ),
+                        "has_dinner_order" => (
+                            count($dinner_rooms_array) ? (
+                                array_sum($dinner_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0
+                            ) : 0
+                        ),
+                        "is_for_guest" => 0
+                    )
+                );
+
+                if ($wereGuestAvailable) {
+                    $roomName = $r->room_name . " G";
+                    array_push(
+                        $rooms_array, array(
+                            "room_id" => $r->id,
+                            "room_name" => $roomName,
+                            "has_special_ins" => 0,
+                            "has_breakfast_order" => (
+                                count($breakfast_rooms_array) ? (
+                                    array_sum($breakfast_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0
+                                ) : 0
+                            ),
+                            "has_lunch_order" => (
+                                count($lunch_rooms_array) ? (
+                                    array_sum($lunch_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0
+                                ) : 0
+                            ),
+                            "has_dinner_order" => (
+                                count($dinner_rooms_array) ? (
+                                    array_sum($dinner_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0
+                                ) : 0
+                            ),
+                            "is_for_guest" => 1
+                        )
+                    );
+                }
+            }
+        }
+
+        $last_date = "";
+        $menu_data = MenuDetail::select("date")
+            ->orderBy("date", "desc")
+            ->first();
+        if ($menu_data) {
+            $last_date = $menu_data->date;
+        }
+
+        if (!$menu_details) {
+            return $this->sendResultJSON(
+                '1',
+                'Menu Details not Found!!',
+                array(
+                    'breakfast_item_list' => array_values($breakfast),
+                    'lunch_item_list' => array_values($lunch),
+                    'dinner_item_list' => array_values($dinner),
+                    'report_breakfast_list' => array_values($breakfast_rooms_array),
+                    'report_lunch_list' => array_values($lunch_rooms_array),
+                    'report_dinner_list' => array_values($dinner_rooms_array),
+                    'rooms_list' => $rooms_array,
+                    "last_menu_date" => $last_date
+                )
+            );
+        }
+
+        return $this->sendResultJSON(
+            '1',
+            '',
+            array(
+                'breakfast_item_list' => array_values($breakfast),
+                'lunch_item_list' => array_values($lunch),
+                'dinner_item_list' => array_values($dinner),
+                'report_breakfast_list' => array_values($breakfast_rooms_array),
+                'report_lunch_list' => array_values($lunch_rooms_array),
+                'report_dinner_list' => array_values($dinner_rooms_array),
+                'rooms_list' => $rooms_array,
+                "last_menu_date" => $last_date
+            )
+        );
+    }
+
+    // --- END CATEGORY-WISE REPORT FUNCTIONS ---
+    // --- CHARGE REPORT FUNCTIONS ---
+
+    // helper constants: meal aliases and category ids
     private const MEAL_ALIASES = [
         'breakfast' => 'brk',
         'lunch' => 'lunch',
@@ -3763,17 +3789,26 @@ class DinningController extends Controller
         $allItems = $this->getItemDetailsByIds($menuItemsArray[$meal]);
         $count = 1;
         $abCount = 'A';
+        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
         $items = array();
 
         foreach ($allItems as $a) {
 
             $mealLetter = strtoupper($meal[0]);
 
+            // Set to track unique items per category
+            if (array_key_exists($a->cat_id, self::CAT_ID)) {
+                $cat_id_map[$a->cat_id][$a->id] = true;
+            }
+
             $title = (
                 in_array($a->cat_id, self::ALTERNATIVE) ?
                 null : (
                     $mealLetter != 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE) ?
-                    $mealLetter . $abCount : self::CAT_ID[$a->cat_id]
+                    $mealLetter . $abCount : self::CAT_ID[$a->cat_id] . (
+                        count($cat_id_map[$a->cat_id]) > 1 ?
+                        count($cat_id_map[$a->cat_id]) : ''
+                    )
                 )
             );
             if (!isset($mealArray[$a->id]) && !empty($title))

@@ -265,9 +265,6 @@ class OrderController extends Controller
         foreach ($period as $date) {
             $search_date = $date->format('Y-m-d');
             $menu_details = MenuDetail::where("date", $search_date)->first();
-
-            $is_first = true;  // Reset for each date (stopgap fix)
-            $curr_day_tooltips = [];
             
             if ($menu_details) {
                 $menu_items = $menu_details->items;
@@ -326,8 +323,6 @@ class OrderController extends Controller
                         &$curr_item_array,
                         &$order_data_map,
                         &$total,
-                        &$curr_day_tooltips,
-                        $is_first,
                     ) {
                         foreach ($items as $a) {
 
@@ -366,9 +361,6 @@ class OrderController extends Controller
                                 );
                             }
 
-                            if ($is_first) {
-                                $curr_day_tooltips[] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
-                            }
                             $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
                             if (isset($order_data_map[$room_id][$a->id])) {
                                 $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
@@ -413,14 +405,10 @@ class OrderController extends Controller
                             }
                         }
                     }
-                    $is_first = false;
                     $curr_item_array = [];
                 }
             }
-            $table_column[2][] = $curr_day_tooltips;
         }
-
-        
 
         // Custom sort function to order keys as required
         // TODO: the room loop above should be optimized to avoid this step
@@ -468,6 +456,9 @@ class OrderController extends Controller
             if (strpos($key, 'B') === 0) $breakfast_count++;
             else if (strpos($key, 'L') === 0) $lunch_count++;
             else if (strpos($key, 'D') === 0) $dinner_count++;
+
+            // We have determined that dish names are not needed when considering date range reports
+            $table_column[2][] = ["title" => $key, "tooltip" => "Total", "field" => $key];
         }
 
         if ($breakfast_count > 0) {
