@@ -3913,7 +3913,8 @@ class DinningController extends Controller
         $date,
         $meal,
         &$mealIds,
-        &$paidItemOptions
+        &$paidItemOptions,
+        $with_meals = true
     )
     {
         $meal_alias = self::MEAL_ALIASES[$meal] ?? 'brk';
@@ -3929,12 +3930,15 @@ class DinningController extends Controller
             $mealQuantity = null;
             $isGuestOrder = !empty($mealRow->isForGuest);
 
-            $mealQuantity = [
-                (!empty($mealRow->{$meal_alias . 'TrayService'}) ? 1 : 0),
-                (!empty($mealRow->{$meal_alias . 'EscortService'}) ? 1 : 0),
-                (!empty($mealRow->{$meal_alias . 'TakeoutService'}) ? 1 : 0),
-                $isGuestOrder ? $mealRow->noOfGuest : 0
-            ];
+            $mealQuantity = [];
+            if ($with_meals) {
+                $mealQuantity = [
+                    (!empty($mealRow->{$meal_alias . 'TrayService'}) ? 1 : 0),
+                    (!empty($mealRow->{$meal_alias . 'EscortService'}) ? 1 : 0),
+                    (!empty($mealRow->{$meal_alias . 'TakeoutService'}) ? 1 : 0),
+                    $isGuestOrder ? $mealRow->noOfGuest : 0
+                ];
+            }
 
             $option = [
                 "",
@@ -3950,27 +3954,42 @@ class DinningController extends Controller
                 );
 
                 $quantityData = DB::select($quantitySql);
-
-                if (count($quantityData)) {
-                    foreach ($quantityData as $qData) {
-                        $mealQuantity[] = !empty($qData->quantity) ? $qData->quantity : 0;
-                        $option[] = !empty($qData->quantity) && array_key_exists($qData->item_options, $paidItemOptions)
-                            ? $paidItemOptions[$qData->item_options]
-                            : "";
+                
+                if ($with_meals) {
+                    if (count($quantityData)) {
+                        foreach ($quantityData as $qData) {
+                            $mealQuantity[] = !empty($qData->quantity) ? $qData->quantity : 0;
+                            $option[] = !empty($qData->quantity) && array_key_exists($qData->item_options, $paidItemOptions)
+                                ? $paidItemOptions[$qData->item_options]
+                                : "";
+                        }
+                    } else {
+                        $mealQuantity[] = 0;
+                        $option[] = "";
                     }
-                } else {
-                    $mealQuantity[] = 0;
-                    $option[] = "";
                 }
             }
-
-            $reportMealList[] = [
-                'room_no' => $mealRow->roomName . ($isGuestOrder ? " G" : ""),
-                'room_id' => $mealRow->roomId,
-                'is_for_guest' => $isGuestOrder ? 1 : 0,
-                'data' => $mealQuantity,
-                "option" => $option
-            ];
+            
+            if($with_meals) {
+                $reportMealList[] = [
+                    'room_no' => $mealRow->roomName . ($isGuestOrder ? " G" : ""),
+                    'room_id' => $mealRow->roomId,
+                    'is_for_guest' => $isGuestOrder ? 1 : 0,
+                    'data' => $mealQuantity,
+                    "option" => $option
+                ];
+            } else {
+                $reportMealList[] = [
+                    'room_no' => $mealRow->roomName . ($isGuestOrder ? " G" : ""),
+                    'room_id' => $mealRow->roomId,
+                    'is_for_guest' => $isGuestOrder ? 1 : 0,
+                    'T' => (!empty($mealRow->{$meal_alias . 'TrayService'}) ? 1 : 0),
+                    'E' => (!empty($mealRow->{$meal_alias . 'EscortService'}) ? 1 : 0),
+                    'TO' => (!empty($mealRow->{$meal_alias . 'TakeoutService'}) ? 1 : 0),
+                    'G' => $isGuestOrder ? $mealRow->noOfGuest : 0,
+                    "option" => $option
+                ];
+            }
         }
 
         return $reportMealList;
@@ -3981,6 +4000,11 @@ class DinningController extends Controller
         // quantity and items from this
         $start_date = $request->input('start_date');
         $end_date = $request->input('end_date');
+
+        $with_meals = $request->input('with_meals', true);
+
+        // temp hardcoded "false" for meals
+        $with_meals = false;
 
         // base items
         $baseItemList = [
@@ -4019,6 +4043,7 @@ class DinningController extends Controller
 
             // we wrap everything in this if statement.
             // may be better to check and error out if no menu details found for this date
+            // if ($with_meals && $menu_row) {
             if ($menu_row) {
 
                 $menu_items = $menu_row->items;
@@ -4046,23 +4071,63 @@ class DinningController extends Controller
                 $paidItemOptions[$paidItemOption->id] = $paidItemOption->option_name;
             }
 
-            // breakfast
+            // items
             $breakfastItemsList[] = array_merge($baseItemList, array_values($breakfast));
-            $reportBreakfastList[] = $this->generateSingleDayMealReport(
-                $date, 'breakfast', $breakfastIds, $paidItemOptions
-            );
-
-            // lunch
             $lunchItemsList[] = array_merge($baseItemList, array_values($lunch));
-            $reportLunchList[] = $this->generateSingleDayMealReport(
-                $date, 'lunch', $lunchIds, $paidItemOptions
+            $dinnerItemsList[] = array_merge($baseItemList, array_values($dinner));
+
+
+            $reportBreakfastListSingleDay = $this->generateSingleDayMealReport(
+                $date, 'breakfast', $breakfastIds, $paidItemOptions, $with_meals
+            );
+            $reportLunchListSingleDay = $this->generateSingleDayMealReport(
+                $date, 'lunch', $lunchIds, $paidItemOptions, $with_meals
+            );
+            $reportDinnerListSingleDay = $this->generateSingleDayMealReport(
+                $date, 'dinner', $dinnerIds, $paidItemOptions, $with_meals
             );
 
-            // dinner
-            $dinnerItemsList[] = array_merge($baseItemList, array_values($dinner));
-            $reportDinnerList[] = $this->generateSingleDayMealReport(
-                $date, 'dinner', $dinnerIds, $paidItemOptions
-            );
+            if ($with_meals) {
+                $reportBreakfastList[] = $reportBreakfastListSingleDay;
+                $reportLunchList[] = $reportLunchListSingleDay;
+                $reportDinnerList[] = $reportDinnerListSingleDay;
+            } else { // accumulate quantities if we're not sending meal-wise data
+                $baseItems = ['T', 'E', 'TO', 'G'];
+                foreach ($reportBreakfastListSingleDay as $rbi) {
+                    if (!array_key_exists($rbi['room_no'], $reportBreakfastList)) {
+                        $reportBreakfastList[$rbi['room_no']] = $rbi;
+                    } else {
+                        foreach ($baseItems as $baseItem) {
+                            $reportBreakfastList[$rbi['room_no']][$baseItem] += $rbi[$baseItem];
+                        }
+                    }   
+                }
+                foreach ($reportLunchListSingleDay as $rli) {
+                    if (!array_key_exists($rli['room_no'], $reportLunchList)) {
+                        $reportLunchList[$rli['room_no']] = $rli;
+                    } else {
+                        foreach ($baseItems as $baseItem) {
+                            $reportLunchList[$rli['room_no']][$baseItem] += $rli[$baseItem];
+                        }
+                    }
+                }
+                foreach ($reportDinnerListSingleDay as $rdi) {
+                    if (!array_key_exists($rdi['room_no'], $reportDinnerList)) {
+                        $reportDinnerList[$rdi['room_no']] = $rdi;
+                    } else {
+                        foreach ($baseItems as $baseItem) {
+                            $reportDinnerList[$rdi['room_no']][$baseItem] += $rdi[$baseItem];
+                        }
+                    }
+                }
+            }
+        }
+
+        if (!$with_meals) {
+            // convert back to indexed arrays if not sending meal-wise data
+            $reportBreakfastList = array_values($reportBreakfastList);
+            $reportLunchList = array_values($reportLunchList);
+            $reportDinnerList = array_values($reportDinnerList);
         }
 
         $finalData = [
