@@ -237,6 +237,7 @@ class OrderController extends Controller
         $end_date = $request->input("end_date");
 
         $item_array = [];
+        $tooltips_array = [];
         $final_array = [];
         $table_column[0] = [];
         $table_column[1] = [];
@@ -265,6 +266,8 @@ class OrderController extends Controller
         foreach ($period as $date) {
             $search_date = $date->format('Y-m-d');
             $menu_details = MenuDetail::where("date", $search_date)->first();
+
+            $is_first = true;
             
             if ($menu_details) {
                 $menu_items = $menu_details->items;
@@ -321,8 +324,11 @@ class OrderController extends Controller
                     $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map) use (
                         $room_id,
                         &$curr_item_array,
+                        &$tooltips_array,
                         &$order_data_map,
                         &$total,
+                        $is_first,
+                        $search_date,
                     ) {
                         foreach ($items as $a) {
 
@@ -359,6 +365,21 @@ class OrderController extends Controller
                                         )
                                     )
                                 );
+                            }
+
+                            if ($is_first) {
+                                if (!array_key_exists($title, $tooltips_array)) {
+                                    $tooltips_array[$title] = [
+                                        "title" => $title,
+                                        "tooltip" => [
+                                            $search_date => $a->item_name
+                                        ],
+                                        "field" => $title
+                                    ];
+                                }
+                                else {
+                                    $tooltips_array[$title]["tooltip"][$search_date] = $a->item_name;
+                                }
                             }
 
                             $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
@@ -405,7 +426,9 @@ class OrderController extends Controller
                             }
                         }
                     }
+
                     $curr_item_array = [];
+                    $is_first = false;
                 }
             }
         }
@@ -422,14 +445,44 @@ class OrderController extends Controller
                 $orderA = array_search($prefixA, $meal_order);
                 $orderB = array_search($prefixB, $meal_order);
                 if ($orderA !== $orderB) return $orderA - $orderB;
-            
+
                 $suffixA = substr($a, 1);
                 $suffixB = substr($b, 1);
-            
+
+                // Helper to group variants after normal ones
+                $groupVariantsLast = function($a, $b, $variantPrefix) {
+                    $isVariantA = strpos($a, $variantPrefix) === 0;
+                    $isVariantB = strpos($b, $variantPrefix) === 0;
+                    if ($isVariantA && !$isVariantB) return 1;
+                    if (!$isVariantA && $isVariantB) return -1;
+                    // If both are variants or both not, fallback to letters before numbers
+                    $isAlphaA = ctype_alpha(substr($a, strlen($variantPrefix)));
+                    $isAlphaB = ctype_alpha(substr($b, strlen($variantPrefix)));
+                    if ($isAlphaA && !$isAlphaB) return -1;
+                    if (!$isAlphaA && $isAlphaB) return 1;
+                    return strcmp(substr($a, strlen($variantPrefix)), substr($b, strlen($variantPrefix)));
+                };
+
+                if ($prefixA === 'B' && $prefixB === 'B') {
+                    // BA/variants after B1, B2, etc.
+                    $result = $groupVariantsLast($a, $b, 'BA');
+                    if ($result !== 0) return $result;
+                }
+                if ($prefixA === 'L' && $prefixB === 'L') {
+                    // LS/variants after L1, L2, etc.
+                    $result = $groupVariantsLast($a, $b, 'LS');
+                    if ($result !== 0) return $result;
+                }
+                if ($prefixA === 'D' && $prefixB === 'D') {
+                    // DD/variants after D1, D2, etc.
+                    $result = $groupVariantsLast($a, $b, 'DD');
+                    if ($result !== 0) return $result;
+                }
+
+                // Fallback: letters before numbers
                 $isAlphaA = ctype_alpha($suffixA);
                 $isAlphaB = ctype_alpha($suffixB);
-            
-                if ($isAlphaA && !$isAlphaB) return -1; // letters before numbers
+                if ($isAlphaA && !$isAlphaB) return -1;
                 if (!$isAlphaA && $isAlphaB) return 1;
                 return strcmp($suffixA, $suffixB);
             });
@@ -457,8 +510,7 @@ class OrderController extends Controller
             else if (strpos($key, 'L') === 0) $lunch_count++;
             else if (strpos($key, 'D') === 0) $dinner_count++;
 
-            // We have determined that dish names are not needed when considering date range reports
-            $table_column[2][] = ["title" => $key, "tooltip" => "Total", "field" => $key];
+            $table_column[2][] = $tooltips_array[$key] ?? [];
         }
 
         if ($breakfast_count > 0) {
