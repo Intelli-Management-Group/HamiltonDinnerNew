@@ -4291,6 +4291,142 @@ class DinningController extends Controller
         }
     }
 
+    // V2 of charge report functions
+
+    private const MEAL_LOOKUP = [
+        1 => 'brk',
+        2 => 'lunch',
+        3 => 'dinner'
+    ];
+
+    private const MEAL_ALIASES_REV = [
+        'brk' => 'breakfast',
+        'lunch' => 'lunch',
+        'dinner' => 'dinner'
+    ];
+
+    private const SERVICE_LOOKUP = [
+        'T' => 'Tray Service',
+        'E' => 'Escort Service',
+        'TO' => 'TakeOut',
+        'G' => 'No. Of Guests'
+    ];
+
+    private function constructMealQueryV2(
+        $start_date,
+        $end_date,
+    )
+    {
+        return "SELECT
+                    od.id                            AS orderId,
+                    od.room_id                       AS roomId,
+                    od.date                          AS orderDate,
+                    od.item_id                       AS itemId,
+                    od.quantity                      AS quantity,
+                    od.item_option                   AS itemOptionId,
+                    od.is_for_guest                  AS isForGuest,
+                    
+                    od.is_brk_tray_service           AS brkTrayService,
+                    od.is_brk_escort_service         AS brkEscortService,
+                    od.is_brk_takeout_service        AS brkTakeoutService,
+                    od.is_lunch_tray_service         AS lunchTrayService,
+                    od.is_lunch_escort_service       AS lunchEscortService,
+                    od.is_lunch_takeout_service      AS lunchTakeoutService,
+                    od.is_dinner_tray_service        AS dinnerTrayService,
+                    od.is_dinner_escort_service      AS dinnerEscortService,
+                    od.is_dinner_takeout_service     AS dinnerTakeoutService,
+                    
+                    dwo.occupancy                    AS noOfGuests,
+                    
+                    id.item_name                     AS itemName,
+                    id.cat_id                        AS itemCategoryId,
+                    
+                    cd.type                          AS itemCategoryType,
+                    
+                    io.option_name                   AS itemOptionName,
+                    io.is_paid_item                  AS isPaidItem
+                FROM (
+                    SELECT 
+                        *,
+                        cast(trim(item_options) AS SIGNED INTEGER) AS item_option
+                    FROM 
+                        order_details
+                    WHERE
+                        date BETWEEN '$start_date' AND '$end_date'
+                ) od
+                LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = od.room_id 
+                                                    AND dwo.date = od.date
+                LEFT JOIN item_details          id  ON id.id = od.item_id
+                LEFT JOIN category_details      cd  ON cd.id = id.cat_id
+                LEFT JOIN item_options          io  ON io.id = od.item_option
+        ";
+    }
+
+    public function getChargeReportV2(Request $request)
+    {
+        $start_date = $end_date = null;
+        if ($request->has('start_date') && $request->has('end_date')) {
+            $start_date = $request->input('start_date');
+            $end_date = $request->input('end_date');
+        } elseif ($request->has('date')) {
+            $start_date = $end_date = $request->input('date');
+        } else {
+            return $this->sendResultJSON('0', 'Invalid parameters!!', []);
+        }
+
+        // hint on usage of service class
+        // $chargeReportService = new ChargeReportService();
+
+        // populate base items
+        $baseItemList = [];
+        $baseData = [];
+        $baseOptions = [];
+        foreach (self::SERVICE_LOOKUP as $key => $value) {
+            $baseItemList[$key] = [
+                'item_name' => $key,
+                'real_item_name' => $value,
+            ];
+
+            $baseData[$key] = 0;
+            $baseOptions[$key] = [];
+        }
+
+        $breakfastItemList = $lunchItemList = $dinnerItemList = clone $baseItemList;
+        $breakfastData = $lunchData = $dinnerData = clone $baseData;
+        $breakfastOptions = $lunchOptions = $dinnerOptions = clone $baseOptions;
+
+        $meal_rows = DB::select(
+            $this->constructMealQueryV2(
+                $start_date,
+                $end_date
+            )
+        );
+
+        foreach ($meal_rows as $meal_row) {
+            // process each meal row as needed
+            $item_name = $meal_row->item_name;
+            $option_name = $meal_row->itemOptionName;
+            $is_guest_order = !empty($meal_row->isForGuest);
+
+            $meal = self::MEAL_LOOKUP[$meal_row->itemCategoryType] ?? null;
+            $meal_longform = self::MEAL_ALIASES_REV[$meal] ?? null;
+            if (!$meal) continue;
+
+            if ($meal_row->itemOptionId) {
+                $item_option_title = 'O'.$meal_row->itemOptionId;
+                if (!isset(${meal_longform.'ItemList'}[$item_option_title])) {
+                    ${meal_longform.'ItemList'}[$item_option_title] = [
+                        'item_name' => $item_option_title,
+                        'real_item_name' => $option_name,
+                        'item_option_id' => $meal_row->itemOptionId
+                    ];
+                }
+            }
+
+            // if (!isset(${meal_longform.'ItemList'}[]'}))
+        }
+    }
+
     // --- END CHARGE REPORT FUNCTIONS ---
 
     public function getTempFormDownload()
