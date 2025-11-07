@@ -4318,47 +4318,51 @@ class DinningController extends Controller
     )
     {
         return "SELECT
-                    od.id                            AS orderId,
-                    od.room_id                       AS roomId,
-                    od.date                          AS orderDate,
-                    od.item_id                       AS itemId,
-                    od.quantity                      AS quantity,
-                    od.item_option                   AS itemOptionId,
-                    od.is_for_guest                  AS isForGuest,
-                    
-                    od.is_brk_tray_service           AS brkTrayService,
-                    od.is_brk_escort_service         AS brkEscortService,
-                    od.is_brk_takeout_service        AS brkTakeoutService,
-                    od.is_lunch_tray_service         AS lunchTrayService,
-                    od.is_lunch_escort_service       AS lunchEscortService,
-                    od.is_lunch_takeout_service      AS lunchTakeoutService,
-                    od.is_dinner_tray_service        AS dinnerTrayService,
-                    od.is_dinner_escort_service      AS dinnerEscortService,
-                    od.is_dinner_takeout_service     AS dinnerTakeoutService,
-                    
-                    dwo.occupancy                    AS noOfGuests,
-                    
-                    id.item_name                     AS itemName,
-                    id.cat_id                        AS itemCategoryId,
-                    
-                    cd.type                          AS itemCategoryType,
-                    
-                    io.option_name                   AS itemOptionName,
-                    io.is_paid_item                  AS isPaidItem
+                    od.room_id                   AS roomId,
+                    od.date                      AS orderDate,
+                    od.item_option               AS itemOptionId,
+                    od.is_for_guest              AS isForGuest,
+
+                    rd.room_name                 AS roomName,
+                    id.item_name                 AS itemName,
+                    cd.type                      AS itemCategoryType,
+                    io.option_name               AS itemOptionName,
+
+                    CASE
+                        WHEN cd.type = 1 THEN od.is_brk_tray_service
+                        WHEN cd.type = 2 THEN od.is_lunch_tray_service
+                        WHEN cd.type = 3 THEN od.is_dinner_tray_service
+                        ELSE 0
+                    END                          AS isTrayService,
+
+                    CASE
+                        WHEN cd.type = 1 THEN od.is_brk_escort_service
+                        WHEN cd.type = 2 THEN od.is_lunch_escort_service
+                        WHEN cd.type = 3 THEN od.is_dinner_escort_service
+                        ELSE 0
+                    END                          AS isEscortService,
+
+                    CASE
+                        WHEN cd.type = 1 THEN od.is_brk_takeout_service
+                        WHEN cd.type = 2 THEN od.is_lunch_takeout_service
+                        WHEN cd.type = 3 THEN od.is_dinner_takeout_service
+                        ELSE 0
+                    END                          AS isTakeoutService
                 FROM (
                     SELECT 
                         *,
-                        cast(trim(item_options) AS SIGNED INTEGER) AS item_option
+                        cast(
+                            trim(item_options)
+                            AS SIGNED INTEGER
+                        ) AS item_option
                     FROM 
                         order_details
                     WHERE
                         date BETWEEN '$start_date' AND '$end_date'
                 ) od
-                LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = od.room_id 
-                                                    AND dwo.date = od.date
-                LEFT JOIN item_details          id  ON id.id = od.item_id
-                LEFT JOIN category_details      cd  ON cd.id = id.cat_id
-                LEFT JOIN item_options          io  ON io.id = od.item_option
+                LEFT JOIN item_details     id  ON id.id = od.item_id
+                LEFT JOIN category_details cd  ON cd.id = id.cat_id
+                LEFT JOIN item_options     io  ON io.id = od.item_option
         ";
     }
 
@@ -4392,8 +4396,6 @@ class DinningController extends Controller
         }
 
         $breakfastItemList = $lunchItemList = $dinnerItemList = clone $baseItemList;
-        $breakfastData = $lunchData = $dinnerData = clone $baseData;
-        $breakfastOptions = $lunchOptions = $dinnerOptions = clone $baseOptions;
 
         $meal_rows = DB::select(
             $this->constructMealQueryV2(
@@ -4403,27 +4405,66 @@ class DinningController extends Controller
         );
 
         foreach ($meal_rows as $meal_row) {
-            // process each meal row as needed
-            $item_name = $meal_row->item_name;
-            $option_name = $meal_row->itemOptionName;
-            $is_guest_order = !empty($meal_row->isForGuest);
 
+            // determine meal
             $meal = self::MEAL_LOOKUP[$meal_row->itemCategoryType] ?? null;
             $meal_longform = self::MEAL_ALIASES_REV[$meal] ?? null;
             if (!$meal) continue;
 
+            // to check: T, E, TO, G, itemOptionId
+            $to_check = [
+                $meal_row->isTrayService,
+                $meal_row->isEscortService,
+                $meal_row->isTakeoutService,
+                $meal_row->isForGuest,
+                $meal_row->itemOptionId
+            ];
+
+            // skip if all zero/empty
+            if (count(array_filter($to_check, fn($v) => !empty($v))) === 0) continue;
+
+            // make new room entry if not exists
+            $guest_suffix = $meal_row->isForGuest ? ' G' : '';
+            $report_meal_list = &${'report_'.meal_longform.'_list'};
+            $room_name = $meal_row->roomName . $guest_suffix;
+            if (!isset($report_meal_list[$room_name])) {
+                $report_meal_list[$room_name] = [
+                    'room_no' => $room_name,
+                    'room_id' => $meal_row->roomId,
+                    'is_for_guest' => $meal_row->isForGuest ? 1 : 0,
+                    'data' => clone $baseData,
+                    'option' => clone $baseOptions
+                ];
+            }
+
+            // set up reference
+            $meal_data = &$report_meal_list[$room_name]['data'];
+            $meal_options = &$report_meal_list[$room_name]['option'];
+
+            // populate quantities
+            $meal_data['T'] += $meal_row->isTrayService;
+            $meal_data['E'] += $meal_row->isEscortService;
+            $meal_data['TO'] += $meal_row->isTakeoutService;
+            $meal_data['G'] += $meal_row->isForGuest;
+
+            // populate options
             if ($meal_row->itemOptionId) {
+                $item_name = $meal_row->item_name;
+                $meal_item_list = &${meal_longform.'_item_list'};
+
                 $item_option_title = 'O'.$meal_row->itemOptionId;
-                if (!isset(${meal_longform.'ItemList'}[$item_option_title])) {
-                    ${meal_longform.'ItemList'}[$item_option_title] = [
+                if (!isset($meal_item_list[$item_option_title])) {
+                    $meal_item_list[$item_option_title] = [
                         'item_name' => $item_option_title,
-                        'real_item_name' => $option_name,
+                        'real_item_name' => $meal_row->itemOptionName,
                         'item_option_id' => $meal_row->itemOptionId
                     ];
                 }
+
+                
             }
 
-            // if (!isset(${meal_longform.'ItemList'}[]'}))
+            // if (!isset($meal_item_list[])) {
         }
     }
 
