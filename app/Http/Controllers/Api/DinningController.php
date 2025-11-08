@@ -4318,52 +4318,80 @@ class DinningController extends Controller
     )
     {
         return "SELECT
-                    od.room_id                   AS roomId,
-                    od.date                      AS orderDate,
-                    od.item_option               AS itemOptionId,
-                    od.is_for_guest              AS isForGuest,
+                	od.room_id            AS roomId,       -- 1
+                	od.is_for_guest       AS isForGuest,   -- 2
+                	CASE
+                		WHEN cd.type = 1 THEN 'breakfast'
+                		WHEN cd.type = 2 THEN 'lunch'
+                		WHEN cd.type = 3 THEN 'dinner'
+                		ELSE NULL
+                	END                   AS meal,         -- 3      
+                    od.item_option        AS itemOptionId, -- 4
 
-                    rd.room_name                 AS roomName,
-                    id.item_name                 AS itemName,
-                    cd.type                      AS itemCategoryType,
-                    io.option_name               AS itemOptionName,
+                    MAX(rd.room_name)	  AS roomName,
+                    MAX(io.option_name)   AS optionName,
 
-                    CASE
-                        WHEN cd.type = 1 THEN od.is_brk_tray_service
-                        WHEN cd.type = 2 THEN od.is_lunch_tray_service
-                        WHEN cd.type = 3 THEN od.is_dinner_tray_service
-                        ELSE 0
-                    END                          AS isTrayService,
+                    MAX(dwo.occupancy)    AS noOfGuests,
 
-                    CASE
-                        WHEN cd.type = 1 THEN od.is_brk_escort_service
-                        WHEN cd.type = 2 THEN od.is_lunch_escort_service
-                        WHEN cd.type = 3 THEN od.is_dinner_escort_service
-                        ELSE 0
-                    END                          AS isEscortService,
+                	GROUP_CONCAT(
+                		DISTINCT
+                		CONCAT(od.date, ':', id.item_name) 
+                        ORDER BY od.date, id.item_name ASC
+                        SEPARATOR ';'
+                	)                     AS items,
 
-                    CASE
-                        WHEN cd.type = 1 THEN od.is_brk_takeout_service
-                        WHEN cd.type = 2 THEN od.is_lunch_takeout_service
-                        WHEN cd.type = 3 THEN od.is_dinner_takeout_service
-                        ELSE 0
-                    END                          AS isTakeoutService
+                	MAX(CASE
+                		WHEN cd.type = 1 THEN od.is_brk_tray_service
+                		WHEN cd.type = 2 THEN od.is_lunch_tray_service
+                		WHEN cd.type = 3 THEN od.is_dinner_tray_service
+                		ELSE 0
+                	END)                  AS isTrayService,
+
+                	MAX(CASE
+                		WHEN cd.type = 1 THEN od.is_brk_escort_service
+                		WHEN cd.type = 2 THEN od.is_lunch_escort_service
+                		WHEN cd.type = 3 THEN od.is_dinner_escort_service
+                		ELSE 0
+                	END)                  AS isEscortService,
+
+                	MAX(CASE
+                		WHEN cd.type = 1 THEN od.is_brk_takeout_service
+                		WHEN cd.type = 2 THEN od.is_lunch_takeout_service
+                		WHEN cd.type = 3 THEN od.is_dinner_takeout_service
+                		ELSE 0
+                	END)                  AS isTakeoutService
+                    
                 FROM (
-                    SELECT 
-                        *,
-                        cast(
-                            trim(item_options)
-                            AS SIGNED INTEGER
-                        ) AS item_option
-                    FROM 
-                        order_details
-                    WHERE
-                        date BETWEEN '$start_date' AND '$end_date'
+                	SELECT 
+                		room_id,
+                        is_for_guest,
+                        date,
+                        item_id,
+                        is_brk_tray_service,
+                        is_brk_escort_service,
+                        is_brk_takeout_service,
+                        is_lunch_tray_service,
+                        is_lunch_escort_service,
+                        is_lunch_takeout_service,
+                        is_dinner_tray_service,
+                        is_dinner_escort_service,
+                        is_dinner_takeout_service,
+                		cast(
+                			trim(item_options)
+                			AS SIGNED INTEGER
+                		) AS item_option
+                	FROM
+                		order_details
+                	WHERE
+                		date BETWEEN '$start_date' AND '$end_date'
                 ) od
-                LEFT JOIN item_details     id  ON id.id = od.item_id
-                LEFT JOIN category_details cd  ON cd.id = id.cat_id
-                LEFT JOIN item_options     io  ON io.id = od.item_option
-        ";
+                LEFT JOIN room_details	        rd  ON rd.id = od.room_id
+                LEFT JOIN item_details          id  ON id.id = od.item_id
+                LEFT JOIN category_details      cd  ON cd.id = id.cat_id
+                LEFT JOIN item_options          io  ON io.id = od.item_option
+                LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = rd.id
+                                                    AND dwo.date = od.date
+                GROUP BY 1,2,3,4;";
     }
 
     public function getChargeReportV2(Request $request)
@@ -4377,6 +4405,8 @@ class DinningController extends Controller
         } else {
             return $this->sendResultJSON('0', 'Invalid parameters!!', []);
         }
+
+        $is_single_day = ($start_date === $end_date);
 
         // hint on usage of service class
         // $chargeReportService = new ChargeReportService();
@@ -4407,8 +4437,7 @@ class DinningController extends Controller
         foreach ($meal_rows as $meal_row) {
 
             // determine meal
-            $meal = self::MEAL_LOOKUP[$meal_row->itemCategoryType] ?? null;
-            $meal_longform = self::MEAL_ALIASES_REV[$meal] ?? null;
+            $meal = $meal_row->meal;
             if (!$meal) continue;
 
             // to check: T, E, TO, G, itemOptionId
@@ -4425,13 +4454,13 @@ class DinningController extends Controller
 
             // make new room entry if not exists
             $guest_suffix = $meal_row->isForGuest ? ' G' : '';
-            $report_meal_list = &${'report_'.meal_longform.'_list'};
+            $report_meal_list = &${'report_'.meal.'_list'};
             $room_name = $meal_row->roomName . $guest_suffix;
             if (!isset($report_meal_list[$room_name])) {
                 $report_meal_list[$room_name] = [
                     'room_no' => $room_name,
                     'room_id' => $meal_row->roomId,
-                    'is_for_guest' => $meal_row->isForGuest ? 1 : 0,
+                    'is_for_guest' => $meal_row->isForGuest,
                     'data' => clone $baseData,
                     'option' => clone $baseOptions
                 ];
@@ -4442,17 +4471,20 @@ class DinningController extends Controller
             $meal_options = &$report_meal_list[$room_name]['option'];
 
             // populate quantities
-            $meal_data['T'] += $meal_row->isTrayService;
-            $meal_data['E'] += $meal_row->isEscortService;
-            $meal_data['TO'] += $meal_row->isTakeoutService;
-            $meal_data['G'] += $meal_row->isForGuest;
+            $meal_data['T'] = max($meal_data['T'], $meal_row->isTrayService);
+            $meal_data['E'] = max($meal_data['E'], $meal_row->isEscortService);
+            $meal_data['TO'] = max($meal_data['TO'], $meal_row->isTakeoutService);
+            if ( $meal_row->isForGuest ) {
+                $meal_data['G'] = max($meal_data['G'], $meal_row->noOfGuests);
+            }
 
-            // populate options
+            // options
             if ($meal_row->itemOptionId) {
-                $item_name = $meal_row->item_name;
-                $meal_item_list = &${meal_longform.'_item_list'};
+                $meal_item_list = &${meal.'_item_list'};
 
                 $item_option_title = 'O'.$meal_row->itemOptionId;
+
+                // meal_item_list
                 if (!isset($meal_item_list[$item_option_title])) {
                     $meal_item_list[$item_option_title] = [
                         'item_name' => $item_option_title,
@@ -4461,10 +4493,60 @@ class DinningController extends Controller
                     ];
                 }
 
-                
-            }
+                foreach (explode(';', $meal_row->items) as $item_entry) {
+                    [$item_date, $item_name] = explode(':', $item_entry);
+                    
+                    // report_meal_list data
+                    $meal_data[$item_option_title] = ($meal_data[$item_option_title] ?? 0) + 1;
 
-            // if (!isset($meal_item_list[])) {
+                    // report_meal_list option
+                    if (!isset($meal_options[$item_option_title])) {
+                        $meal_options[$item_option_title] = [];
+                    }
+
+                    if ($is_single_day) {
+                        $meal_options[$item_option_title][$item_name] = [
+                            'itemName' => $item_name,
+                        ];
+                    } else {
+                        if (!isset($meal_options[$item_option_title][$item_date])) {
+                            $meal_options[$item_option_title][$item_date] = [
+                                'date' => $item_date,
+                                'items' => [
+                                    $item_name = [
+                                        'itemName' => $item_name,
+                                    ]
+                                ]
+                            ];
+                        } else {
+                            $meal_options[$item_option_title][$item_date]['items'][$item_name] = [
+                                'itemName' => $item_name
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+
+        foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
+            // convert item list to indexed array
+            $meal_item_list = &${meal.'_item_list'};
+            ${meal.'_item_list'} = array_values($meal_item_list);
+
+            // convert report meal list to indexed array
+            $report_meal_list = &${'report_'.meal.'_list'};
+            ${'report_'.meal.'_list'} = array_values($report_meal_list);
+
+            foreach (${'report_'.meal.'_list'} as &$room_entry) {
+                // convert options to indexed array
+                foreach ($room_entry['option'] as $option_key => $option_value) {
+                    if ($is_single_day) {
+                        $room_entry['option'][$option_key] = array_values($option_value);
+                    } else {
+                        $room_entry['option'][$option_key] = array_values($option_value);
+                    }
+                }
+            }  
         }
     }
 
