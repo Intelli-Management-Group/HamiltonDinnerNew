@@ -98,7 +98,8 @@ Route::group(['middleware' => 'APIToken'], function () {
     Route::post('/get-category-specific-items', [DinningController::class, 'getCategorySpecificItems']);
 
     // TODO: these two should be GET requests with query params
-    Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReport']);
+    // Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReport']);
+    Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReportV2']);
 });
 
 
@@ -117,7 +118,8 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
     Route::get('{id}/temp-form-response-delete', [DinningController::class, 'deleteTempFormResponse']);
 
     // TODO: these two should be GET requests with query params
-    Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReport']);
+    // Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReport']);
+    Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReportV2']);
 
     //website routes
     Route::post('temp-form-save-by-user', [DinningController::class, 'saveTempFormByUser']); //Get-temp-form-list

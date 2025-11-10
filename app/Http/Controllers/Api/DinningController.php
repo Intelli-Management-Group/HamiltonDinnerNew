@@ -4425,7 +4425,7 @@ class DinningController extends Controller
             $baseOptions[$key] = [];
         }
 
-        $breakfastItemList = $lunchItemList = $dinnerItemList = clone $baseItemList;
+        $breakfastOptionsList = $lunchOptionsList = $dinnerOptionsList = [];
 
         $meal_rows = DB::select(
             $this->constructMealQueryV2(
@@ -4454,15 +4454,15 @@ class DinningController extends Controller
 
             // make new room entry if not exists
             $guest_suffix = $meal_row->isForGuest ? ' G' : '';
-            $report_meal_list = &${'report_'.meal.'_list'};
+            $report_meal_list = &${'report_'.$meal.'_list'};
             $room_name = $meal_row->roomName . $guest_suffix;
             if (!isset($report_meal_list[$room_name])) {
                 $report_meal_list[$room_name] = [
                     'room_no' => $room_name,
                     'room_id' => $meal_row->roomId,
                     'is_for_guest' => $meal_row->isForGuest,
-                    'data' => clone $baseData,
-                    'option' => clone $baseOptions
+                    'data' => $baseData,
+                    'option' => $baseOptions
                 ];
             }
 
@@ -4480,15 +4480,15 @@ class DinningController extends Controller
 
             // options
             if ($meal_row->itemOptionId) {
-                $meal_item_list = &${meal.'_item_list'};
+                $meal_options_list = &${$meal.'OptionsList'};
 
                 $item_option_title = 'O'.$meal_row->itemOptionId;
 
-                // meal_item_list
-                if (!isset($meal_item_list[$item_option_title])) {
-                    $meal_item_list[$item_option_title] = [
+                // meal_options_list
+                if (!isset($meal_options_list[$item_option_title])) {
+                    $meal_options_list[$item_option_title] = [
                         'item_name' => $item_option_title,
-                        'real_item_name' => $meal_row->itemOptionName,
+                        'real_item_name' => $meal_row->optionName,
                         'item_option_id' => $meal_row->itemOptionId
                     ];
                 }
@@ -4513,7 +4513,7 @@ class DinningController extends Controller
                             $meal_options[$item_option_title][$item_date] = [
                                 'date' => $item_date,
                                 'items' => [
-                                    $item_name = [
+                                    $item_name => [
                                         'itemName' => $item_name,
                                     ]
                                 ]
@@ -4528,26 +4528,52 @@ class DinningController extends Controller
             }
         }
 
+        // sort options list by keys
+        ksort($breakfastOptionsList);
+        ksort($lunchOptionsList);
+        ksort($dinnerOptionsList);
+
+        $breakfastItemList = $baseItemList+$breakfastOptionsList;
+        $lunchItemList = $baseItemList+$lunchOptionsList;
+        $dinnerItemList = $baseItemList+$dinnerOptionsList;
+
         foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
             // convert item list to indexed array
-            $meal_item_list = &${meal.'_item_list'};
-            ${meal.'_item_list'} = array_values($meal_item_list);
+            $meal_item_list = &${$meal.'ItemList'};
+            $meal_item_list = array_values($meal_item_list);
 
             // convert report meal list to indexed array
-            $report_meal_list = &${'report_'.meal.'_list'};
-            ${'report_'.meal.'_list'} = array_values($report_meal_list);
+            $report_meal_list = &${'report_'.$meal.'_list'};
+            $report_meal_list = array_values($report_meal_list);
 
-            foreach (${'report_'.meal.'_list'} as &$room_entry) {
+            foreach ($report_meal_list as &$room_entry) {
                 // convert options to indexed array
                 foreach ($room_entry['option'] as $option_key => $option_value) {
-                    if ($is_single_day) {
-                        $room_entry['option'][$option_key] = array_values($option_value);
-                    } else {
-                        $room_entry['option'][$option_key] = array_values($option_value);
+                    // only process option keys
+                    if ($option_key[0] !== 'O') continue;
+
+                    // if not single day, convert date items to indexed array first
+                    if (!$is_single_day) {
+                        foreach ($option_value as $date_key => $date_value) {
+                            $option_value[$date_key]['items'] = array_values($date_value['items']);
+                        }
                     }
+
+                    // finally convert option to indexed array
+                    $room_entry['option'][$option_key] = array_values($option_value);
                 }
             }  
         }
+
+        $finalData = [
+            'breakfast_item_list' => array_values($baseItemList+$breakfastOptionsList),
+            'report_breakfast_list' => array_values($report_breakfast_list ?? []),
+            'lunch_item_list' =>   array_values($baseItemList+$lunchOptionsList),
+            'report_lunch_list' => array_values($report_lunch_list ?? []),
+            'dinner_item_list' => array_values($baseItemList+$dinnerOptionsList),
+            'report_dinner_list' => array_values($report_dinner_list ?? [])
+        ];
+        return $this->sendResultJSON('1', '', $finalData);
     }
 
     // --- END CHARGE REPORT FUNCTIONS ---
