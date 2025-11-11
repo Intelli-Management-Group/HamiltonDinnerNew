@@ -82,7 +82,7 @@ Route::group(['middleware' => 'APIToken'], function () {
     Route::post('add-form-attachment-phase1', [DinningController::class, 'addAttachmentsToExistingFormPhase1']); // new api stage 1
     Route::post('delete-form-attachment-phase1', [DinningController::class, 'deleteFormAttachmentPhase1']); // new api stage 1
 
-    Route::post('get-report-data', [DinningController::class, 'getCategoryWiseDataDemo']);
+    Route::post('get-report-data', [OrderController::class, 'reportList']);
 
     Route::get('get-move-in-summary-values', [DinningController::class, 'getMoveInSummaryValues']);
 
