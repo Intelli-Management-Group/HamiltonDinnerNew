@@ -100,6 +100,9 @@ Route::group(['middleware' => 'APIToken'], function () {
     // TODO: these two should be GET requests with query params
     // Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReport']);
     Route::post('temp-get-charges-report', [DinningController::class, 'getChargeReportV2']);
+
+    // Order report
+    Route::get('reports', [OrderController::class, 'reportList']);
 });
 
 

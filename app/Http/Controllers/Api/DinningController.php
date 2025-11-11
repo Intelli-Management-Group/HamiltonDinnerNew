@@ -146,20 +146,26 @@ class DinningController extends Controller
                     } else {
                         $message = "User not Found";
 
-                        $roomIds = RoomDetail::select('room_name')->where("room_name", 'like', '%' . $room_no . '%')->get();
+                        # WHY? To suggest similar room numbers if user entered wrong room number?
+                        # This is a quality of life feature, but it should not be implemented here. This is poorly thought out.
+                        # Recommendation is to comment this out, and handle it another way if needed.
+                        
+                        return $this->sendResultJSON("2", $message);
+                        
+                        // $roomIds = RoomDetail::select('room_name')->where("room_name", 'like', '%' . $room_no . '%')->get();
 
-                        $customMessage = "";
-                        $similarRoomFound = [];
+                        // $customMessage = "";
+                        // $similarRoomFound = [];
 
-                        foreach ($roomIds as $roomId) {
-                            $similarRoomFound[] = $roomId->room_name;
-                        }
+                        // foreach ($roomIds as $roomId) {
+                        //     $similarRoomFound[] = $roomId->room_name;
+                        // }
 
-                        if (count($similarRoomFound) > 1) {
-                            $customMessage = "There are " . count($similarRoomFound) . " residents in room " . $room_no . ". Please enter " . implode(" OR ", $similarRoomFound);
-                        }
+                        // if (count($similarRoomFound) > 1) {
+                        //     $customMessage = "There are " . count($similarRoomFound) . " residents in room " . $room_no . ". Please enter " . implode(" OR ", $similarRoomFound);
+                        // }
 
-                        return $this->sendResultJSON("2", !empty($customMessage) ? $customMessage : $message);
+                        // return $this->sendResultJSON("2", !empty($customMessage) ? $customMessage : $message);
                     }
                 }
             }
