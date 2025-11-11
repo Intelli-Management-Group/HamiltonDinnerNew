@@ -4431,6 +4431,7 @@ class DinningController extends Controller
             $baseOptions[$key] = [];
         }
 
+        $report_breakfast_list = $report_lunch_list = $report_dinner_list = [];
         $breakfastOptionsList = $lunchOptionsList = $dinnerOptionsList = [];
 
         $meal_rows = DB::select(
