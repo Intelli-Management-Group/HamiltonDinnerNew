@@ -4433,6 +4433,7 @@ class DinningController extends Controller
 
         $report_breakfast_list = $report_lunch_list = $report_dinner_list = [];
         $breakfastOptionsList = $lunchOptionsList = $dinnerOptionsList = [];
+        $should_show_breakfast_items = $should_show_lunch_items = $should_show_dinner_items = false;
 
         $meal_rows = DB::select(
             $this->constructMealQueryV2(
@@ -4458,6 +4459,7 @@ class DinningController extends Controller
 
             // skip if all zero/empty
             if (count(array_filter($to_check, fn($v) => !empty($v))) === 0) continue;
+            ${'should_show_'.$meal.'_items'} = true;
 
             // make new room entry if not exists
             $guest_suffix = $meal_row->isForGuest ? ' G' : '';
@@ -4540,9 +4542,9 @@ class DinningController extends Controller
         ksort($lunchOptionsList);
         ksort($dinnerOptionsList);
 
-        $breakfastItemList = $baseItemList+$breakfastOptionsList;
-        $lunchItemList = $baseItemList+$lunchOptionsList;
-        $dinnerItemList = $baseItemList+$dinnerOptionsList;
+        $breakfastItemList = $should_show_breakfast_items ? $baseItemList + $breakfastOptionsList : [];
+        $lunchItemList = $should_show_lunch_items ? $baseItemList + $lunchOptionsList : [];
+        $dinnerItemList = $should_show_dinner_items ? $baseItemList + $dinnerOptionsList : [];
 
         foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
             // convert item list to indexed array
@@ -4573,11 +4575,11 @@ class DinningController extends Controller
         }
 
         $finalData = [
-            'breakfast_item_list' => array_values($baseItemList+$breakfastOptionsList),
+            'breakfast_item_list' => array_values($breakfastItemList),
             'report_breakfast_list' => array_values($report_breakfast_list ?? []),
-            'lunch_item_list' =>   array_values($baseItemList+$lunchOptionsList),
+            'lunch_item_list' =>   array_values($lunchItemList),
             'report_lunch_list' => array_values($report_lunch_list ?? []),
-            'dinner_item_list' => array_values($baseItemList+$dinnerOptionsList),
+            'dinner_item_list' => array_values($dinnerItemList),
             'report_dinner_list' => array_values($report_dinner_list ?? [])
         ];
         return $this->sendResultJSON('1', '', $finalData);
