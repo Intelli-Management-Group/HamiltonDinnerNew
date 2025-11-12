@@ -217,12 +217,20 @@ class OrderController extends Controller
                 $table_column[0][] = ["title" => 'Dinner', "colspan" => $dinner_count];
             }
         }
-        
-        return json_encode([
+
+        $menu_data = MenuDetail::select("date")
+            ->orderBy("date", "desc")
+            ->first();
+        $last_date = $menu_data?->date;
+
+        $finalData = [
             "result" => ["rows" => $final_array], 
             "columns" => $table_column, 
-            "total" => empty($total) ? NULL : $total
-        ]);
+            "total" => empty($total) ? NULL : $total, 
+            "last_menu_date" => $last_date
+        ];
+        
+        return $this->sendResultJSON('1', '', $finalData);
     }
 
         /**
@@ -530,12 +538,20 @@ class OrderController extends Controller
                 $total
             );
         }
-        
-        return json_encode([
+
+        $menu_data = MenuDetail::select("date")
+            ->orderBy("date", "desc")
+            ->first();
+        $last_date = $menu_data?->date;
+
+        $finalData = [
             "result" => ["rows" => $final_array], 
             "columns" => $table_column, 
-            "total" => empty($total) ? NULL : $total
-        ]);
+            "total" => empty($total) ? NULL : $total,
+            "last_menu_date" => $last_date
+        ];
+        
+        return $this->sendResultJSON('1', '', $finalData);
     }
 
     /**
@@ -551,10 +567,7 @@ class OrderController extends Controller
         } elseif ($request->has('search_date')) {
             return $this->reportListSingle($request);
         } else {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please provide either search_date or both start_date and end_date.'
-            ], 400);
+            return $this->sendResultJSON('0', 'Please provide either search_date or both start_date and end_date.', []);
         }   
     }
 }
