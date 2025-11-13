@@ -82,13 +82,13 @@ class OrderController extends Controller
             );
 
             if (!empty($item_ids)) {
-                $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
+                $all_order_data = OrderDetail::select("room_id", "item_id", "quantity", "is_for_guest")
                     ->where("date", $search_date)
                     ->whereIn("item_id", $item_ids)
                     ->get();
                 
                 foreach ($all_order_data as $order) {
-                    $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
+                    $order_data_map[$order->room_id . ($order->is_for_guest ? " G" : "")][$order->item_id] = $order->quantity;
                 }
             }
             
@@ -118,11 +118,23 @@ class OrderController extends Controller
                     "has_breakfast_order" => 0,
                     "has_lunch_order" => 0,
                     "has_dinner_order" => 0,
+                    "is_for_guest" => 0,
                 ];
+
+                $item_array[$r->id." G"] = [
+                    "room_id" => $r->id,
+                    "room_name" => $r->room_name." G",
+                    "has_special_ins" => $r->special_instrucations != null ? 1 : 0,
+                    "has_breakfast_order" => 0,
+                    "has_lunch_order" => 0,
+                    "has_dinner_order" => 0,
+                    "is_for_guest" => 1,
+                ];
+
                 $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
-                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map) use (
+                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map, $is_guest) use (
                         $room_id,
                         &$item_array,
                         &$order_data_map,
@@ -169,39 +181,46 @@ class OrderController extends Controller
                             if ($is_first) {
                                 $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
                             }
-                            $item_array[$room_id][$title] = 0;
-                            if (isset($order_data_map[$room_id][$a->id])) {
-                                $item_array[$room_id][$title] = intval($order_data_map[$room_id][$a->id]);
-                                
+
+                            $item_array[$room_id.($is_guest ? " G" : "")][$title] = 0;
+
+                            if (isset($order_data_map[$room_id.($is_guest ? " G" : "")][$a->id])) {
+                                $item_array[$room_id.($is_guest ? " G" : "")][$title] = intval($order_data_map[$room_id.($is_guest ? " G" : "")][$a->id]);
+
                                 // Mark that this room has an order for this meal
-                                $item_array[$room_id]["has_".self::PREFIX_MEAL[$mealPrefix]."_order"] = 1;
+                                $item_array[$room_id.($is_guest ? " G" : "")]["has_".self::PREFIX_MEAL[$mealPrefix]."_order"] = 1;
                             }
-                            $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id][$title];
+                            $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id.($is_guest ? " G" : "")][$title];
+
                             if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
                             if ($mealPrefix !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE)) $ab_count = 'B';
                         }
                     };
 
-                    // Process breakfast
-                    $count = 1;
-                    $ab_count = 'A';
-                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                    $processMealItems($breakfast_items, 'B', $count, $ab_count, $cat_id_map);
+                    foreach ([false, true] as $is_guest) {
+                        // Process breakfast
+                        $count = 1;
+                        $ab_count = 'A';
+                        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                        $processMealItems($breakfast_items, 'B', $count, $ab_count, $cat_id_map, $is_guest);
 
-                    // Process lunch
-                    $count = 1;
-                    $ab_count = 'A';
-                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                    $processMealItems($lunch_items, 'L', $count, $ab_count, $cat_id_map);
+                        // Process lunch
+                        $count = 1;
+                        $ab_count = 'A';
+                        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                        $processMealItems($lunch_items, 'L', $count, $ab_count, $cat_id_map, $is_guest);
 
-                    // Process dinner
-                    $count = 1;
-                    $ab_count = 'A';
-                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                    $processMealItems($dinner_items, 'D', $count, $ab_count, $cat_id_map);
+                        // Process dinner
+                        $count = 1;
+                        $ab_count = 'A';
+                        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                        $processMealItems($dinner_items, 'D', $count, $ab_count, $cat_id_map, $is_guest);
+
+                        $is_first = false;
+                    }
 
                     $final_array[] = $item_array[$r->id];
-                    $is_first = false;
+                    $final_array[] = $item_array[$r->id." G"];
             }
 
             // Optimize the total loop using array_map
@@ -313,13 +332,13 @@ class OrderController extends Controller
                 );
 
                 if (!empty($item_ids)) {
-                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
+                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity", "is_for_guest")
                         ->where("date", $search_date)
                         ->whereIn("item_id", $item_ids)
                         ->get();
 
                     foreach ($all_order_data as $order) {
-                        $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
+                        $order_data_map[$order->room_id . ($order->is_for_guest ? " G" : "")][$order->item_id] = $order->quantity;
                     }
                 }
 
