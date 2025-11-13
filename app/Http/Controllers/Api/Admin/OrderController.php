@@ -21,6 +21,12 @@ class OrderController extends Controller
     private const ALTERNATIVE = [4, 8, 11];
     private const AB_ALTERNATIVE = [5, 3];
 
+    private const PREFIX_MEAL = [
+        'B' => 'breakfast',
+        'L' => 'lunch',
+        'D' => 'dinner',
+    ];
+
     /**
      * Retrieve item details by their IDs.
      * 
@@ -105,7 +111,14 @@ class OrderController extends Controller
             
             // Process each room only once
             foreach ($all_rooms as $r) {
-                $item_array[$r->id] = ["room_id" => $r->id, "room_name" => $r->room_name];
+                $item_array[$r->id] = [
+                    "room_id" => $r->id,
+                    "room_name" => $r->room_name,
+                    "has_special_ins" => $r->special_instrucations != null ? 1 : 0,
+                    "has_breakfast_order" => 0,
+                    "has_lunch_order" => 0,
+                    "has_dinner_order" => 0,
+                ];
                 $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
@@ -159,6 +172,9 @@ class OrderController extends Controller
                             $item_array[$room_id][$title] = 0;
                             if (isset($order_data_map[$room_id][$a->id])) {
                                 $item_array[$room_id][$title] = intval($order_data_map[$room_id][$a->id]);
+                                
+                                // Mark that this room has an order for this meal
+                                $item_array[$room_id]["has_".self::PREFIX_MEAL[$mealPrefix]."_order"] = 1;
                             }
                             $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id][$title];
                             if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
@@ -325,7 +341,14 @@ class OrderController extends Controller
                 }
 
                 foreach ($all_rooms as $r) {
-                    $curr_item_array[$r->id] = ["room_id" => $r->id, "room_name" => $r->room_name];
+                    $curr_item_array[$r->id] = [
+                        "room_id" => $r->id,
+                        "room_name" => $r->room_name,
+                        "has_special_ins" => $r->special_instrucations != null ? 1 : 0,
+                        "has_breakfast_order" => 0,
+                        "has_lunch_order" => 0,
+                        "has_dinner_order" => 0,
+                    ];
                     $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
@@ -393,6 +416,9 @@ class OrderController extends Controller
                             $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
                             if (isset($order_data_map[$room_id][$a->id])) {
                                 $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
+
+                                // Mark that this room has an order for this meal
+                                $curr_item_array[$room_id]["has_".self::PREFIX_MEAL[$mealPrefix]."_order"] = 1;
                             }
                             $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
                             if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
