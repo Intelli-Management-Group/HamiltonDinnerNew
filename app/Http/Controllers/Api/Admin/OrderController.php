@@ -105,7 +105,7 @@ class OrderController extends Controller
             
             // Process each room only once
             foreach ($all_rooms as $r) {
-                $item_array[$r->id] = ["room_id" => $r->room_name];
+                $item_array[$r->id] = ["room_id" => $r->id, "room_name" => $r->room_name];
                 $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
@@ -325,7 +325,7 @@ class OrderController extends Controller
                 }
 
                 foreach ($all_rooms as $r) {
-                    $curr_item_array[$r->id] = ["room_id" => $r->room_name];
+                    $curr_item_array[$r->id] = ["room_id" => $r->id, "room_name" => $r->room_name];
                     $room_id = $r->id;
 
                     // DRY: process all meal items with a helper
