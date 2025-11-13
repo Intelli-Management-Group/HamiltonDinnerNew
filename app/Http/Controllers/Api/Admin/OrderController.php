@@ -132,6 +132,7 @@ class OrderController extends Controller
                 ];
 
                 $room_id = $r->id;
+                $add_guest = false;
 
                     // DRY: process all meal items with a helper
                     $processMealItems = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map, $is_guest) use (
@@ -141,6 +142,7 @@ class OrderController extends Controller
                         &$total,
                         &$table_column,
                         $is_first,
+                        $add_guest
                     ) {
                         foreach ($items as $a) {
 
@@ -189,6 +191,10 @@ class OrderController extends Controller
 
                                 // Mark that this room has an order for this meal
                                 $item_array[$room_id.($is_guest ? " G" : "")]["has_".self::PREFIX_MEAL[$mealPrefix]."_order"] = 1;
+
+                                if ($is_guest) {
+                                    $add_guest = true;
+                                }
                             }
                             $total[$title] = ($total[$title] ?? 0) + $item_array[$room_id.($is_guest ? " G" : "")][$title];
 
@@ -220,7 +226,9 @@ class OrderController extends Controller
                     }
 
                     $final_array[] = $item_array[$r->id];
-                    $final_array[] = $item_array[$r->id." G"];
+                    if ($add_guest) {
+                        $final_array[] = $item_array[$r->id." G"];
+                    }
             }
 
             // Optimize the total loop using array_map
@@ -332,13 +340,13 @@ class OrderController extends Controller
                 );
 
                 if (!empty($item_ids)) {
-                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity", "is_for_guest")
+                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
                         ->where("date", $search_date)
                         ->whereIn("item_id", $item_ids)
                         ->get();
 
                     foreach ($all_order_data as $order) {
-                        $order_data_map[$order->room_id . ($order->is_for_guest ? " G" : "")][$order->item_id] = $order->quantity;
+                        $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
                     }
                 }
 
@@ -364,9 +372,6 @@ class OrderController extends Controller
                         "room_id" => $r->id,
                         "room_name" => $r->room_name,
                         "has_special_ins" => $r->special_instrucations != null ? 1 : 0,
-                        "has_breakfast_order" => 0,
-                        "has_lunch_order" => 0,
-                        "has_dinner_order" => 0,
                     ];
                     $room_id = $r->id;
 
@@ -435,9 +440,6 @@ class OrderController extends Controller
                             $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
                             if (isset($order_data_map[$room_id][$a->id])) {
                                 $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
-
-                                // Mark that this room has an order for this meal
-                                $curr_item_array[$room_id]["has_".self::PREFIX_MEAL[$mealPrefix]."_order"] = 1;
                             }
                             $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
                             if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
@@ -469,7 +471,7 @@ class OrderController extends Controller
                             $final_array[$room_id] = $row;
                         } else {
                             foreach ($row as $key => $value) {
-                                if ($key !== 'room_id') {
+                                if (!($key === 'room_id' || $key === 'room_name' || $key === 'has_special_ins')) {
                                     if (!isset($final_array[$room_id][$key])) {
                                         $final_array[$room_id][$key] = intval($value);
                                     } else {
