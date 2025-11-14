@@ -4324,48 +4324,50 @@ class DinningController extends Controller
     )
     {
         return "SELECT
-                	od.room_id            AS roomId,       -- 1
-                	od.is_for_guest       AS isForGuest,   -- 2
+                	od.room_id              AS roomId,       -- 1
+                	od.is_for_guest         AS isForGuest,   -- 2
                 	CASE
                 		WHEN cd.type = 1 THEN 'breakfast'
                 		WHEN cd.type = 2 THEN 'lunch'
                 		WHEN cd.type = 3 THEN 'dinner'
                 		ELSE NULL
-                	END                   AS meal,         -- 3      
-                    od.item_option        AS itemOptionId, -- 4
+                	END                     AS meal,         -- 3      
+                    od.item_option          AS itemOptionId, -- 4
 
-                    MAX(rd.room_name)	  AS roomName,
-                    MAX(io.option_name)   AS optionName,
+                    MAX(rd.room_name)	    AS roomName,
+                    MAX(io.option_name)     AS optionName,
 
-                    MAX(dwo.occupancy)    AS noOfGuests,
+                    MAX(dwo.occupancy)      AS noOfGuests,
 
                 	GROUP_CONCAT(
                 		DISTINCT
                 		CONCAT(od.date, ':', id.item_name) 
                         ORDER BY od.date, id.item_name ASC
                         SEPARATOR ';'
-                	)                     AS items,
+                	)                       AS items,
+
+                    COUNT(DISTINCT od.date) AS totalDays,
 
                 	MAX(CASE
                 		WHEN cd.type = 1 THEN od.is_brk_tray_service
                 		WHEN cd.type = 2 THEN od.is_lunch_tray_service
                 		WHEN cd.type = 3 THEN od.is_dinner_tray_service
                 		ELSE 0
-                	END)                  AS isTrayService,
+                	END)                    AS isTrayService,
 
                 	MAX(CASE
                 		WHEN cd.type = 1 THEN od.is_brk_escort_service
                 		WHEN cd.type = 2 THEN od.is_lunch_escort_service
                 		WHEN cd.type = 3 THEN od.is_dinner_escort_service
                 		ELSE 0
-                	END)                  AS isEscortService,
+                	END)                    AS isEscortService,
 
                 	MAX(CASE
                 		WHEN cd.type = 1 THEN od.is_brk_takeout_service
                 		WHEN cd.type = 2 THEN od.is_lunch_takeout_service
                 		WHEN cd.type = 3 THEN od.is_dinner_takeout_service
                 		ELSE 0
-                	END)                  AS isTakeoutService
+                	END)                    AS isTakeoutService
                     
                 FROM (
                 	SELECT 
@@ -4484,7 +4486,7 @@ class DinningController extends Controller
             $meal_data['E'] = max($meal_data['E'], $meal_row->isEscortService);
             $meal_data['TO'] = max($meal_data['TO'], $meal_row->isTakeoutService);
             if ( $meal_row->isForGuest ) {
-                $meal_data['G'] = max($meal_data['G'], $meal_row->noOfGuests);
+                $meal_data['G'] += $meal_row->noOfGuests * $meal_row->totalDays;
             }
 
             // options

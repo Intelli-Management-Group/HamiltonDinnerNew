@@ -135,14 +135,13 @@ class OrderController extends Controller
                 $add_guest = false;
 
                     // DRY: process all meal items with a helper
-                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map, $is_guest) use (
+                    $processMealItems = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map, $is_guest, &$add_guest) use (
                         $room_id,
                         &$item_array,
                         &$order_data_map,
                         &$total,
                         &$table_column,
                         $is_first,
-                        $add_guest
                     ) {
                         foreach ($items as $a) {
 
@@ -181,7 +180,7 @@ class OrderController extends Controller
                                 );
                             }
                             if ($is_first) {
-                                $table_column[2][] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                                $table_column[2][$title] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
                             }
 
                             $item_array[$room_id.($is_guest ? " G" : "")][$title] = 0;
@@ -208,19 +207,19 @@ class OrderController extends Controller
                         $count = 1;
                         $ab_count = 'A';
                         $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                        $processMealItems($breakfast_items, 'B', $count, $ab_count, $cat_id_map, $is_guest);
+                        $processMealItems($breakfast_items, 'B', $count, $ab_count, $cat_id_map, $is_guest, $add_guest);
 
                         // Process lunch
                         $count = 1;
                         $ab_count = 'A';
                         $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                        $processMealItems($lunch_items, 'L', $count, $ab_count, $cat_id_map, $is_guest);
+                        $processMealItems($lunch_items, 'L', $count, $ab_count, $cat_id_map, $is_guest, $add_guest);
 
                         // Process dinner
                         $count = 1;
                         $ab_count = 'A';
                         $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                        $processMealItems($dinner_items, 'D', $count, $ab_count, $cat_id_map, $is_guest);
+                        $processMealItems($dinner_items, 'D', $count, $ab_count, $cat_id_map, $is_guest, $add_guest);
 
                         $is_first = false;
                     }
@@ -260,6 +259,8 @@ class OrderController extends Controller
                 $table_column[0][] = ["title" => 'Dinner', "colspan" => $dinner_count];
             }
         }
+
+        $table_column[2] = array_values($table_column[2]);
 
         $menu_data = MenuDetail::select("date")
             ->orderBy("date", "desc")
