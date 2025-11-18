@@ -492,55 +492,63 @@ class OrderController extends Controller
         // Custom sort function to order keys as required
         // TODO: the room loop above should be optimized to avoid this step
         $meal_order = ['B', 'L', 'D'];
-        $customSort = function(&$arr) use ($meal_order) {
-            uksort($arr, function($a, $b) use ($meal_order) {
+        $item_type_order = [
+            'Soup' => ['BS', 'LS', 'DS'],
+            'Main' => ['BA', 'LA', 'LB', 'DA', 'DB'],
+            'Alternative' => [], // Will match B1, B2, ..., L1, L2, ..., D1, D2, ...
+            'Dessert' => ['BD', 'LD', 'DD'],
+        ];
+        
+        $customSort = function(&$arr) use ($meal_order, $item_type_order) {
+            uksort($arr, function($a, $b) use ($meal_order, $item_type_order) {
+                // Always keep room_id first
                 if ($a === 'room_id') return -1;
                 if ($b === 'room_id') return 1;
+            
                 $prefixA = substr($a, 0, 1);
                 $prefixB = substr($b, 0, 1);
                 $orderA = array_search($prefixA, $meal_order);
                 $orderB = array_search($prefixB, $meal_order);
                 if ($orderA !== $orderB) return $orderA - $orderB;
-
-                $suffixA = substr($a, 1);
-                $suffixB = substr($b, 1);
-
-                // Helper to group variants after normal ones
-                $groupVariantsLast = function($a, $b, $variantPrefix) {
-                    $isVariantA = strpos($a, $variantPrefix) === 0;
-                    $isVariantB = strpos($b, $variantPrefix) === 0;
-                    if ($isVariantA && !$isVariantB) return 1;
-                    if (!$isVariantA && $isVariantB) return -1;
-                    // If both are variants or both not, fallback to letters before numbers
-                    $isAlphaA = ctype_alpha(substr($a, strlen($variantPrefix)));
-                    $isAlphaB = ctype_alpha(substr($b, strlen($variantPrefix)));
-                    if ($isAlphaA && !$isAlphaB) return -1;
-                    if (!$isAlphaA && $isAlphaB) return 1;
-                    return strcmp(substr($a, strlen($variantPrefix)), substr($b, strlen($variantPrefix)));
+            
+                // Helper to get item type index
+                $getTypeIndex = function($key) use ($item_type_order) {
+                    // Soup
+                    foreach ($item_type_order['Soup'] as $soup) {
+                        if (strpos($key, $soup) === 0) return 0;
+                    }
+                    // Main
+                    foreach ($item_type_order['Main'] as $main) {
+                        if (strpos($key, $main) === 0) return 1;
+                    }
+                    // Alternative (B1, B2, ..., L1, L2, ..., D1, D2, ...)
+                    if (preg_match('/^[BLD]\d+$/', $key)) return 2;
+                    // Dessert
+                    foreach ($item_type_order['Dessert'] as $dessert) {
+                        if (strpos($key, $dessert) === 0) return 3;
+                    }
+                    // Fallback: treat as Main if not matched
+                    return 1;
                 };
-
-                if ($prefixA === 'B' && $prefixB === 'B') {
-                    // BA/variants after B1, B2, etc.
-                    $result = $groupVariantsLast($a, $b, 'BA');
-                    if ($result !== 0) return $result;
+            
+                $typeA = $getTypeIndex($a);
+                $typeB = $getTypeIndex($b);
+                if ($typeA !== $typeB) return $typeA - $typeB;
+            
+                // If same type, sort alphabetically or numerically as appropriate
+                // For Main, sort BA, LA, LB, DA, DB, etc.
+                // For Alternative, sort B1, B2, ..., L1, L2, ..., D1, D2, ...
+                // For Soup/Dessert, sort by key
+            
+                // If both are Alternative, sort numerically
+                if ($typeA === 2 && $typeB === 2) {
+                    $numA = intval(substr($a, 1));
+                    $numB = intval(substr($b, 1));
+                    return $numA - $numB;
                 }
-                if ($prefixA === 'L' && $prefixB === 'L') {
-                    // LS/variants after L1, L2, etc.
-                    $result = $groupVariantsLast($a, $b, 'LS');
-                    if ($result !== 0) return $result;
-                }
-                if ($prefixA === 'D' && $prefixB === 'D') {
-                    // DD/variants after D1, D2, etc.
-                    $result = $groupVariantsLast($a, $b, 'DD');
-                    if ($result !== 0) return $result;
-                }
-
-                // Fallback: letters before numbers
-                $isAlphaA = ctype_alpha($suffixA);
-                $isAlphaB = ctype_alpha($suffixB);
-                if ($isAlphaA && !$isAlphaB) return -1;
-                if (!$isAlphaA && $isAlphaB) return 1;
-                return strcmp($suffixA, $suffixB);
+            
+                // Otherwise, fallback to string comparison
+                return strcmp($a, $b);
             });
         };
 

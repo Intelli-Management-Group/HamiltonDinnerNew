@@ -4348,21 +4348,21 @@ class DinningController extends Controller
 
                     COUNT(DISTINCT od.date) AS totalDays,
 
-                	MAX(CASE
+                	SUM(CASE
                 		WHEN cd.type = 1 THEN od.is_brk_tray_service
                 		WHEN cd.type = 2 THEN od.is_lunch_tray_service
                 		WHEN cd.type = 3 THEN od.is_dinner_tray_service
                 		ELSE 0
                 	END)                    AS isTrayService,
 
-                	MAX(CASE
+                	SUM(CASE
                 		WHEN cd.type = 1 THEN od.is_brk_escort_service
                 		WHEN cd.type = 2 THEN od.is_lunch_escort_service
                 		WHEN cd.type = 3 THEN od.is_dinner_escort_service
                 		ELSE 0
                 	END)                    AS isEscortService,
 
-                	MAX(CASE
+                	SUM(CASE
                 		WHEN cd.type = 1 THEN od.is_brk_takeout_service
                 		WHEN cd.type = 2 THEN od.is_lunch_takeout_service
                 		WHEN cd.type = 3 THEN od.is_dinner_takeout_service
@@ -4482,9 +4482,9 @@ class DinningController extends Controller
             $meal_options = &$report_meal_list[$room_name]['option'];
 
             // populate quantities
-            $meal_data['T'] = max($meal_data['T'], $meal_row->isTrayService);
-            $meal_data['E'] = max($meal_data['E'], $meal_row->isEscortService);
-            $meal_data['TO'] = max($meal_data['TO'], $meal_row->isTakeoutService);
+            $meal_data['T'] += $meal_row->isTrayService;
+            $meal_data['E'] += $meal_row->isEscortService;
+            $meal_data['TO'] += $meal_row->isTakeoutService;
             if ( $meal_row->isForGuest ) {
                 $meal_data['G'] += $meal_row->noOfGuests * $meal_row->totalDays;
             }
@@ -4547,6 +4547,58 @@ class DinningController extends Controller
         $breakfastItemList = $should_show_breakfast_items ? $baseItemList + $breakfastOptionsList : [];
         $lunchItemList = $should_show_lunch_items ? $baseItemList + $lunchOptionsList : [];
         $dinnerItemList = $should_show_dinner_items ? $baseItemList + $dinnerOptionsList : [];
+
+        // backfill all missing options from item list to report list with zero quantity
+        foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
+            $meal_item_list = &${$meal.'ItemList'};
+            $report_meal_list = &${'report_'.$meal.'_list'};
+
+            foreach ($meal_item_list as $item_key => $item_value) {
+                foreach ($report_meal_list as &$room_entry) {
+                    if (!array_key_exists($item_key, $room_entry['data'])) {
+                        $room_entry['data'][$item_key] = 0;
+                    }
+                    if (!array_key_exists($item_key, $room_entry['option'])) {
+                        $room_entry['option'][$item_key] = $is_single_day ? "" : [];
+                    }
+                }
+            }
+        }
+
+        $service_keys = ['T', 'E', 'TO', 'G'];
+        $sortOptions = function(&$optionArr) use ($service_keys) {
+            uksort($optionArr, function($a, $b) use ($service_keys) {
+                $isAService = in_array($a, $service_keys);
+                $isBService = in_array($b, $service_keys);
+            
+                // Service keys always come first, keep their order
+                if ($isAService && $isBService) {
+                    return array_search($a, $service_keys) - array_search($b, $service_keys);
+                }
+                if ($isAService) return -1;
+                if ($isBService) return 1;
+            
+                // Both are O keys, sort numerically
+                if ($a[0] === 'O' && $b[0] === 'O') {
+                    return intval(substr($a, 1)) - intval(substr($b, 1));
+                }
+            
+                // If only one is O, O comes after service keys
+                if ($a[0] === 'O') return 1;
+                if ($b[0] === 'O') return -1;
+            
+                // Otherwise, keep original order (or sort alphabetically if needed)
+                return 0;
+            });
+        };
+        
+        // Usage: after building each room_entry['option'] array
+        foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
+            $report_meal_list = &${'report_'.$meal.'_list'};
+            foreach ($report_meal_list as &$room_entry) {
+                $sortOptions($room_entry['option']);
+            }
+        }
 
         foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
             // convert item list to indexed array
