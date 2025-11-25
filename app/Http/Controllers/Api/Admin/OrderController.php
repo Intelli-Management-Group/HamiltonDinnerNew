@@ -341,13 +341,13 @@ class OrderController extends Controller
                 );
 
                 if (!empty($item_ids)) {
-                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity")
+                    $all_order_data = OrderDetail::select("room_id", "item_id", "quantity", "is_for_guest")
                         ->where("date", $search_date)
                         ->whereIn("item_id", $item_ids)
                         ->get();
 
                     foreach ($all_order_data as $order) {
-                        $order_data_map[$order->room_id][$order->item_id] = $order->quantity;
+                        $order_data_map[$order->room_id . ($order->is_for_guest ? ' G' : '')][$order->item_id] = $order->quantity;
                     }
                 }
 
@@ -374,10 +374,18 @@ class OrderController extends Controller
                         "room_name" => $r->room_name,
                         "has_special_ins" => $r->special_instrucations != null ? 1 : 0,
                     ];
+
+                    $curr_item_array[$r->id." G"] = [
+                        "room_id" => $r->id,
+                        "room_name" => $r->room_name." G",
+                        "has_special_ins" => $r->special_instrucations != null ? 1 : 0,
+                    ];
+
                     $room_id = $r->id;
+                    $add_guest = false;
 
                     // DRY: process all meal items with a helper
-                    $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map) use (
+                    $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map, $is_guest, &$add_guest) use (
                         $room_id,
                         &$curr_item_array,
                         &$tooltips_array,
@@ -387,6 +395,7 @@ class OrderController extends Controller
                         $search_date,
                     ) {
                         foreach ($items as $a) {
+                            $room_title = $room_id . ($is_guest ? ' G' : '');
 
                             // Set to track unique items per category
                             if (array_key_exists($a->cat_id, self::CAT_ID)) {
@@ -438,46 +447,58 @@ class OrderController extends Controller
                                 }
                             }
 
-                            $curr_item_array[$room_id][$title] = ($curr_item_array[$room_id][$title] ?? 0);
-                            if (isset($order_data_map[$room_id][$a->id])) {
-                                $curr_item_array[$room_id][$title] += intval($order_data_map[$room_id][$a->id]);
+                            $curr_item_array[$room_title][$title] = ($curr_item_array[$room_title][$title] ?? 0);
+                            if (isset($order_data_map[$room_title][$a->id])) {
+                                $curr_item_array[$room_title][$title] += intval($order_data_map[$room_title][$a->id]);
+
+                                if ($is_guest) {
+                                    $add_guest = true;
+                                }
                             }
-                            $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_id][$title];
+
+                            $total[$title] = ($total[$title] ?? 0) + $curr_item_array[$room_title][$title];
+
                             if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
                             if ($mealPrefix !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE)) $ab_count = 'B';
                         }
                     };
 
-                    // Process breakfast
-                    $count = 1;
-                    $ab_count = 'A';
-                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                    $processMealItemsRange($breakfast_items, 'B', $count, $ab_count, $cat_id_map);
+                    foreach ([false, true] as $is_guest) {
+                        // Process breakfast
+                        $count = 1;
+                        $ab_count = 'A';
+                        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                        $processMealItemsRange($breakfast_items, 'B', $count, $ab_count, $cat_id_map, $is_guest, $add_guest);
 
-                    // Process lunch
-                    $count = 1;
-                    $ab_count = 'A';
-                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                    $processMealItemsRange($lunch_items, 'L', $count, $ab_count, $cat_id_map);
+                        // Process lunch
+                        $count = 1;
+                        $ab_count = 'A';
+                        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                        $processMealItemsRange($lunch_items, 'L', $count, $ab_count, $cat_id_map, $is_guest, $add_guest);
 
-                    // Process dinner
-                    $count = 1;
-                    $ab_count = 'A';
-                    $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
-                    $processMealItemsRange($dinner_items, 'D', $count, $ab_count, $cat_id_map);
+                        // Process dinner
+                        $count = 1;
+                        $ab_count = 'A';
+                        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+                        $processMealItemsRange($dinner_items, 'D', $count, $ab_count, $cat_id_map, $is_guest, $add_guest);
+                    }
 
                     foreach ($curr_item_array as $row) {
-                        $room_id = $row['room_id'];
-                        if (!isset($final_array[$room_id])) {
-                            $final_array[$room_id] = $row;
+                        $room_name = $row['room_name'];
+                        $is_guest = strpos($room_name, ' G') !== false;
+                        if (!isset($final_array[$room_name])) {
+                            if ($is_guest && !$add_guest) {
+                                continue;
+                            }
+                            $final_array[$room_name] = $row;
+                            
                         } else {
                             foreach ($row as $key => $value) {
                                 if (!($key === 'room_id' || $key === 'room_name' || $key === 'has_special_ins')) {
-                                    if (!isset($final_array[$room_id][$key])) {
-                                        $final_array[$room_id][$key] = intval($value);
-                                    } else {
-                                        $final_array[$room_id][$key] += intval($value);
+                                    if (!isset($final_array[$room_name][$key])) {
+                                        $final_array[$room_name][$key] = 0;
                                     }
+                                    $final_array[$room_name][$key] += $value;
                                 }
                             }
                         }

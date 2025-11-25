@@ -4559,7 +4559,7 @@ class DinningController extends Controller
                         $room_entry['data'][$item_key] = 0;
                     }
                     if (!array_key_exists($item_key, $room_entry['option'])) {
-                        $room_entry['option'][$item_key] = $is_single_day ? "" : [];
+                        $room_entry['option'][$item_key] = [];
                     }
                 }
             }
@@ -4591,11 +4591,12 @@ class DinningController extends Controller
                 return 0;
             });
         };
-        
+
         // Usage: after building each room_entry['option'] array
         foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
             $report_meal_list = &${'report_'.$meal.'_list'};
             foreach ($report_meal_list as &$room_entry) {
+                $sortOptions($room_entry['data']);
                 $sortOptions($room_entry['option']);
             }
         }
