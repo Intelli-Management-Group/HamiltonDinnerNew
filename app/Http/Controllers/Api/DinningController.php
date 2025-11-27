@@ -4324,82 +4324,100 @@ class DinningController extends Controller
     )
     {
         return "SELECT
-                	od.room_id              AS roomId,       -- 1
-                	od.is_for_guest         AS isForGuest,   -- 2
-                	CASE
-                		WHEN cd.type = 1 THEN 'breakfast'
-                		WHEN cd.type = 2 THEN 'lunch'
-                		WHEN cd.type = 3 THEN 'dinner'
-                		ELSE NULL
-                	END                     AS meal,         -- 3      
-                    od.item_option          AS itemOptionId, -- 4
-
-                    MAX(rd.room_name)	    AS roomName,
-                    MAX(io.option_name)     AS optionName,
-
-                    MAX(dwo.occupancy)      AS noOfGuests,
-
-                	GROUP_CONCAT(
-                		DISTINCT
-                		CONCAT(od.date, ':', id.item_name) 
-                        ORDER BY od.date, id.item_name ASC
-                        SEPARATOR ';'
-                	)                       AS items,
-
-                    COUNT(DISTINCT od.date) AS totalDays,
-
-                	SUM(CASE
-                		WHEN cd.type = 1 THEN od.is_brk_tray_service
-                		WHEN cd.type = 2 THEN od.is_lunch_tray_service
-                		WHEN cd.type = 3 THEN od.is_dinner_tray_service
-                		ELSE 0
-                	END)                    AS isTrayService,
-
-                	SUM(CASE
-                		WHEN cd.type = 1 THEN od.is_brk_escort_service
-                		WHEN cd.type = 2 THEN od.is_lunch_escort_service
-                		WHEN cd.type = 3 THEN od.is_dinner_escort_service
-                		ELSE 0
-                	END)                    AS isEscortService,
-
-                	SUM(CASE
-                		WHEN cd.type = 1 THEN od.is_brk_takeout_service
-                		WHEN cd.type = 2 THEN od.is_lunch_takeout_service
-                		WHEN cd.type = 3 THEN od.is_dinner_takeout_service
-                		ELSE 0
-                	END)                    AS isTakeoutService
+            	-- group keys
+            	room_id                 AS room_id,
+                is_for_guest            AS is_for_guest,
+                meal                    AS meal,
+                
+                -- room name
+                MAX(room_name)         AS room_name,
+                
+                -- sum outside subquery
+                SUM(occupancy)          AS occupancy,
+                SUM(is_tray_service)    AS is_tray_service,
+                SUM(is_escort_service)  AS is_escort_service,
+                SUM(is_takeout_service) AS is_takeout_service,
+                
+                -- concat items
+            	GROUP_CONCAT(
+            		DISTINCT items
+                    SEPARATOR ';'
+            	)                       AS items
+                
+            FROM (
+            	SELECT 
+            		-- grouping keys
+            		od.room_id                      AS room_id,
+                    od.date                         AS date,
+                    CASE
+            			WHEN cd.type = 1 THEN 'breakfast'
+                        WHEN cd.type = 2 THEN 'lunch'
+                        WHEN cd.type = 3 THEN 'dinner'
+                        ELSE NULL
+            		END                             AS meal,
+                    od.is_for_guest                 AS is_for_guest,
                     
-                FROM (
-                	SELECT 
-                		room_id,
-                        is_for_guest,
-                        date,
-                        item_id,
-                        is_brk_tray_service,
-                        is_brk_escort_service,
-                        is_brk_takeout_service,
-                        is_lunch_tray_service,
-                        is_lunch_escort_service,
-                        is_lunch_takeout_service,
-                        is_dinner_tray_service,
-                        is_dinner_escort_service,
-                        is_dinner_takeout_service,
-                		cast(
-                			trim(item_options)
-                			AS SIGNED INTEGER
-                		) AS item_option
-                	FROM
-                		order_details
-                	WHERE
-                		date BETWEEN '$start_date' AND '$end_date'
-                ) od
-                LEFT JOIN room_details	        rd  ON rd.id = od.room_id
-                LEFT JOIN item_details          id  ON id.id = od.item_id
-                LEFT JOIN category_details      cd  ON cd.id = id.cat_id
-                LEFT JOIN item_options          io  ON io.id = od.item_option
-                LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = rd.id
+                    -- misc. details
+                    rd.room_name                    AS room_name,
+                    od.is_for_guest * dwo.occupancy AS occupancy,
+                    
+                    -- consolidate services
+                    CASE
+            			WHEN is_for_guest = 1 AND cd.type = 1 THEN od.is_brk_tray_service * dwo.occupancy
+                        WHEN is_for_guest = 1 AND cd.type = 2 THEN od.is_lunch_tray_service * dwo.occupancy
+                        WHEN is_for_guest = 1 AND cd.type = 3 THEN od.is_dinner_tray_service * dwo.occupancy
+            			WHEN is_for_guest = 0 AND cd.type = 1 THEN od.is_brk_tray_service
+                        WHEN is_for_guest = 0 AND cd.type = 2 THEN od.is_lunch_tray_service
+                        WHEN is_for_guest = 0 AND cd.type = 3 THEN od.is_dinner_tray_service
+            			ELSE NULL
+            		END                             AS is_tray_service,
+                    
+                    CASE
+            			WHEN is_for_guest = 1 AND cd.type = 1 THEN od.is_brk_escort_service * dwo.occupancy
+                        WHEN is_for_guest = 1 AND cd.type = 2 THEN od.is_lunch_escort_service * dwo.occupancy
+                        WHEN is_for_guest = 1 AND cd.type = 3 THEN od.is_dinner_escort_service * dwo.occupancy
+                        WHEN is_for_guest = 0 AND cd.type = 1 THEN od.is_brk_escort_service
+                        WHEN is_for_guest = 0 AND cd.type = 2 THEN od.is_lunch_escort_service
+                        WHEN is_for_guest = 0 AND cd.type = 3 THEN od.is_dinner_escort_service
+            			ELSE NULL
+            		END                             AS is_escort_service,
+                    
+                    CASE
+            			WHEN is_for_guest = 1 AND cd.type = 1 THEN od.is_brk_takeout_service * dwo.occupancy
+                        WHEN is_for_guest = 1 AND cd.type = 2 THEN od.is_lunch_takeout_service * dwo.occupancy
+                        WHEN is_for_guest = 1 AND cd.type = 3 THEN od.is_dinner_takeout_service * dwo.occupancy
+                        WHEN is_for_guest = 0 AND cd.type = 1 THEN od.is_brk_takeout_service
+                        WHEN is_for_guest = 0 AND cd.type = 2 THEN od.is_lunch_takeout_service
+                        WHEN is_for_guest = 0 AND cd.type = 3 THEN od.is_dinner_takeout_service
+            			ELSE NULL
+            		END                             AS is_takeout_service,
+                    
+                    GROUP_CONCAT(
+            			DISTINCT CONCAT(
+            				TRIM(od.item_options), ':',
+            				io.option_name, ':',
+            				od.date, ':', 
+            				id.item_name
+            			) 
+            			ORDER BY 
+                            TRIM(od.item_options),
+                            io.option_name,
+                            od.date,
+                            id.item_name
+            			SEPARATOR ';'
+            		)                               AS items
+                    
+            	FROM order_details od
+            	LEFT JOIN room_details rd           ON rd.id = od.room_id
+                LEFT JOIN item_details id           ON id.id = od.item_id
+                LEFT JOIN category_details cd       ON cd.id = id.cat_id
+                LEFT JOIN item_options io           ON io.id = cast(trim(od.item_options) AS SIGNED INTEGER)
+                LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = rd.id 
                                                     AND dwo.date = od.date
-                GROUP BY 1,2,3,4;";
+            	WHERE od.date BETWEEN '$start_date' AND '$end_date'
+            	GROUP BY 1,2,3,4
+            ) sq
+            GROUP BY 1,2,3;";
     }
 
     public function getChargeReportV2(Request $request)
@@ -4452,11 +4470,11 @@ class DinningController extends Controller
 
             // to check: T, E, TO, G, itemOptionId
             $to_check = [
-                $meal_row->isTrayService,
-                $meal_row->isEscortService,
-                $meal_row->isTakeoutService,
-                $meal_row->isForGuest,
-                $meal_row->itemOptionId
+                $meal_row->is_tray_service,
+                $meal_row->is_escort_service,
+                $meal_row->is_takeout_service,
+                $meal_row->is_for_guest ? $meal_row->occupancy : 0,
+                $meal_row->items
             ];
 
             // skip if all zero/empty
@@ -4464,14 +4482,14 @@ class DinningController extends Controller
             ${'should_show_'.$meal.'_items'} = true;
 
             // make new room entry if not exists
-            $guest_suffix = $meal_row->isForGuest ? ' G' : '';
+            $guest_suffix = $meal_row->is_for_guest ? ' G' : '';
             $report_meal_list = &${'report_'.$meal.'_list'};
-            $room_name = $meal_row->roomName . $guest_suffix;
+            $room_name = $meal_row->room_name . $guest_suffix;
             if (!isset($report_meal_list[$room_name])) {
                 $report_meal_list[$room_name] = [
                     'room_no' => $room_name,
-                    'room_id' => $meal_row->roomId,
-                    'is_for_guest' => $meal_row->isForGuest,
+                    'room_id' => $meal_row->room_id,
+                    'is_for_guest' => $meal_row->is_for_guest,
                     'data' => $baseData,
                     'option' => $baseOptions
                 ];
@@ -4482,31 +4500,31 @@ class DinningController extends Controller
             $meal_options = &$report_meal_list[$room_name]['option'];
 
             // populate quantities
-            $meal_data['T'] += $meal_row->isTrayService;
-            $meal_data['E'] += $meal_row->isEscortService;
-            $meal_data['TO'] += $meal_row->isTakeoutService;
-            if ( $meal_row->isForGuest ) {
-                $meal_data['G'] += $meal_row->noOfGuests * $meal_row->totalDays;
+            $meal_data['T'] += $meal_row->is_tray_service;
+            $meal_data['E'] += $meal_row->is_escort_service;
+            $meal_data['TO'] += $meal_row->is_takeout_service;
+            if ( $meal_row->is_for_guest ) {
+                $meal_data['G'] += $meal_row->occupancy;
             }
 
             // options
-            if ($meal_row->itemOptionId) {
+            if ($meal_row->items) {
                 $meal_options_list = &${$meal.'OptionsList'};
 
-                $item_option_title = 'O'.$meal_row->itemOptionId;
-
-                // meal_options_list
-                if (!isset($meal_options_list[$item_option_title])) {
-                    $meal_options_list[$item_option_title] = [
-                        'item_name' => $item_option_title,
-                        'real_item_name' => $meal_row->optionName,
-                        'item_option_id' => $meal_row->itemOptionId
-                    ];
-                }
-
                 foreach (explode(';', $meal_row->items) as $item_entry) {
-                    [$item_date, $item_name] = explode(':', $item_entry);
-                    
+                    [$option_id, $option_name, $item_date, $item_name] = explode(':', $item_entry);
+
+                    $item_option_title = 'O'.$option_id;
+
+                    // meal_options_list
+                    if (!isset($meal_options_list[$item_option_title])) {
+                        $meal_options_list[$item_option_title] = [
+                            'item_name' => $item_option_title,
+                            'real_item_name' => $option_name,
+                            'item_option_id' => $option_id
+                        ];
+                    }
+
                     // report_meal_list data
                     $meal_data[$item_option_title] = ($meal_data[$item_option_title] ?? 0) + 1;
 
