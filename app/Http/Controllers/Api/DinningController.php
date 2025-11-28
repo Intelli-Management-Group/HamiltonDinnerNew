@@ -4397,13 +4397,15 @@ class DinningController extends Controller
             				TRIM(od.item_options), ':',
             				io.option_name, ':',
             				od.date, ':', 
-            				id.item_name
+            				id.item_name, ':',
+                            od.quantity
             			) 
             			ORDER BY 
                             TRIM(od.item_options),
                             io.option_name,
                             od.date,
-                            id.item_name
+                            id.item_name,
+                            od.quantity
             			SEPARATOR ';'
             		)                               AS items
                     
@@ -4517,7 +4519,7 @@ class DinningController extends Controller
                 $meal_options_list = &${$meal.'OptionsList'};
 
                 foreach (explode(';', $meal_row->items) as $item_entry) {
-                    [$option_id, $option_name, $item_date, $item_name] = explode(':', $item_entry);
+                    [$option_id, $option_name, $item_date, $item_name, $option_quantity] = explode(':', $item_entry);
 
                     $item_option_title = 'O'.$option_id;
 
@@ -4531,8 +4533,8 @@ class DinningController extends Controller
                     }
 
                     // report_meal_list data
-                    $option_count = $meal_row->is_for_guest ? $meal_row->occupancy : 1;
-                    $meal_data[$item_option_title] = ($meal_data[$item_option_title] ?? 0) + $option_count;
+                    // $option_count = $meal_row->is_for_guest ? $meal_row->occupancy : 1;
+                    $meal_data[$item_option_title] = ($meal_data[$item_option_title] ?? 0) + $option_quantity;
 
                     // report_meal_list option
                     if (!isset($meal_options[$item_option_title])) {
