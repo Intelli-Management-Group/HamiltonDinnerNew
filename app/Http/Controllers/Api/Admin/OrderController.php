@@ -18,7 +18,11 @@ class OrderController extends Controller
         7 => 'LD',
         13 => 'DD',
     ];
+
+    // represented as b/l/d alternatives (numbered)
     private const ALTERNATIVE = [4, 8, 11];
+
+    // represented as l/d entrees (lettered)
     private const AB_ALTERNATIVE = [5, 3];
 
     private const PREFIX_MEAL = [
@@ -91,6 +95,12 @@ class OrderController extends Controller
                     $order_data_map[$order->room_id . ($order->is_for_guest ? " G" : "")][$order->item_id] = $order->quantity;
                 }
             }
+
+            // Soup, Main, Alternative, Dessert
+            $soups = [];
+            $mains = [];
+            $alternatives = [];
+            $desserts = [];
             
             // Pre-fetch all meal items
             $breakfast_items = [];
@@ -140,7 +150,10 @@ class OrderController extends Controller
                         &$item_array,
                         &$order_data_map,
                         &$total,
-                        &$table_column,
+                        &$soups,
+                        &$mains,
+                        &$alternatives,
+                        &$desserts,
                         $is_first,
                     ) {
                         foreach ($items as $a) {
@@ -180,7 +193,17 @@ class OrderController extends Controller
                                 );
                             }
                             if ($is_first) {
-                                $table_column[2][$title] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+
+                                $second_letter = substr($title, 1, 1);
+                                if ($second_letter === 'S') {
+                                    $soups[$title] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                                } elseif ($second_letter === 'A' || $second_letter === 'B') {
+                                    $mains[$title] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                                } elseif ($second_letter === 'D') {
+                                    $desserts[$title] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                                } else {
+                                    $alternatives[$title] = ["title" => $title, "tooltip" => $a->item_name, "field" => $title];
+                                }
                             }
 
                             $item_array[$room_id.($is_guest ? " G" : "")][$title] = 0;
@@ -237,6 +260,63 @@ class OrderController extends Controller
                     $total
                 );
             }
+
+            // Build table columns in order: Soups, Mains, Alternatives, Desserts
+            $meal_order = ['B', 'L', 'D'];
+            $orderByMealPrefix = function(&$arr) use ($meal_order) {
+                uksort($arr, function($a, $b) use ($meal_order) {
+                    $prefixA = substr($a, 0, 1);
+                    $prefixB = substr($b, 0, 1);
+                    $orderA = array_search($prefixA, $meal_order);
+                    $orderB = array_search($prefixB, $meal_order);
+                    return $orderA - $orderB;
+                });
+            };
+
+            $orderByMealPrefix($soups);
+            $orderByMealPrefix($mains);
+            $orderByMealPrefix($alternatives);
+            $orderByMealPrefix($desserts);
+            
+            // establish column order
+            foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
+                foreach ($category as $col) {
+                    $table_column[2][$col['title']] = $col;
+                }
+            }
+
+            // order total accordingly
+            $ordered_total = [];
+            foreach ($total as $key => $value) {
+                foreach ($table_column[2] as $col_key => $col) {
+                    if (array_key_exists($col_key, $total)) {
+                        $ordered_total[$col_key] = $total[$col_key];
+                    }
+                }
+                $total = $ordered_total;
+            }
+
+            // order result[rows] accordingly
+            foreach ($final_array as &$row) {
+                $ordered_row = array_diff_key($row, $total);
+                foreach ($total as $key => $col) {
+                    if (array_key_exists($key, $row)) {
+                        $ordered_row[$key] = $row[$key];
+                    }
+                }
+                $row = $ordered_row;
+            }
+
+            // order table_column[1] accordingly
+            $ordered_column_1 = [];
+            foreach ($table_column[1] as $col_key => $col) {
+                foreach ($total as $key => $value) {
+                    if (array_key_exists($key, $table_column[1])) {
+                        $ordered_column_1[$key] = $col;
+                    }
+                }
+            }
+            $table_column[1] = $ordered_column_1;
 
             // Only add columns for meal types that have items
             $breakfast_count = 0;
@@ -351,6 +431,12 @@ class OrderController extends Controller
                     }
                 }
 
+                // Soup, Main, Alternative, Dessert
+                $soups = [];
+                $mains = [];
+                $alternatives = [];
+                $desserts = [];
+
                 // Pre-fetch all meal items
                 $breakfast_items = [];
                 $lunch_items = [];
@@ -388,7 +474,10 @@ class OrderController extends Controller
                     $processMealItemsRange = function($items, $mealPrefix, &$count, &$ab_count, &$cat_id_map, $is_guest, &$add_guest) use (
                         $room_id,
                         &$curr_item_array,
-                        &$tooltips_array,
+                        &$soups,
+                        &$mains,
+                        &$alternatives,
+                        &$desserts,
                         &$order_data_map,
                         &$total,
                         $is_first,
@@ -433,17 +522,59 @@ class OrderController extends Controller
                             }
 
                             if ($is_first) {
-                                if (!array_key_exists($title, $tooltips_array)) {
-                                    $tooltips_array[$title] = [
-                                        "title" => $title,
-                                        "tooltip" => [
-                                            $search_date => $a->item_name
-                                        ],
-                                        "field" => $title
-                                    ];
-                                }
-                                else {
-                                    $tooltips_array[$title]["tooltip"][$search_date] = $a->item_name;
+                                $second_letter = substr($title, 1, 1);
+                                if ($second_letter === 'S') {
+                                    if (!array_key_exists($title, $soups)) {
+                                        $soups[$title] = [
+                                            "title" => $title,
+                                            "tooltip" => [
+                                                $search_date => $a->item_name
+                                            ],
+                                            "field" => $title
+                                        ];
+                                    }
+                                    else {
+                                        $soups[$title]["tooltip"][$search_date] = $a->item_name;
+                                    }
+                                } elseif ($second_letter === 'A' || $second_letter === 'B') {
+                                    if (!array_key_exists($title, $mains)) {
+                                        $mains[$title] = [
+                                            "title" => $title,
+                                            "tooltip" => [
+                                                $search_date => $a->item_name
+                                            ],
+                                            "field" => $title
+                                        ];
+                                    }
+                                    else {
+                                        $mains[$title]["tooltip"][$search_date] = $a->item_name;
+                                    }
+                                } elseif ($second_letter === 'D') {
+                                    if (!array_key_exists($title, $desserts)) {
+                                        $desserts[$title] = [
+                                            "title" => $title,
+                                            "tooltip" => [
+                                                $search_date => $a->item_name
+                                            ],
+                                            "field" => $title
+                                        ];
+                                    }
+                                    else {
+                                        $desserts[$title]["tooltip"][$search_date] = $a->item_name;
+                                    }
+                                } else {
+                                    if (!array_key_exists($title, $desserts)) {
+                                        $desserts[$title] = [
+                                            "title" => $title,
+                                            "tooltip" => [
+                                                $search_date => $a->item_name
+                                            ],
+                                            "field" => $title
+                                        ];
+                                    }
+                                    else {
+                                        $desserts[$title]["tooltip"][$search_date] = $a->item_name;
+                                    }
                                 }
                             }
 
@@ -513,77 +644,52 @@ class OrderController extends Controller
         // Custom sort function to order keys as required
         // TODO: the room loop above should be optimized to avoid this step
         $meal_order = ['B', 'L', 'D'];
-        $item_type_order = [
-            'Soup' => ['BS', 'LS', 'DS'],
-            'Main' => ['BA', 'LA', 'LB', 'DA', 'DB'],
-            'Alternative' => [], // Will match B1, B2, ..., L1, L2, ..., D1, D2, ...
-            'Dessert' => ['BD', 'LD', 'DD'],
-        ];
-        
-        $customSort = function(&$arr) use ($meal_order, $item_type_order) {
-            uksort($arr, function($a, $b) use ($meal_order, $item_type_order) {
-                // Always keep room_id first
-                if ($a === 'room_id') return -1;
-                if ($b === 'room_id') return 1;
-            
+        $orderByMealPrefix = function(&$arr) use ($meal_order) {
+            uksort($arr, function($a, $b) use ($meal_order) {
                 $prefixA = substr($a, 0, 1);
                 $prefixB = substr($b, 0, 1);
                 $orderA = array_search($prefixA, $meal_order);
                 $orderB = array_search($prefixB, $meal_order);
-                if ($orderA !== $orderB) return $orderA - $orderB;
-            
-                // Helper to get item type index
-                $getTypeIndex = function($key) use ($item_type_order) {
-                    // Soup
-                    foreach ($item_type_order['Soup'] as $soup) {
-                        if (strpos($key, $soup) === 0) return 0;
-                    }
-                    // Main
-                    foreach ($item_type_order['Main'] as $main) {
-                        if (strpos($key, $main) === 0) return 1;
-                    }
-                    // Alternative (B1, B2, ..., L1, L2, ..., D1, D2, ...)
-                    if (preg_match('/^[BLD]\d+$/', $key)) return 2;
-                    // Dessert
-                    foreach ($item_type_order['Dessert'] as $dessert) {
-                        if (strpos($key, $dessert) === 0) return 3;
-                    }
-                    // Fallback: treat as Main if not matched
-                    return 1;
-                };
-            
-                $typeA = $getTypeIndex($a);
-                $typeB = $getTypeIndex($b);
-                if ($typeA !== $typeB) return $typeA - $typeB;
-            
-                // If same type, sort alphabetically or numerically as appropriate
-                // For Main, sort BA, LA, LB, DA, DB, etc.
-                // For Alternative, sort B1, B2, ..., L1, L2, ..., D1, D2, ...
-                // For Soup/Dessert, sort by key
-            
-                // If both are Alternative, sort numerically
-                if ($typeA === 2 && $typeB === 2) {
-                    $numA = intval(substr($a, 1));
-                    $numB = intval(substr($b, 1));
-                    return $numA - $numB;
-                }
-            
-                // Otherwise, fallback to string comparison
-                return strcmp($a, $b);
+                return $orderA - $orderB;
             });
         };
 
-        // Apply to each row in $final_array
-        foreach ($final_array as &$row) {
-            $customSort($row);
+        $orderByMealPrefix($soups);
+        $orderByMealPrefix($mains);
+        $orderByMealPrefix($alternatives);
+        $orderByMealPrefix($desserts);
+
+        // establish column order
+        foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
+            foreach ($category as $col) {
+                $table_column[2][$col['title']] = $col;
+            }
         }
-        unset($row); // break reference
+
+        // order total accordingly
+        $ordered_total = [];
+        foreach ($total as $key => $value) {
+            foreach ($table_column[2] as $col_key => $col) {
+                if (array_key_exists($col_key, $total)) {
+                    $ordered_total[$col_key] = $total[$col_key];
+                }
+            }
+            $total = $ordered_total;
+        }
+
+        // order result[rows] accordingly
+        foreach ($final_array as &$row) {
+            $ordered_row = array_diff_key($row, $total);
+            foreach ($total as $key => $col) {
+                if (array_key_exists($key, $row)) {
+                    $ordered_row[$key] = $row[$key];
+                }
+            }
+            $row = $ordered_row;
+        }
 
         // turn $final_array into indexed array
         $final_array = array_values($final_array);
-        
-        // Apply to $total
-        $customSort($total);
 
         // Only add columns for meal types that have items
         $breakfast_count = 0;
@@ -594,8 +700,6 @@ class OrderController extends Controller
             if (strpos($key, 'B') === 0) $breakfast_count++;
             else if (strpos($key, 'L') === 0) $lunch_count++;
             else if (strpos($key, 'D') === 0) $dinner_count++;
-
-            $table_column[2][] = $tooltips_array[$key] ?? [];
         }
 
         if ($breakfast_count > 0) {
@@ -615,6 +719,19 @@ class OrderController extends Controller
                 $total
             );
         }
+
+        // order table_column[1] accordingly
+        $ordered_column_1 = [];
+        foreach ($table_column[1] as $col_key => $col) {
+            foreach ($total as $key => $value) {
+                if (array_key_exists($key, $table_column[1])) {
+                    $ordered_column_1[$key] = $col;
+                }
+            }
+        }
+        $table_column[1] = $ordered_column_1;
+
+        $table_column[2] = array_values($table_column[2]);
 
         $menu_data = MenuDetail::select("date")
             ->orderBy("date", "desc")

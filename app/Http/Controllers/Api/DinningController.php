@@ -4411,9 +4411,14 @@ class DinningController extends Controller
             	LEFT JOIN room_details rd           ON rd.id = od.room_id
                 LEFT JOIN item_details id           ON id.id = od.item_id
                 LEFT JOIN category_details cd       ON cd.id = id.cat_id
-                LEFT JOIN item_options io           ON io.id = cast(trim(od.item_options) AS SIGNED INTEGER)
                 LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = rd.id 
                                                     AND dwo.date = od.date
+                LEFT JOIN (
+                    SELECT id, option_name, is_paid_item
+                    FROM item_options
+                    WHERE is_paid_item = '1'
+                ) io                                ON io.id = cast(trim(od.item_options) AS SIGNED INTEGER)
+                
             	WHERE od.date BETWEEN '$start_date' AND '$end_date'
             	GROUP BY 1,2,3,4
             ) sq
@@ -4526,7 +4531,8 @@ class DinningController extends Controller
                     }
 
                     // report_meal_list data
-                    $meal_data[$item_option_title] = ($meal_data[$item_option_title] ?? 0) + 1;
+                    $option_count = $meal_row->is_for_guest ? $meal_row->occupancy : 1;
+                    $meal_data[$item_option_title] = ($meal_data[$item_option_title] ?? 0) + $option_count;
 
                     // report_meal_list option
                     if (!isset($meal_options[$item_option_title])) {
