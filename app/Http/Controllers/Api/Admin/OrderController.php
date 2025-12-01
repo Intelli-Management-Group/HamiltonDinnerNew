@@ -660,9 +660,13 @@ class OrderController extends Controller
         $orderByMealPrefix($desserts);
 
         // establish column order
-        foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
-            foreach ($category as $col) {
-                $table_column[2][$col['title']] = $col;
+        foreach (['B', 'L', 'D'] as $meal_prefix) {
+            foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
+                foreach ($category as $col) {
+                    if (strpos($col['title'], $meal_prefix) === 0) {
+                        $table_column[2][$col['title']] = $col;
+                    }
+                }
             }
         }
 
