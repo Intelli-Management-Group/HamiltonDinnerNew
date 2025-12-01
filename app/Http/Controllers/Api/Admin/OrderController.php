@@ -279,9 +279,13 @@ class OrderController extends Controller
             $orderByMealPrefix($desserts);
             
             // establish column order
-            foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
-                foreach ($category as $col) {
-                    $table_column[2][$col['title']] = $col;
+            foreach (['B', 'L', 'D'] as $meal_prefix) {
+                foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
+                    foreach ($category as $col) {
+                        if (strpos($col['title'], $meal_prefix) === 0) {
+                            $table_column[2][$col['title']] = $col;
+                        }
+                    }
                 }
             }
 
@@ -579,6 +583,7 @@ class OrderController extends Controller
                             }
 
                             $curr_item_array[$room_title][$title] = ($curr_item_array[$room_title][$title] ?? 0);
+
                             if (isset($order_data_map[$room_title][$a->id])) {
                                 $curr_item_array[$room_title][$title] += intval($order_data_map[$room_title][$a->id]);
 
@@ -612,6 +617,8 @@ class OrderController extends Controller
                         $ab_count = 'A';
                         $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
                         $processMealItemsRange($dinner_items, 'D', $count, $ab_count, $cat_id_map, $is_guest, $add_guest);
+
+                        $is_first = false;
                     }
 
                     foreach ($curr_item_array as $row) {
@@ -636,7 +643,7 @@ class OrderController extends Controller
                     }
 
                     $curr_item_array = [];
-                    $is_first = false;
+                    // $is_first = false;
                 }
             }
         }
@@ -660,9 +667,13 @@ class OrderController extends Controller
         $orderByMealPrefix($desserts);
 
         // establish column order
-        foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
-            foreach ($category as $col) {
-                $table_column[2][$col['title']] = $col;
+        foreach (['B', 'L', 'D'] as $meal_prefix) {
+            foreach ([$soups, $mains, $alternatives, $desserts] as $category) {
+                foreach ($category as $col) {
+                    if (strpos($col['title'], $meal_prefix) === 0) {
+                        $table_column[2][$col['title']] = $col;
+                    }
+                }
             }
         }
 
@@ -677,7 +688,7 @@ class OrderController extends Controller
             $total = $ordered_total;
         }
 
-        // order result[rows] accordingly
+        // order columns in result[rows] accordingly
         foreach ($final_array as &$row) {
             $ordered_row = array_diff_key($row, $total);
             foreach ($total as $key => $col) {
@@ -687,6 +698,16 @@ class OrderController extends Controller
             }
             $row = $ordered_row;
         }
+
+        // run natural order sorting on final_array by room_id then room_name
+        usort($final_array, function($a, $b) {
+            // Compare room_id numerically
+            if ($a['room_id'] != $b['room_id']) {
+                return $a['room_id'] - $b['room_id'];
+            }
+            // If room_id is the same, compare room_name naturally
+            return strnatcmp($a['room_name'], $b['room_name']);
+        });
 
         // turn $final_array into indexed array
         $final_array = array_values($final_array);
