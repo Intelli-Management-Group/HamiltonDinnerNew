@@ -281,38 +281,31 @@ class RoleController extends Controller
         }
     }
 
-    public function getUserTree(){
-        try {
+    // currently usused. Consider deleting
+    // public function getUserTree(){
+    //     try {
+    //         $list = Role::with('userList')->get();
+    //         return response()->json([ 'list' =>  $list], 200);
             
-            $list = Role::with('userList')->get();
-            return response()->json([ 'list' =>  $list], 200);
-            
-        }
-        catch (\Exception $e){
-            return $this->sendResultJSON("0", $e->getMessage());
-        }
-    }
-    
-    public function syncPermission(Request $request){
-        
-        try{
-            
-            $roleId = $request->input('roleId');
-            
-            $permissions = $request->input('permissions'); // should be permission array ['edit articles', 'delete articles']
-            
-            $role = Role::find($roleId);
-        
-            $role->syncPermissions($permissions);
-            
-            return response()->json(['message' =>  "Permissions Synced Successfully"], 200);
-            
-        }
-        
-        catch (\Exception $e){
-            return response()->json([ 'message' => $e->getMessage()], 500);
-        }
-        
+    //     }
+    //     catch (\Exception $e){
+    //         return $this->sendResultJSON("0", $e->getMessage());
+    //     }
+    // }
 
-    }
+    // currently usused. Consider deleting
+    // public function syncPermission(Request $request){
+        
+    //     try {
+    //         $roleId = $request->input('roleId');
+    //         $permissions = $request->input('permissions'); // should be permission array ['edit articles', 'delete articles']
+    //         $role = Role::find($roleId);
+    //         $role->syncPermissions($permissions);
+    //         return response()->json(['message' =>  "Permissions Synced Successfully"], 200);
+    //     }
+        
+    //     catch (\Exception $e){
+    //         return response()->json([ 'message' => $e->getMessage()], 500);
+    //     }
+    // }
 }

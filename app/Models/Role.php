@@ -23,10 +23,7 @@ class Role extends SpatieRole
         return $this->belongsToMany(Permission::class, 'role_has_permissions', 'role_id', 'permission_id');
     }
 
-    public function userList(){
-        return $this->hasMany(BackendUser::class , "role_id" , "id");
-    }
-
-
-
+    // public function userList(){
+    //     return $this->hasMany(BackendUser::class , "role_id" , "id");
+    // }
 }

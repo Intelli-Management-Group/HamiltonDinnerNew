@@ -208,8 +208,8 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
         Route::delete('/bulk-delete', [RoleController::class, 'bulkDestroy']);
         Route::delete('/{id}', [RoleController::class, 'destroy']);
 
+        // tree and sync are unused currently
         Route::get('tree', [RoleController::class, 'getUserTree']);
-
         Route::post('sync', [RoleController::class, 'syncPermission']);
     });
 
