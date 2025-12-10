@@ -18,7 +18,7 @@ class AdminAuthService
     {
         if (!$token = auth()->attempt($credentials)) {
             return [
-                'code' => 201,
+                'statusCode' => 201,
                 'payload' => ['error' => 'Email or Password is incorrect'],
             ];
         }
@@ -36,7 +36,7 @@ class AdminAuthService
         }
 
         return [
-            'code' => 200,
+            'statusCode' => 200,
             'payload' => [
                 'access_token' => $token,
                 'token_type' => 'bearer',
@@ -54,7 +54,7 @@ class AdminAuthService
         auth()->logout();
 
         return [
-            'code' => 200,
+            'statusCode' => 200,
             'payload' => [
                 'message' => 'Successfully logged out',
             ]
@@ -68,7 +68,7 @@ class AdminAuthService
         $user = $this->users->create($data);
 
         return [
-            'code' => 201,
+            'statusCode' => 201,
             'payload' => [
                 'message' => 'User successfully registered',
                 'user' => $user,
@@ -84,7 +84,7 @@ class AdminAuthService
         $user = auth('api')->user();
 
         return [
-            'code' => 200,
+            'statusCode' => 200,
             'payload' => [
                 'access_token' => $newToken,
                 'token_type' => 'bearer',

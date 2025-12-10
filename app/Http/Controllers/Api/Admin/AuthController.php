@@ -20,96 +20,62 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                'email' => 'required|email',
-                'password' => 'required|string',
-            ]);
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json($validator->errors(), 422);
-            }
-
-            $result = $this->authService->login(
-                $request->only('email', 'password')
-            );
-
-            return response()->json($result['payload'], $result['code']);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while processing your request.',
-                'message' => $e->getMessage(),
-                "ResponseCode" => "11",
-                "ResponseText" => "Error",
-            ], 500);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
         }
+
+        $result = $this->authService->login(
+            $request->only('email', 'password')
+        );
+
+        // Old error response structure if needed:
+        // [
+        //     'error' => 'An error occurred while processing your request.',
+        //     'message' => $e->getMessage(),
+        //     "ResponseCode" => "11",
+        //     "ResponseText" => "Error",
+        // ]
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     public function register(Request $request)
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                'name' => 'required|string|max:255',
-                'user_name' => 'required|string|max:255|unique:users',
-                'email' => 'required|string|email|max:255|unique:users',
-                'password' => 'required|string',
-                'role_id' => 'required|exists:roles,id'
-            ]);
+        $validator = Validator::make($request->all(), [
+            'name' => 'required|string|max:255',
+            'user_name' => 'required|string|max:255|unique:users',
+            'email' => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string',
+            'role_id' => 'required|exists:roles,id'
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json($validator->errors(), 422);
-            }
-
-            $result = $this->authService->register($request->all());
-
-            return response()->json($result['payload'], $result['code']);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while processing your request.',
-                'message' => $e->getMessage()
-            ], 500);
+        if ($validator->fails()) {
+            return response()->json($validator->errors(), 422);
         }
+
+        $result = $this->authService->register($request->all());
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     public function me()
     {
-        try {
-            return response()->json(auth()->user());
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while processing your request.',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json(auth()->user());
     }
 
     public function logout()
     {
-        try {
-            $result = $this->authService->logout();
-            
-            return response()->json($result['payload'], $result['code']);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while processing your request.',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        $result = $this->authService->logout();
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     public function refresh()
     {
-        try {
-            $result = $this->authService->refresh();
-
-            return response()->json($result['payload'], $result['code']);
-        } catch (\Exception $e) {
-            return response()->json([
-                'error' => 'An error occurred while processing your request.',
-                'message' => $e->getMessage()
-            ], 500);
-        }
+        $result = $this->authService->refresh();
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }

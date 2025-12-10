@@ -4,6 +4,10 @@ namespace App\Exceptions;
 
 use Exception;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+use Illuminate\Validation\AuthenticationException;
 
 class Handler extends ExceptionHandler
 {
@@ -46,6 +50,25 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $exception)
     {
+        // Handle API / JSON requests with a unified error shape
+        if ($request->expectsJson() || $request->is('api/*')) {
+            $status = 500;
+
+            // Special handling for certain exception types if needed
+            if ($exception instanceof AuthenticationException) {
+                $status = 401;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while processing your request.',
+
+                // Hide in production for security reasons
+                'error' => config('app.debug') ? $exception->getMessage() : null,
+            ], $status);
+        }
+
+        // Else, fall back to default HTML/non-API handling
         return parent::render($request, $exception);
     }
 }
