@@ -11,6 +11,9 @@ use App\Repositories\Eloquent\UserRepository;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Eloquent\PermissionRepository;
 
+use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Repositories\Eloquent\RoleRepository;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -26,6 +29,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
         $this->app->bind(PermissionRepositoryInterface::class, PermissionRepository::class);
+        $this->app->bind(RoleRepositoryInterface::class, RoleRepository::class);
     }
 
     /**

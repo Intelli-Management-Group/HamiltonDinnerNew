@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Role;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\Contracts\RoleRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Hash;
@@ -12,7 +13,8 @@ use Illuminate\Support\Facades\Hash;
 class UserService
 {
     public function __construct(
-        private UserRepositoryInterface $users
+        private UserRepositoryInterface $users,
+        private RoleRepositoryInterface $roles
     ) {}
 
     public function findUserById(int $id): array
@@ -133,7 +135,7 @@ class UserService
             $existing->fill($updateData);
             $this->users->save($existing);
 
-            $role = Role::findById($data['role_id']);
+            $role = $this->$roles->findById($data['role_id']);
             $existing->syncRoles([$role]);
 
             return [
@@ -159,7 +161,7 @@ class UserService
             'avatar' => $data['avatar'] ?? null,
         ]);
 
-        $role = Role::findById($data['role_id']);
+        $role = $this->roles->findById($data['role_id']);
         $user->assignRole($role);
 
         return [
@@ -199,7 +201,7 @@ class UserService
         $this->users->save($user);
 
         if (isset($data['role_id'])) {
-            $role = Role::findById($data['role_id']);
+            $role = $this->roles->findById($data['role_id']);
             $user->assignRole($role);
         }
 

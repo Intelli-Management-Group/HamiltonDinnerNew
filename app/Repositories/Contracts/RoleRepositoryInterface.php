@@ -2,34 +2,36 @@
 
 namespace App\Repositories\Contracts;
 
-use App\Models\User;
+use App\Models\Role;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-interface UserRepositoryInterface
+interface RoleRepositoryInterface
 {
-    public function findById($id): ?User;
+    public function findById($id): ?Role;
 
-    public function findWithPermissionsById($id): ?User;
+    public function findWithPermissionsById($id): ?Role;
 
     public function queryWithPermissions(array $filters = []): Builder;
 
     public function paginateWithPermissions(
         array $filters = [],
         int $perPage = 15,
-        int $page = 1
+        int $pageNumber = 1
     ): LengthAwarePaginator;
 
     public function getAllWithPermissions(array $filters = []): Collection;
 
-    public function findSoftDeletedById($id): ?User;
+    public function findSoftDeletedByName(string $name): ?Role;
 
-    public function create(array $data): User;
+    public function nameConflictWithDeleted(string $name): ?Role;
 
-    public function save(User $user): User;
+    public function create(array $data): Role;
 
-    public function delete(User $user): bool;
-    
+    public function save(Role $role): Role;
+
+    public function delete(Role $role): bool;
+
     public function bulkDeleteByIds(array $ids): int;
 }
