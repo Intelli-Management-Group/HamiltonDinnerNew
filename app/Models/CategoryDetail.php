@@ -36,4 +36,13 @@ class CategoryDetail extends Model
     {
         return $query->where('parent_id',0);
     }
+
+    public function scopeType($query, $type)
+    {
+        if ($type === null || $type === '') {
+            return $query;
+        }
+        
+        return $query->where('type', $type);
+    }
 }
