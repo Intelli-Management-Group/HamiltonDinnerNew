@@ -5512,6 +5512,9 @@ class DinningController extends Controller
                     'is_brk_escort_service' => $lastOrder ? $lastOrder->is_brk_escort_service : 0,
                     'is_lunch_escort_service' => $lastOrder ? $lastOrder->is_lunch_escort_service : 0,
                     'is_dinner_escort_service' => $lastOrder ? $lastOrder->is_dinner_escort_service : 0,
+                    'is_brk_takeout_service' => $lastOrder ? $lastOrder->is_brk_takeout_service : 0,
+                    'is_lunch_takeout_service' => $lastOrder ? $lastOrder->is_lunch_takeout_service : 0,
+                    'is_dinner_takeout_service' => $lastOrder ? $lastOrder->is_dinner_takeout_service : 0,
                     'room_id' => $o->room_id,
                     'room_name' => $o->is_for_guest ? $spi_data->room_name . " Guest" : $spi_data->room_name,
                     'is_guest' => $o->is_for_guest
