@@ -24,8 +24,6 @@ class ItemDetail extends Model
      
     ];
 
-
-
     function categoryData()
     {
         return $this->hasOne('App\Models\CategoryDetail', 'id', 'cat_id');
@@ -53,5 +51,20 @@ class ItemDetail extends Model
         } else {
             return $this->getFileUrl($this->attributes['item_image']);
         }
+    }
+
+    /**
+     * Scope a query to retrieve item details by category ID.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeCategoryId($query, $catId)
+    {
+        if ($catId === null || $catId === '') {
+            return $query;
+        }
+        
+        return $query->where('cat_id', $catId);
     }
 }

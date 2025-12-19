@@ -44,8 +44,6 @@ Route::group(['prefix' => 'admin'], function () {
 // routes related to adminpanel , ios form app and dynamic form app website 
 // auth , roles, permissions are same for all these three
 
-
-
 Route::group(['middleware' => 'APIToken'], function () {
 
     // Route::get('rooms-list', [DinningController::class, 'getRoomList']);

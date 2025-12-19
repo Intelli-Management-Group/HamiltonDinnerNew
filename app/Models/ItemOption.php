@@ -35,4 +35,19 @@ class ItemOption extends Model
     public function preference(){
         return $this->belongsTo(ItemPreference::class);
     }
+
+    /**
+     * Scope a query to retrieve item options by category ID.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeCategoryId($query, $catId)
+    {
+        if ($catId === null || $catId === '') {
+            return $query;
+        }
+        
+        return $query->where('cat_id', $catId);
+    }
 }

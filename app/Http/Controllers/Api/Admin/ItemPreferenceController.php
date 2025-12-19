@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Models\ItemPreference;
+use App\Http\Controllers\Controller;
+use App\Services\ItemPreferenceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class ItemPreferenceController extends Controller
 {
+    public function __construct(
+        private ItemPreferenceService $itemPreferenceService
+    ) {}
+
     /**
      * Display a listing of item preferences.
      *
@@ -16,36 +21,9 @@ class ItemPreferenceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = ItemPreference::latest();
-    
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15);
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $preferences = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $preferences->items(),
-                'pagination' => [
-                    'total' => $preferences->total(),
-                    'per_page' => $preferences->perPage(),
-                    'current_page' => $preferences->currentPage(),
-                    'last_page' => $preferences->lastPage(),
-                    'from' => $preferences->firstItem(),
-                    'to' => $preferences->lastItem()
-                ]
-            ], 200);
-        } else {
-            
-            $preferences = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $preferences,
-                'count' => $preferences->count()
-            ], 200);
-        }
+        $result = $this->itemPreferenceService->list($request->all());
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -68,13 +46,9 @@ class ItemPreferenceController extends Controller
             ], 422);
         }
 
-        $preference = ItemPreference::create($request->all());
+        $result = $this->itemPreferenceService->store($request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item preference created successfully',
-            'data' => $preference
-        ], 201);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -85,19 +59,9 @@ class ItemPreferenceController extends Controller
      */
     public function show($id)
     {
-        $preference = ItemPreference::find($id);
-        
-        if (!$preference) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item preference not found'
-            ], 404);
-        }
+        $result = $this->itemPreferenceService->findItemById($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $preference
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -109,14 +73,14 @@ class ItemPreferenceController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $preference = ItemPreference::find($id);
-        
-        if (!$preference) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item preference not found'
-            ], 404);
+        $findResult = $this->itemPreferenceService->findItemById($id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
+
+        /** @var ItemPreference $preference */
+        $preference = $findResult['payload']['data'];
 
         $validator = Validator::make($request->all(), [
             'pname' => 'required|string|max:255',
@@ -130,13 +94,9 @@ class ItemPreferenceController extends Controller
             ], 422);
         }
 
-        $preference->update($request->all());
+        $result = $this->itemPreferenceService->update($preference, $request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item preference updated successfully',
-            'data' => $preference
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -147,21 +107,18 @@ class ItemPreferenceController extends Controller
      */
     public function destroy($id)
     {
-        $preference = ItemPreference::find($id);
-        
-        if (!$preference) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item preference not found'
-            ], 404);
+        $findResult = $this->itemPreferenceService->findItemById($id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
 
-        $preference->delete();
+        /** @var ItemPreference $preference */
+        $preference = $findResult['payload']['data'];
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item preference deleted successfully'
-        ], 200);
+        $result = $this->itemPreferenceService->destroy($preference);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -184,11 +141,8 @@ class ItemPreferenceController extends Controller
             ], 422);
         }
 
-        $count = ItemPreference::whereIn('id', $request->ids)->delete();
+        $result = $this->itemPreferenceService->bulkDestroy($request->input('ids'));
 
-        return response()->json([
-            'success' => true,
-            'message' => $count . ' preferences deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }

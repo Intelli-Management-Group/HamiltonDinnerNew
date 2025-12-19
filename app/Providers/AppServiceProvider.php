@@ -17,6 +17,15 @@ use App\Repositories\Eloquent\RoleRepository;
 use App\Repositories\Contracts\CategoryDetailRepositoryInterface;
 use App\Repositories\Eloquent\CategoryDetailRepository;
 
+use App\Repositories\Contracts\ItemDetailRepositoryInterface;
+use App\Repositories\Eloquent\ItemDetailRepository;
+
+use App\Repositories\Contracts\ItemOptionRepositoryInterface;
+use App\Repositories\Eloquent\ItemOptionRepository;
+
+use App\Repositories\Contracts\ItemPreferenceRepositoryInterface;
+use App\Repositories\Eloquent\ItemPreferenceRepository;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -34,6 +43,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PermissionRepositoryInterface::class, PermissionRepository::class);
         $this->app->bind(RoleRepositoryInterface::class, RoleRepository::class);
         $this->app->bind(CategoryDetailRepositoryInterface::class, CategoryDetailRepository::class);
+        $this->app->bind(ItemDetailRepositoryInterface::class, ItemDetailRepository::class);
+        $this->app->bind(ItemOptionRepositoryInterface::class, ItemOptionRepository::class);
+        $this->app->bind(ItemPreferenceRepositoryInterface::class, ItemPreferenceRepository::class);
     }
 
     /**

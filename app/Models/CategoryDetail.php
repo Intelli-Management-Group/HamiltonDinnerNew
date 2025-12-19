@@ -32,11 +32,23 @@ class CategoryDetail extends Model
         $this->attributes['parent_id'] = is_null($value) ? 0 : $value;
     }
     
+    /**
+     * Scope a query to retrieve parent categories.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     public function scopeParent($query)
     {
         return $query->where('parent_id',0);
     }
 
+    /**
+     * Scope a query to retrieve categories by type.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
     public function scopeType($query, $type)
     {
         if ($type === null || $type === '') {

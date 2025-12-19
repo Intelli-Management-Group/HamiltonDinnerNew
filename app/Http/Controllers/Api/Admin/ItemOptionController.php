@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\ItemOption;
+use App\Services\ItemOptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class ItemOptionController extends Controller
 {
+    public function __construct(
+        private ItemOptionService $itemOptionService
+    ) {}
+    
     /**
      * Display a listing of the item options.
      *
@@ -16,42 +22,9 @@ class ItemOptionController extends Controller
      */
     public function index(Request $request)
     {
+        $result = $this->itemOptionService->list($request->all());
 
-        $query = ItemOption::when($request->has('cat_id'), function($query) use ($request) {
-                return $query->where('cat_id', $request->cat_id);
-            })
-            ->latest();
-    
-        
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15);
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $items = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $items->items(),
-                'pagination' => [
-                    'total' => $items->total(),
-                    'per_page' => $items->perPage(),
-                    'current_page' => $items->currentPage(),
-                    'last_page' => $items->lastPage(),
-                    'from' => $items->firstItem(),
-                    'to' => $items->lastItem()
-                ]
-            ], 200);
-        } else {
-            
-            $items = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $items,
-                'count' => $items->count()
-            ], 200);
-        }
-
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -76,13 +49,9 @@ class ItemOptionController extends Controller
             ], 422);
         }
 
-        $item = ItemOption::create($request->all());
+        $result = $this->itemOptionService->store($request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item option created successfully',
-            'data' => $item
-        ], 201);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -93,19 +62,9 @@ class ItemOptionController extends Controller
      */
     public function show($id)
     {
-        $item = ItemOption::find($id);
-        
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item option not found'
-            ], 404);
-        }
+        $result = $this->itemOptionService->findItemOptionById($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $item
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -117,18 +76,18 @@ class ItemOptionController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $item = ItemOption::find($id);
-        
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item option not found'
-            ], 404);
+        $findResult = $this->itemOptionService->findItemOptionById($id);
+
+        if ($findResult['statusCode'] == 404) {
+            return response()->json($findResult['payload'], 404);
         }
+
+        /** @var ItemOption $option */
+        $option = $findResult['payload']['data'];
 
         $validator = Validator::make($request->all(), [
             'option_name' => 'required|string|max:127',
-            'optiona_name_cn' => 'nullable|string|max:255',
+            'option_name_cn' => 'nullable|string|max:255',
             'is_paid_item' => 'nullable|boolean'
         ]);
 
@@ -139,13 +98,9 @@ class ItemOptionController extends Controller
             ], 422);
         }
 
-        $item->update($request->all());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Item option updated successfully',
-            'data' => $item
-        ], 200);
+        $result = $this->itemOptionService->update($option, $request->all());
+        
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -156,16 +111,16 @@ class ItemOptionController extends Controller
      */
     public function destroy($id)
     {
-        $item = ItemOption::find($id);
+        $findResult = $this->itemOptionService->findItemOptionById($id);
         
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item option not found'
-            ], 404);
+        if ($findResult['statusCode'] == 404) {
+            return response()->json($findResult['payload'], 404);
         }
 
-        $item->delete();
+        /** @var ItemOption $option */
+        $option = $findResult['payload']['data'];
+
+        $result = $this->itemOptionService->destroy($option);
 
         return response()->json([
             'success' => true,
@@ -193,11 +148,8 @@ class ItemOptionController extends Controller
             ], 422);
         }
 
-        $count = ItemOption::whereIn('id', $request->ids)->delete();
+        $result = $this->itemOptionService->bulkDestroy($request->input('ids'));
 
-        return response()->json([
-            'success' => true,
-            'message' => $count . ' item options deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }
