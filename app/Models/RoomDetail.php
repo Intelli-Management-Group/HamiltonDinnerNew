@@ -16,7 +16,7 @@ class RoomDetail extends Model
     //     dd($this->attributes);
     // }
     
-        protected $fillable = [
+    protected $fillable = [
         'room_name',
         'special_instrucations',
         'occupancy',
@@ -28,5 +28,20 @@ class RoomDetail extends Model
         'food_texture'
     ];
 
+    /** 
+     * Scope a query to only include active room details.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param bool $isActive
+     * 
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeIsActive($query, $isActive)
+    {
+        if ($isActive === null || $isActive === '') {
+            return $query;
+        }
 
+        return $query->where('is_active', $isActive);
+    }
 }

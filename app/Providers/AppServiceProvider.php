@@ -26,6 +26,12 @@ use App\Repositories\Eloquent\ItemOptionRepository;
 use App\Repositories\Contracts\ItemPreferenceRepositoryInterface;
 use App\Repositories\Eloquent\ItemPreferenceRepository;
 
+use App\Repositories\Contracts\MenuDetailRepositoryInterface;
+use App\Repositories\Eloquent\MenuDetailRepository;
+
+use App\Repositories\Contracts\RoomDetailRepositoryInterface;
+use App\Repositories\Eloquent\RoomDetailRepository;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -46,6 +52,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ItemDetailRepositoryInterface::class, ItemDetailRepository::class);
         $this->app->bind(ItemOptionRepositoryInterface::class, ItemOptionRepository::class);
         $this->app->bind(ItemPreferenceRepositoryInterface::class, ItemPreferenceRepository::class);
+        $this->app->bind(MenuDetailRepositoryInterface::class, MenuDetailRepository::class);
+        $this->app->bind(RoomDetailRepositoryInterface::class, RoomDetailRepository::class);
     }
 
     /**
