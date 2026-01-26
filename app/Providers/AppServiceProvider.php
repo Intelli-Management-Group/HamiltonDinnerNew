@@ -32,6 +32,9 @@ use App\Repositories\Eloquent\MenuDetailRepository;
 use App\Repositories\Contracts\RoomDetailRepositoryInterface;
 use App\Repositories\Eloquent\RoomDetailRepository;
 
+use App\Repositories\Contracts\SettingRepositoryInterface;
+use App\Repositories\Eloquent\SettingRepository;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -54,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ItemPreferenceRepositoryInterface::class, ItemPreferenceRepository::class);
         $this->app->bind(MenuDetailRepositoryInterface::class, MenuDetailRepository::class);
         $this->app->bind(RoomDetailRepositoryInterface::class, RoomDetailRepository::class);
+        $this->app->bind(SettingRepositoryInterface::class, SettingRepository::class);
     }
 
     /**
