@@ -35,6 +35,9 @@ use App\Repositories\Eloquent\RoomDetailRepository;
 use App\Repositories\Contracts\SettingRepositoryInterface;
 use App\Repositories\Eloquent\SettingRepository;
 
+use App\Repositories\Contracts\FormTypeRepositoryInterface;
+use App\Repositories\Eloquent\FormTypeRepository;
+
 class AppServiceProvider extends ServiceProvider
 {
     /**
@@ -58,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MenuDetailRepositoryInterface::class, MenuDetailRepository::class);
         $this->app->bind(RoomDetailRepositoryInterface::class, RoomDetailRepository::class);
         $this->app->bind(SettingRepositoryInterface::class, SettingRepository::class);
+        $this->app->bind(FormTypeRepositoryInterface::class, FormTypeRepository::class);
     }
 
     /**
