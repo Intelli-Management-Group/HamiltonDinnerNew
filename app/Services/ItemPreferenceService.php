@@ -14,7 +14,7 @@ class ItemPreferenceService
         private ItemPreferenceRepositoryInterface $itemPreferences
     ) {}
 
-    public function findItemById(int $id): ?ItemPreference
+    public function findItemById(int $id): array
     {
         $preference = $this->itemPreferences->findById($id);
 

@@ -14,7 +14,7 @@ class MenuDetailService
         private MenuDetailRepositoryInterface $menuDetails
     ) {}
 
-    public function findMenuById(int $id): ?MenuDetail
+    public function findMenuById(int $id): array
     {
         $menu = $this->menuDetails->findById($id);
 

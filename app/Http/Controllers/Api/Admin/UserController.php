@@ -85,6 +85,8 @@ class UserController extends Controller
         if ($findResult['statusCode'] === 404) {
             return response()->json($findResult['payload'], 404);
         }
+
+        /** @var User $user */
         $user = $findResult['payload']['data'];
 
         $validator = Validator::make($request->all(), [
@@ -103,6 +105,7 @@ class UserController extends Controller
         }
 
         $result = $this->userService->update($user, $request->all());
+
         return response()->json($result['payload'], $result['statusCode']);
     }
 

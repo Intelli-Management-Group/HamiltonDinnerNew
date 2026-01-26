@@ -14,7 +14,7 @@ class ItemDetailService
         private ItemDetailRepositoryInterface $itemDetails
     ) {}
 
-    public function findItemById(int $id): ?ItemDetail
+    public function findItemById(int $id): array
     {
         $item = $this->itemDetails->findById($id);
 

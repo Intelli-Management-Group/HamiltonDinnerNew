@@ -108,6 +108,7 @@ class RoleController extends Controller
 
         /** @var Role $role */
         $role = $findResult['payload']['data'];
+        
         $permissions = $request->input('permissions', []); // should be permission array ['edit articles', 'delete articles']
         
         $result = $this->roleService->update($role, [
@@ -133,6 +134,7 @@ class RoleController extends Controller
 
         /** @var Role $role */
         $role = $findResult['payload']['data'];
+
         $result = $this->roleService->delete($role);
 
         return response()->json($result['payload'], $result['statusCode']);

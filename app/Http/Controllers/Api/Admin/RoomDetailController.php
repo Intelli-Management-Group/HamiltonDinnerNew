@@ -68,7 +68,10 @@ class RoomDetailController extends Controller
             return response()->json($findResult['payload'], 404);
         }
 
-        $result = $this->roomDetailService->update($id, $request->all());
+        /** @var RoomDetail $room */
+        $room = $findResult['payload']['data'];
+
+        $result = $this->roomDetailService->update($room, $request->all());
 
         return response()->json($result['payload'], $result['statusCode']);
     }
@@ -87,7 +90,10 @@ class RoomDetailController extends Controller
             return response()->json($result['payload'], 404);
         }
 
-        $result = $this->roomDetailService->delete($id);
+        /** @var RoomDetail $room */
+        $room = $result['payload']['data'];
+
+        $result = $this->roomDetailService->delete($room);
 
         return response()->json($result['payload'], $result['statusCode']);
     }

@@ -14,7 +14,7 @@ class ItemOptionService
         private ItemOptionRepositoryInterface $itemOptions
     ) {}
 
-    public function findItemOptionById(int $id): ?ItemOption
+    public function findItemOptionById(int $id): array
     {
         $option = $this->itemOptions->findById($id);
 

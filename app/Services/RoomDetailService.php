@@ -14,7 +14,7 @@ class RoomDetailService
         private RoomDetailRepositoryInterface $roomDetails
     ) {}
 
-    public function findRoomById(int $id): ?RoomDetail
+    public function findRoomById(int $id): array
     {
         $room = $this->roomDetails->findById($id);
 

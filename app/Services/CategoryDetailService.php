@@ -14,7 +14,7 @@ class CategoryDetailService
         private CategoryDetailRepositoryInterface $categoryDetails
     ) {}
 
-    public function findCategoryById(int $id): ?CategoryDetail
+    public function findCategoryById(int $id): array
     {
         $category = $this->categoryDetails->findById($id);
 
