@@ -30,4 +30,6 @@ interface SettingRepositoryInterface
     public function delete(Setting $setting): bool;
 
     public function bulkDeleteByIds(array $ids): int;
+
+    public function getAllKeyValues(): array;
 }

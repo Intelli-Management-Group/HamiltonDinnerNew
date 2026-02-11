@@ -39,12 +39,25 @@ use App\Models\ItemOption as ItemOptionModel;
 use App\Models\MoveInSummaryValues;
 use App\Models\Permission;
 use App\Models\UserActivity;
+
+// Services
+use App\Services\MenuDetailService;
+use App\Services\RoomDetailService;
+use App\Services\DiningAppService;
+use App\Services\FormsAppService;
+use App\Services\Reports\ChargeReportService;
+
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 
 class DinningController extends Controller
 {
-    public function __construct()
+    public function __construct(
+        private RoomDetailService $roomDetailService,
+        private DiningAppService $diningAppService,
+        private FormsAppService $formsAppService,
+        private ChargeReportService $chargeReportService
+    )
     {
         ini_set('max_execution_time', 0);
     }
@@ -60,7 +73,10 @@ class DinningController extends Controller
                 "password.required" => "Please enter password",
             ]);
             if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
+                return ApiResponse::format(
+                    status: '2',
+                    message: $validator->errors()->first()
+                );
             }
             $room_no = $request->input("room_no");
             $password = $request->input("password");
@@ -210,19 +226,10 @@ class DinningController extends Controller
 
     public function getRoomList()
     {
-        $rooms = RoomDetail::where("is_active", 1)->get();
-        $rooms_array = array();
-        foreach (count($rooms) > 0 ? $rooms : array() as $r) {
-            array_push($rooms_array, array("id" => $r->id, "name" => $r->room_name, "occupancy" => $r->occupancy));
-        }
-        $last_date = "";
-        $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
-        if ($menu_data) {
-            $last_date = $menu_data->date;
-        }
-        return $this->sendResultJSON('1', '', array('rooms' => $rooms_array, 'last_menu_date' => $last_date));
+        return $this->diningAppService->getRoomList();
     }
 
+    // TODO: move into dining app service
     public function getOrderList(Request $request)
     {
         if (!session("user_details")) {
@@ -236,32 +243,12 @@ class DinningController extends Controller
         $cat_array = array();
         $breakfast = $lunch = $dinner = array();
 
-        // $items = "";
-        // $day = Carbon::parse($date)->format("l");
-        // if ($day == "Sunday") {
-        //     $items = "1,4,5,6,7,20,28,38,15,18,3,52,17,16";
-        // } elseif ($day == "Monday") {
-        //     $items = "9,4,5,6,7,21,29,39,15,17,18,46,53,16";
-        // } elseif ($day == "Tuesday") {
-        //     $items = "4,5,6,7,15,17,18,16,10,22,31,41,47,54";
-        // } elseif ($day == "Wednesday") {
-        //     $items = "4,5,6,7,15,17,18,16,11,23,32,42,48,55";
-        // } elseif ($day == "Thursday") {
-        //     $items = "4, 5, 6, 7, 15, 17, 18, 16, 12, 24, 34, 43, 49, 56";
-        // } elseif ($day == "Friday") {
-        //     $items = "4, 5, 6, 7, 15, 17, 18, 16, 13, 25, 36, 44, 50, 57";
-        // } elseif ($day == "Saturday") {
-        //     $items = "4, 5, 6, 7, 15, 17, 18, 16, 14, 27, 37, 45, 51, 58";
-        // }
-
         $items = array();
 
-        // if menu is not present then return empry menu
+        // if menu is not present then return empty menu
+        $menu_data = MenuDetail::selectRaw("items")->whereRaw("date = '$date'")->get();
 
-        // $menu_data = MenuDetail::selectRaw("items")->whereRaw("date = '" . $date . "' OR is_allDay = 1")->get();
-        $menu_data = MenuDetail::selectRaw("items")->whereRaw("date = '" . $date . "'")->get();
-        // $menu_data = MenuDetail::selectRaw("items")->whereRaw("date = '" . $date . "' ")->get();
-        foreach (count($menu_data) > 0 ? $menu_data : array() as $m) {
+        foreach ($menu_data as $m) {
 
             $menu_items = $m->items;
 
@@ -269,7 +256,7 @@ class DinningController extends Controller
                 $menu_items = json_decode($m->items, true);
             }
 
-            foreach (count($menu_items) > 0 ? $menu_items : array() as $mi) {
+            foreach ($menu_items as $mi) {
                 if (count($mi) > 0)
                     array_push($items, implode(",", $mi));
             }
@@ -278,19 +265,47 @@ class DinningController extends Controller
         $items = implode(",", $items);
         if ($items != "") {
             $options = ItemOption::all();
-            foreach (count($options) > 0 ? $options : array() as $o) {
-                $option_details[intval($o->id)] = array("option_name" => $o->option_name, "option_name_cn" => ($o->option_name_cn != null ? $o->option_name_cn : $o->option_name));
+            foreach ($options as $o) {
+                $option_details[intval($o->id)] = array(
+                    "option_name" => $o->option_name,
+                    "option_name_cn" => ($o->option_name_cn ?? $o->option_name)
+                );
             }
             $preferences = ItemPreference::all();
-            foreach (count($preferences) > 0 ? $preferences : array() as $p) {
-                $preference_details[$p->id] = array("name" => $p->pname, "name_cn" => ($p->pname_cn != null ? $p->pname_cn : $p->pname));
+            foreach ($preferences as $p) {
+                $preference_details[$p->id] = array(
+                    "name" => $p->pname, 
+                    "name_cn" => ($p->pname_cn ?? $p->pname)
+                );
             }
 
-            $category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")->selectRaw("category_details.*,item_details.id as item_id,item_details.item_name,item_details.item_image,item_details.item_chinese_name,item_details.options,item_details.preference")->where("category_details.parent_id", 0)->whereRaw("item_details.id IN (" . $items . ")")->whereRaw("item_details.deleted_at IS NULL")->orderBy("category_details.id", "asc")->orderBy("item_details.id", "asc")->get();
+            $category_data = CategoryDetail::join(
+                "item_details",
+                "item_details.cat_id", "=", "category_details.id"
+            )->selectRaw(
+                "category_details.*,
+                item_details.id as item_id,
+                item_details.item_name,
+                item_details.item_image,
+                item_details.item_chinese_name,
+                item_details.options,
+                item_details.preference"
+            )->where("category_details.parent_id", 0)
+            ->whereRaw("item_details.id IN ($items)")
+            ->whereRaw("item_details.deleted_at IS NULL")
+            ->orderBy("category_details.id", "asc")
+            ->orderBy("item_details.id", "asc")
+            ->get();
 
-            foreach (count($category_data) > 0 ? $category_data : array() as $c) {
+            foreach ($category_data as $c) {
                 if (!isset($cat_array[$c->id])) {
-                    $cat_array[$c->id] = array("cat_id" => $c->id, "cat_name" => $c->cat_name, "chinese_name" => $c->category_chinese_name, "items" => array(), "type" => $c->type);
+                    $cat_array[$c->id] = array(
+                        "cat_id" => $c->id,
+                        "cat_name" => $c->cat_name,
+                        "chinese_name" => $c->category_chinese_name, 
+                        "items" => array(),
+                        "type" => $c->type
+                    );
                 }
                 $options = array();
 
@@ -321,48 +336,129 @@ class DinningController extends Controller
 
                     if ($c->options != "") {
                         $c_options = json_decode($c->options);
-                        foreach (count($c_options) > 0 ? $c_options : array() as $co) {
+                        foreach ($c_options as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => ($order_data && $order_data->item_options != null ? ($co == $order_data->item_options ? 1 : 0) : 0));
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $option_details[$co]['option_name'],
+                                    "c_name" => $option_details[$co]['option_name_cn'],
+                                    "is_selected" => intval($co == $order_data?->item_options)
+                                );
                             }
                         }
                     }
 
                     if ($c->preference != "") {
                         $c_preferences = json_decode($c->preference);
-                        foreach (count($c_preferences) > 0 ? $c_preferences : array() as $cp) {
+                        foreach ($c_preferences as $cp) {
                             $cp = intval($cp);
                             if ($preference_details[$cp]) {
-                                $preference[$cp] = array("id" => $cp, "name" => $preference_details[$cp]['name'], "c_name" => $preference_details[$cp]['name_cn'], "is_selected" => ($order_data && $order_data->preference != null ? (in_array($cp, explode(",", $order_data->preference)) ? 1 : 0) : 0));
+                                $preference[$cp] = array(
+                                    "id" => $cp,
+                                    "name" => $preference_details[$cp]['name'],
+                                    "c_name" => $preference_details[$cp]['name_cn'],
+                                    "is_selected" => intval(in_array($cp, explode(",", $order_data?->preference ?? '')))
+                                );
                             }
                         }
                     }
-                    array_push($cat_array[$c->id]["items"], array("type" => "item",'parent_id' => $c->parent_id, "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? ($order_data->is_for_guest != 1 ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    
+                    array_push(
+                        $cat_array[$c->id]["items"], 
+                        array(
+                            "type" => "item",
+                            'parent_id' => $c->parent_id,
+                            "item_id" => $c->item_id,
+                            "item_name" => $c->item_name,
+                            "chinese_name" => $c->item_chinese_name,
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL,
+                            "qty" => $order_data?->is_for_guest == 0 ? $order_data->quantity : 0,
+                            "comment" => "",
+                            "order_id" => $order_data?->id ?? 0
+                        )
+                    );
                 } else {
-                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $c->item_id)->groupBy("item_id")->first();
+                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")
+                        ->where("date", $date)
+                        ->where("item_id", $c->item_id)
+                        ->groupBy("item_id")
+                        ->first();
 
                     if ($c->options != "") {
                         $c_options = json_decode($c->options);
-                        foreach (count($c_options) > 0 ? $c_options : array() as $co) {
+                        foreach ($c_options as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => 0, "item_count" => OrderDetail::where("date", $date)->where("item_id", $c->item_id)->where("item_options", $co)->count());
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $option_details[$co]['option_name'],
+                                    "c_name" => $option_details[$co]['option_name_cn'],
+                                    "is_selected" => 0,
+                                    "item_count" => OrderDetail::where("date", $date)
+                                        ->where("item_id", $c->item_id)
+                                        ->where("item_options", $co)
+                                        ->count()
+                                    );
                             }
                         }
                     }
 
-                    array_push($cat_array[$c->id]["items"], array("type" => "item",'parent_id' => $c->parent_id, "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => 0));
+                    array_push(
+                        $cat_array[$c->id]["items"],
+                        array("type" => "item",
+                        'parent_id' => $c->parent_id,
+                        "item_id" => $c->item_id,
+                        "item_name" => $c->item_name,
+                        "chinese_name" => $c->item_chinese_name,
+                        "is_expanded" => (int) (count(array_values($options)) > 0),
+                        "options" => array_values($options),
+                        "preference" => array_values($preference),
+                        "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL,
+                        "qty" => intval($order_data?->quantity),
+                        "comment" => "", 
+                        "order_id" => 0)
+                    );
                 }
             }
-            $sub_category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")->selectRaw("category_details.*,item_details.id as item_id,item_details.item_name,item_details.item_image,item_details.item_chinese_name,item_details.options,item_details.preference")->where("category_details.parent_id", "!=", 0)->whereRaw("item_details.id IN (" . $items . ")")->whereRaw("item_details.deleted_at IS NULL")->orderBy("category_details.id", "asc")->orderBy("item_details.id", "asc")->get();
-            foreach (count($sub_category_data) > 0 ? $sub_category_data : array() as $sc) {
+
+            $sub_category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")
+                ->selectRaw("
+                    category_details.*,
+                    item_details.id as item_id,
+                    item_details.item_name,
+                    item_details.item_image,
+                    item_details.item_chinese_name,
+                    item_details.options,
+                    item_details.preference"
+                )->where("category_details.parent_id", "!=", 0)
+                ->whereRaw("item_details.id IN ($items)")
+                ->whereRaw("item_details.deleted_at IS NULL")
+                ->orderBy("category_details.id", "asc")
+                ->orderBy("item_details.id", "asc")
+                ->get();
+
+            foreach ($sub_category_data as $sc) {
                 if (!isset($sub_cat_details[$sc->id])) {
-                    $sub_cat_details[$sc->id] = array("cat_id" => $sc->id, "cat_name" => $sc->cat_name, "chinese_name" => $sc->category_chinese_name, "parent_id" => $sc->parent_id, "items" => array());
+                    $sub_cat_details[$sc->id] = array(
+                        "cat_id" => $sc->id,
+                        "cat_name" => $sc->cat_name,
+                        "chinese_name" => $sc->category_chinese_name,
+                        "parent_id" => $sc->parent_id,
+                        "items" => array()
+                    );
                 }
                 if (!isset($cat_array[$sc->parent_id])) {
                     if ($sc->parentData) {
-                        $cat_array[$sc->parent_id] = array("cat_id" => $sc->parentData->id, "cat_name" => $sc->parentData->cat_name, "chinese_name" => $sc->parentData->category_chinese_name, "items" => array(), "type" => $c->type);
+                        $cat_array[$sc->parent_id] = array(
+                            "cat_id" => $sc->parentData->id,
+                            "cat_name" => $sc->parentData->cat_name,
+                            "chinese_name" => $sc->parentData->category_chinese_name,
+                            "items" => array(),
+                            "type" => $c->type
+                        );
                     }
                 }
                 $options = array();
@@ -394,56 +490,138 @@ class DinningController extends Controller
 
                     if ($sc->options != "") {
                         $c_options = json_decode($sc->options);
-                        foreach (count($c_options) > 0 ? $c_options : array() as $co) {
+                        foreach ($c_options as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => ($order_data && $order_data->item_options != null ? ($co == $order_data->item_options ? 1 : 0) : 0));
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $option_details[$co]['option_name'],
+                                    "c_name" => $option_details[$co]['option_name_cn'],
+                                    "is_selected" => intval($co == $order_data?->item_options)
+                                );
                             }
                         }
                     }
 
                     if ($sc->preference != "") {
                         $c_preferences = json_decode($sc->preference);
-                        foreach (count($c_preferences) > 0 ? $c_preferences : array() as $cp) {
+                        foreach ($c_preferences as $cp) {
                             $cp = intval($cp);
                             if ($preference_details[$cp]) {
-                                $preference[$cp] = array("id" => $cp, "name" => $preference_details[$cp]['name'], "c_name" => $preference_details[$cp]['name_cn'], "is_selected" => ($order_data && $order_data->preference != null ? (in_array($cp, explode(",", $order_data->preference)) ? 1 : 0) : 0));
+                                $preference[$cp] = array(
+                                    "id" => $cp,
+                                    "name" => $preference_details[$cp]['name'],
+                                    "c_name" => $preference_details[$cp]['name_cn'],
+                                    "is_selected" => intval(in_array($cp, explode(",", $order_data?->preference ?? '')))
+                                );
                             }
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id,'parent_id' => $sc->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? ($order_data->is_for_guest != 1 ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push(
+                        $sub_cat_details[$sc->id]["items"],
+                        array(
+                            "item_id" => $sc->item_id,
+                            'parent_id' => $sc->parent_id,
+                            "item_name" => $sc->item_name,
+                            "chinese_name" => $sc->item_chinese_name,
+                            "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL,
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "qty" => $order_data?->is_for_guest == 0 ? $order_data->quantity : 0,
+                            "comment" => "",
+                            "order_id" => $order_data?->id ?? 0
+                        )
+                    );
                 } else {
-                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $sc->item_id)->groupBy("item_id")->first();
+                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")
+                        ->where("date", $date)
+                        ->where("item_id", $sc->item_id)
+                        ->groupBy("item_id")
+                        ->first();
 
                     if ($sc->options != "") {
                         $c_options = json_decode($sc->options);
-                        foreach (count($c_options) > 0 ? $c_options : array() as $co) {
+                        foreach ($c_options as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => 0, "item_count" => OrderDetail::where("date", $date)->where("item_id", $sc->item_id)->where("item_options", $co)->count());
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $option_details[$co]['option_name'],
+                                    "c_name" => $option_details[$co]['option_name_cn'],
+                                    "is_selected" => 0,
+                                    "item_count" => OrderDetail::where("date", $date)
+                                        ->where("item_id", $sc->item_id)
+                                        ->where("item_options", $co)
+                                        ->count()
+                                );
                             }
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id,'parent_id' => $sc->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push(
+                        $sub_cat_details[$sc->id]["items"], 
+                        array(
+                            "item_id" => $sc->item_id,
+                            'parent_id' => $sc->parent_id,
+                            "item_name" => $sc->item_name,
+                            "chinese_name" => $sc->item_chinese_name,
+                            "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL,
+                            "is_expanded" => (int) (count(array_values($options)) > 0),
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "qty" => intval($order_data?->quantity),
+                            "comment" => "",
+                            "order_id" => $order_data?->id ?? 0
+                        )
+                    );
                 }
             }
-            foreach (count($sub_cat_details) > 0 ? $sub_cat_details : array() as $sc) {
+            foreach ($sub_cat_details as $sc) {
                 if (isset($cat_array[$sc['parent_id']])) {
-                    array_push($cat_array[$sc['parent_id']]["items"], array("type" => "sub_cat", "item_id" => NULL, "cat_id" => $sc["cat_id"] , "parent_id" => $sc["parent_id"], "item_name" => $sc["cat_name"], "chinese_name" => $sc["chinese_name"], "options" => [], "preference" => [], "item_image" => "", "qty" => 0, "comment" => "", "order_id" => 0));
-                    foreach (count($sc["items"]) > 0 ? $sc["items"] : array() as $sci) {
-                        $sc_item = array("type" => "sub_cat_item", "item_id" => $sci["item_id"],'parent_id' =>  $sci["parent_id"], "item_name" => $sci["item_name"], "chinese_name" => $sci["chinese_name"], "item_image" => $sci["item_image"], "options" => $sci["options"], "preference" => $sci["preference"], "qty" => $sci["qty"], "comment" => $sci["comment"], "order_id" => $sci["order_id"]);
+                    array_push(
+                        $cat_array[$sc['parent_id']]["items"],
+                        array(
+                            "type" => "sub_cat",
+                            "item_id" => NULL,
+                            "cat_id" => $sc["cat_id"],
+                            "parent_id" => $sc["parent_id"],
+                            "item_name" => $sc["cat_name"],
+                            "chinese_name" => $sc["chinese_name"],
+                            "options" => [],
+                            "preference" => [],
+                            "item_image" => "",
+                            "qty" => 0,
+                            "comment" => "",
+                            "order_id" => 0
+                        )
+                    );
+                    foreach ($sc["items"] as $sci) {
+                        $sc_item = array(
+                            "type" => "sub_cat_item",
+                            "item_id" => $sci["item_id"],
+                            'parent_id' =>  $sci["parent_id"],
+                            "item_name" => $sci["item_name"],
+                            "chinese_name" => $sci["chinese_name"],
+                            "item_image" => $sci["item_image"],
+                            "options" => $sci["options"],
+                            "preference" => $sci["preference"],
+                            "qty" => $sci["qty"],
+                            "comment" => $sci["comment"],
+                            "order_id" => $sci["order_id"]
+                        );
+
                         if (isset($sci["is_expanded"])) {
                             $sc_item["is_expanded"] = $sci["is_expanded"];
                         }
+
                         array_push($cat_array[$sc['parent_id']]["items"], $sc_item);
                     }
                     //, "items" => array_values($sc["items"]
                 }
             }
         }
-        foreach (count($cat_array) > 0 ? $cat_array : array() as $c) {
+        foreach ($cat_array as $c) {
             $type = intval($c['type']);
             unset($c['type']);
             if ($type == 1) {
@@ -457,6 +635,7 @@ class DinningController extends Controller
 
         $last_date = "";
         $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
+        
         if ($menu_data) {
             $last_date = $menu_data->date;
         }
@@ -480,8 +659,6 @@ class DinningController extends Controller
         ->where("is_for_guest", 0)
         ->orderBy("id", "DESC")
         ->first();
-        // echo $tray_service_data->is_brk_tray_service;die;
-        // print_r($tray_service_data);die;
 
         if ($spi_data)
             $instruction = $spi_data->special_instrucations;
@@ -495,15 +672,15 @@ class DinningController extends Controller
                 'dinner' => $dinner,
                 'last_menu_date' => $last_date,
                 'special_instruction' => $instruction,
-                'is_brk_tray_service' => $tray_service_data ? $tray_service_data->is_brk_tray_service : 0,
-                'is_lunch_tray_service' => $tray_service_data ? $tray_service_data->is_lunch_tray_service : 0,
-                'is_dinner_tray_service' => $tray_service_data ? $tray_service_data->is_dinner_tray_service : 0,
-                'is_brk_escort_service' => $tray_service_data ? $tray_service_data->is_brk_escort_service : 0,
-                'is_lunch_escort_service' => $tray_service_data ? $tray_service_data->is_lunch_escort_service : 0,
-                'is_dinner_escort_service' => $tray_service_data ? $tray_service_data->is_dinner_escort_service : 0,
-                'is_brk_takeout_service' => $tray_service_data ? $tray_service_data->is_brk_takeout_service : 0,
-                'is_lunch_takeout_service' => $tray_service_data ? $tray_service_data->is_lunch_takeout_service : 0,
-                'is_dinner_takeout_service' => $tray_service_data ? $tray_service_data->is_dinner_takeout_service : 0
+                'is_brk_tray_service' => $tray_service_data?->is_brk_tray_service ?? 0,
+                'is_lunch_tray_service' => $tray_service_data?->is_lunch_tray_service ?? 0,
+                'is_dinner_tray_service' => $tray_service_data?->is_dinner_tray_service ?? 0,
+                'is_brk_escort_service' => $tray_service_data?->is_brk_escort_service ?? 0,
+                'is_lunch_escort_service' => $tray_service_data?->is_lunch_escort_service ?? 0,
+                'is_dinner_escort_service' => $tray_service_data?->is_dinner_escort_service ?? 0,
+                'is_brk_takeout_service' => $tray_service_data?->is_brk_takeout_service ?? 0,
+                'is_lunch_takeout_service' => $tray_service_data?->is_lunch_takeout_service ?? 0,
+                'is_dinner_takeout_service' => $tray_service_data?->is_dinner_takeout_service ?? 0
             )
         );
     }
@@ -531,34 +708,53 @@ class DinningController extends Controller
     public function updateOrder(Request $request)
     {
         if (!session("user_details")) {
-            return $this->sendResultJSON("11", "Unauthorised");
+            return ApiResponse::format(
+                status: '11',
+                message: 'Unauthorised'
+            );
         }
 
         $room_id = $request->input('room_id');
         $date = $request->input('date');
 
-        if (!empty($room_id) && !empty($date)) {
-
-            $room = RoomDetail::where("id", $room_id)->first();
-
-            if (!$room) {
-                return $this->sendResultJSON("2", "Room not found");
-            }
-        } else {
-            return $this->sendResultJSON("2", "Room id or date is missing");
+        if (empty($room_id) || empty($date)) {
+            return ApiResponse::format(
+                status: '2',
+                message: 'Room id or date is missing'
+            );
         }
 
-        $is_for_guest = !empty($request->input('is_for_guest')) ? $request->input('is_for_guest') : 0;
+        $roomResult = $this->roomDetailService->findRoomById($room_id);
+        if ($roomResult['statusCode'] == 404) {
+            return ApiResponse::format(
+                status: '2',
+                message: 'Room not found'
+            );
+        }
 
-        $is_brk_tray_service = !empty($request->input('is_brk_tray_service')) ? $request->input('is_brk_tray_service') : 0;
-        $is_lunch_tray_service = !empty($request->input('is_lunch_tray_service')) ? $request->input('is_lunch_tray_service') : 0;
-        $is_dinner_tray_service = !empty($request->input('is_dinner_tray_service')) ? $request->input('is_dinner_tray_service') : 0;
+        $room = $roomResult['payload']['data'];
 
-        $is_brk_escort_service = !empty($request->input('is_brk_escort_service')) ? $request->input('is_brk_escort_service') : 0;
-        $is_lunch_escort_service = !empty($request->input('is_lunch_escort_service')) ? $request->input('is_lunch_escort_service') : 0;
-        $is_dinner_escort_service = !empty($request->input('is_dinner_escort_service')) ? $request->input('is_dinner_escort_service') : 0;
+        $is_for_guest = (int) $request->input('is_for_guest', 0);
+        
+        $is_brk_tray_service = (int) $request->input('is_brk_tray_service', 0);
+        $is_lunch_tray_service = (int) $request->input('is_lunch_tray_service', 0);
+        $is_dinner_tray_service = (int) $request->input('is_dinner_tray_service', 0);
 
-        OrderDetail::where("is_for_guest", $is_for_guest)->where("date", $date)->where("room_id", $room_id)->update(['is_brk_tray_service' => $is_brk_tray_service, 'is_lunch_tray_service' => $is_lunch_tray_service, 'is_dinner_tray_service' => $is_dinner_tray_service, 'is_brk_escort_service' => $is_brk_escort_service, 'is_lunch_escort_service' => $is_lunch_escort_service, 'is_dinner_escort_service' => $is_dinner_escort_service]);
+        $is_brk_escort_service = (int) $request->input('is_brk_escort_service', 0);
+        $is_lunch_escort_service = (int) $request->input('is_lunch_escort_service', 0);
+        $is_dinner_escort_service = (int) $request->input('is_dinner_escort_service', 0);
+
+        OrderDetail::where("is_for_guest", $is_for_guest)
+            ->where("date", $date)
+            ->where("room_id", $room_id)
+            ->update([
+                'is_brk_tray_service' => $is_brk_tray_service,
+                'is_lunch_tray_service' => $is_lunch_tray_service,
+                'is_dinner_tray_service' => $is_dinner_tray_service,
+                'is_brk_escort_service' => $is_brk_escort_service,
+                'is_lunch_escort_service' => $is_lunch_escort_service,
+                'is_dinner_escort_service' => $is_dinner_escort_service
+            ]);
 
         $occupancy = $request->input('occupancy');
 
@@ -566,12 +762,10 @@ class DinningController extends Controller
         if ($room_id != "" && $date != "") {
             if ($request->input('orders_to_change') && $request->input('orders_to_change') != "") {
                 $new_data = json_decode($request->input('orders_to_change'));
-                foreach (count($new_data) > 0 ? $new_data : array() as $n) {
+                foreach ($new_data as $n) {
                     $n->order_id = intval($n->order_id);
                     $n->qty = intval($n->qty);
-                    if ($n->order_id == 0) {
-                        if ($n->qty != 0) {
-
+                    if ($n->order_id == 0 && $n->qty != 0) {
                             $order = new OrderDetail();
 
                             $order->room_id = $room_id;
@@ -596,21 +790,24 @@ class DinningController extends Controller
 
                             array_push($item_array, $n->item_id);
                             array_push($order_array, $order->id);
-                        }
                     } else {
                         if ($n->qty == 0) {
                             OrderDetail::where("id", $n->order_id)->delete();
                             array_push($item_array, $n->item_id);
                             array_push($order_array, 0);
                         } else {
-                            OrderDetail::where("id", $n->order_id)->update(['quantity' => $n->qty, 'item_options' => $n->item_options, 'preference' => $n->preference, 'comment' => ""]);
+                            OrderDetail::where("id", $n->order_id)->update([
+                                'quantity' => $n->qty, 
+                                'item_options' => $n->item_options, 
+                                'preference' => $n->preference, 
+                                'comment' => ""
+                            ]);
                         }
                     }
                 }
             }
 
             if ($is_for_guest) {
-
                 DateWiseOccupancy::updateOrCreate([
                     'date' => $date,
                     'room_id'   => $room_id,
@@ -837,8 +1034,6 @@ class DinningController extends Controller
             return $this->sendResultJSON("11", "Unauthorised");
         }
         $user = session("user_details");
-        // $role = session("role");
-        // print_r($user->role_id);die;
         $roleName = Role::select('name')->where('id', $user->role_id)->get();
 
         $role = $roleName[0]['name'];
@@ -848,8 +1043,16 @@ class DinningController extends Controller
 
         $rooms = RoomDetail::where("is_active", 1)->get();
         $rooms_array = array();
-        foreach (count($rooms) > 0 ? $rooms : array() as $r) {
-            array_push($rooms_array, array("id" => $r->id, "name" => $r->room_name, "occupancy" => $r->occupancy, "resident_name" => $r->resident_name));
+        foreach ($rooms as $r) {
+            array_push(
+                $rooms_array, 
+                array(
+                    "id" => $r->id,
+                    "name" => $r->room_name,
+                    "occupancy" => $r->occupancy,
+                    "resident_name" => $r->resident_name
+                )
+            );
         }
 
         if ($menu_data) {
@@ -866,14 +1069,6 @@ class DinningController extends Controller
 
         if ($role == "user") {
 
-            // $settings = DB::table('settings')->get();
-
-            // $settings_array = array();
-
-            // foreach (count($settings) > 0 ? $settings : array() as $s) {
-            //     $settings_array[$s->name] = $s->value;
-            // }
-
             return $this->sendResultJSON('1', '', array(
                 'occupancy' => $user->occupancy,
                 'language' => intval($user->language),
@@ -887,10 +1082,7 @@ class DinningController extends Controller
                 'dinner_guideline_cn' => $settingsArray['site.app_dinner_msg_cn'] != "" ? $settingsArray['site.app_dinner_msg_cn'] : $settingsArray['site.app_dinner_msg'],
                 'rooms' => $rooms_array));
         } else {
-            $formTypes = "";
-            // if ($role == "admin" || $role == "concierge"){
             $formTypes = FormType::all();
-            // }
 
             $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (3,4,5,6,7) AND u.deleted_at IS NULL";
 
@@ -1180,105 +1372,45 @@ class DinningController extends Controller
 
     public function sendEmail(Request $request)
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                "to_id" => "required",
-                "form_id" => "required"
-            ], [
-                "to_id.required" => "Please enter TO Email Id",
-                "form_id.required" => "Please enter Form Id",
-            ]);
+        $validator = Validator::make($request->all(), [
+            "to_id" => "required",
+            "form_id" => "required"
+        ], [
+            "to_id.required" => "Please enter TO Email Id",
+            "form_id.required" => "Please enter Form Id",
+        ]);
 
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $toEmail = $request->input('to_id');
-            $generatedFormId = $request->input('form_id');
-
-            $data = [];
-
-            $submittedForm = FormResponse::find($generatedFormId);
-            $fileName = $submittedForm->file_name;
-            $userId = $submittedForm->created_by;
-            $formTypeId = $submittedForm->form_type_id;
-
-            $userName = User::find($userId)->name;
-            $formType = FormType::find($formTypeId)->name;
-
-            $data["email"] =  $toEmail;
-            $data["title"] = $formType . " Submitted By " . $userName;
-
-            $data["body"] = "The User Response can be seen in the Attachment";
-
-            Mail::send('emails.form-response', $data, function ($message) use ($data, $fileName) {
-
-                $message->to($data["email"], $data["email"])
-                    ->subject($data["title"])
-                    ->attach(public_path() . '/uploads/public/FormResponses/' . $fileName);
-            });
-
-            return $this->sendResultJSON("1", "Mailed Successfully");
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
+
+        $toEmail = $request->input('to_id');
+        $formId = $request->input('form_id');
+
+        return $this->formsAppService->sendEmail($toEmail, $formId);
     }
 
     public function getFormDetails(Request $request)
     {
-        try {
+        $validator = Validator::make($request->all(), [
+            "form_id" => "required"
+        ], [
+            "form_id.required" => "Please enter Form Id",
+        ]);
 
-            $validator = Validator::make($request->all(), [
-                "form_id" => "required"
-            ], [
-                "form_id.required" => "Please enter Form Id",
-            ]);
-
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $generatedFormId = $request->input('form_id');
-
-            $submittedForm = FormResponse::find($generatedFormId);
-
-            $attachments = [];
-            $data = null;
-            $userData = null;
-
-            if ($submittedForm) {
-                $data = $submittedForm->form_response;
-
-                if (!empty($submittedForm->follow_up_assigned_to)) {
-
-                    $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.id = " . $submittedForm->follow_up_assigned_to;
-
-                    $userResults = DB::select($userQuery);
-
-                    $userData = null;
-
-                    foreach ($userResults as $userResult) {
-
-                        $userData = [
-                            'id' => $userResult->id,
-                            'role_name' => $userResult->roleName,
-                            'name' => $userResult->userName,
-                            'email' => $userResult->email,
-                        ];
-                    }
-                }
-
-
-                $attachments = FormMediaAttachments::where('form_response_id', $generatedFormId)->orderBy('id', 'DESC')->get();
-
-
-                return $this->sendResultJSON("1", "Fetched Form Data Successfully", ['form_data' => $data, 'attachments' => $attachments, 'follow_up_user' => $userData]);
-            }
-
-            return $this->sendResultJSON("1", "No Form Details Found", ['form_data' => $data, 'attachments' => $attachments, 'follow_up_user' => $userData]);
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
+
+        $generatedFormId = $request->input('form_id');
+
+        return $this->formsAppService->getFormDetails($generatedFormId);
     }
 
     public function getTempFormDetails(Request $request)
@@ -1407,53 +1539,38 @@ class DinningController extends Controller
     public function getGeneratedForms(Request $request)
     {
 
-        try {
-
-            $validator = Validator::make($request->all(), [
-                "form_type" => "required"
-            ], [
-                "form_type.required" => "Please enter Form type"
-            ]);
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $criteria = [];
-
-            if ($request->form_type) {
-                $criteria['form_type_id'] = $request->form_type;
-            }
-
-
-            $list = FormResponse::where($criteria)->orderBy('created_at', 'DESC')->with('formType')->get();
-
-            return $this->sendResultJSON("1", "List Retrieved Successfully", ['list' => $list]);
-        } catch (\Exception $e) {
-
-            return $this->sendResultJSON("0", $e->getMessage());
+        $validator = Validator::make($request->all(), [
+            "form_type" => "required"
+        ], [
+            "form_type.required" => "Please enter Form type"
+        ]);
+        
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
+
+        return $this->formsAppService->getGeneratedForms($request->form_type);
     }
 
     public function deleteFormResponse(Request $request)
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                "form_id" => "required"
-            ], [
-                "form_id.required" => "Please enter Form Id"
-            ]);
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
+        $validator = Validator::make($request->all(), [
+            "form_id" => "required"
+        ], [
+            "form_id.required" => "Please enter Form Id"
+        ]);
 
-            FormResponse::where("id", $request->form_id)->delete();
-            FormMediaAttachments::where('form_response_id', $request->form_id)->delete();
-
-            return $this->sendResultJSON("1", "Form Response Deleted Successfully");
-        } catch (\Exception $e) {
-
-            return $this->sendResultJSON("0", $e->getMessage());
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
+
+        return $this->formsAppService->deleteFormResponse($request->form_id);
     }
 
     public function demo(Request $request)
@@ -1483,80 +1600,25 @@ class DinningController extends Controller
 
     public function completeFormLog(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            "form_id" => "required",
+            "completed_by" => "required"
+        ], [
+            "form_id.required" => "Please enter Form Id",
+            "completed_by.required" => "Please Provide Completed By Id",
+        ]);
 
-        try {
-
-            $validator = Validator::make($request->all(), [
-                "form_id" => "required",
-                "completed_by" => "required"
-            ], [
-                "form_id.required" => "Please enter Form Id",
-                "completed_by.required" => "Please Provide Completed By Id",
-            ]);
-
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $formId = $request->get('form_id');
-            $completedBy = $request->get('completed_by');
-
-
-            $formResponse = FormResponse::find($formId);
-
-            $jsonData = $formResponse->form_response;
-
-
-
-            if (is_array($jsonData) && $formResponse->form_type_id == 2) {
-
-                if ($jsonData['is_completed'] != 1) {
-                    $jsonData['completed_by'] = $completedBy;
-                    $jsonData['is_completed'] = 1;
-                    $jsonData['completed_at'] = date("Y-m-d H:i:s");
-
-                    $formResponse->form_response = ($jsonData);
-
-
-                    $uniqueFileName = uniqid() . time() . '.pdf';
-
-
-                    if ($formResponse->file_name) {
-
-                        Storage::delete('public/FormResponses/' . $formResponse->file_name);
-                    }
-
-
-
-                    $formResponse->file_name = $uniqueFileName;
-
-                    $formResponse->save();
-
-                    $data = [];
-                    // $data['formType'] = FormType::find($formResponse->form_type_id)->name;
-                    $data = $jsonData;
-
-                    // $pdf = PDF::loadView('form-template', $data);
-                    $pdf = PDF::loadView('temp-form-template', $data);
-                    $content = $pdf->download()->getOriginalContent();
-
-                    Storage::put('public/FormResponses/' . $uniqueFileName, $content);
-
-                    return $this->sendResultJSON("1", "Form Complete Logged Successfully", ['jsonData' => $jsonData, 'formLink' =>  Storage::url('public/FormResponses/' . $uniqueFileName)]);
-                }
-            }
-
-            if (!is_array($jsonData)) {
-                $jsonResponse = json_decode($jsonData, true);
-
-                if ($jsonResponse['is_completed'] == 1) {
-                    return $this->sendResultJSON("0", "Form Is Already Completed !");
-                }
-            }
-        } catch (\Exception $e) {
-
-            return $this->sendResultJSON("0", $e->getMessage());
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
+
+        return $this->formsAppService->completeFormLog(
+            $request->form_id,
+            $request->completed_by
+        );
     }
 
     public function getDemoOrderList(Request $request)
@@ -3087,9 +3149,7 @@ class DinningController extends Controller
 
     public function reportData(Request $request)
     {
-
         // get rooms list from this
-
         try {
 
             $queryDate = $request->get('date');
@@ -3107,41 +3167,6 @@ class DinningController extends Controller
             }
 
             $query .= " AND (io1.is_paid_item = 1 OR od.is_for_guest = 1 OR od.is_brk_tray_service = 1 OR od.is_lunch_tray_service = 1 OR od.is_dinner_tray_service = 1 OR od.is_brk_escort_service = 1 OR od.is_lunch_escort_service = 1 OR od.is_dinner_escort_service = 1) GROUP BY od.date,od.room_id,od.is_for_guest ORDER BY od.id DESC";
-
-            // if (!empty($chargedFor)) {
-
-            //     if ($chargedFor == 'Guest'){
-
-            //         $query .= " AND (od.is_for_guest = 1) ";
-
-            //     }
-
-            //     else if ($chargedFor == 'Extra Item'){
-
-            //         $query .= " AND (io.is_paid_item = 1) ";
-
-            //     }
-
-            //     else if ($chargedFor == 'Tray Service'){
-
-            //         $query .= " AND (od.is_brk_tray_service = 1 OR od.is_lunch_tray_service OR od.is_dinner_tray_service = 1) ";
-
-            //     }
-
-            //     else if ($chargedFor == 'Escort Service'){
-
-            //         $query .= " AND (od.is_brk_escort_service = 1 OR od.is_lunch_escort_service OR od.is_dinner_escort_service = 1) ";
-
-            //     }
-            // }
-
-            // else{
-
-
-
-            // }
-            // echo $query;
-            // die;
             $results = DB::select($query);
 
             $data = [];
@@ -4298,135 +4323,6 @@ class DinningController extends Controller
     }
 
     // V2 of charge report functions
-
-    private const MEAL_LOOKUP = [
-        1 => 'brk',
-        2 => 'lunch',
-        3 => 'dinner'
-    ];
-
-    private const MEAL_ALIASES_REV = [
-        'brk' => 'breakfast',
-        'lunch' => 'lunch',
-        'dinner' => 'dinner'
-    ];
-
-    private const SERVICE_LOOKUP = [
-        'T' => 'Tray Service',
-        'E' => 'Escort Service',
-        'TO' => 'TakeOut',
-        'G' => 'No. Of Guests'
-    ];
-
-    private function constructMealQueryV2(
-        $start_date,
-        $end_date,
-    )
-    {
-        return "SELECT
-            	-- group keys
-            	room_id                 AS room_id,
-                is_for_guest            AS is_for_guest,
-                meal                    AS meal,
-                
-                -- room name
-                MAX(room_name)         AS room_name,
-                
-                -- sum outside subquery
-                SUM(occupancy)          AS occupancy,
-                SUM(is_tray_service)    AS is_tray_service,
-                SUM(is_escort_service)  AS is_escort_service,
-                SUM(is_takeout_service) AS is_takeout_service,
-                
-                -- concat items
-            	GROUP_CONCAT(
-            		DISTINCT items
-                    SEPARATOR ';'
-            	)                       AS items
-                
-            FROM (
-            	SELECT 
-            		-- grouping keys
-            		od.room_id                      AS room_id,
-                    od.date                         AS date,
-                    CASE
-            			WHEN cd.type = 1 THEN 'breakfast'
-                        WHEN cd.type = 2 THEN 'lunch'
-                        WHEN cd.type = 3 THEN 'dinner'
-                        ELSE NULL
-            		END                             AS meal,
-                    od.is_for_guest                 AS is_for_guest,
-                    
-                    -- misc. details
-                    rd.room_name                    AS room_name,
-                    od.is_for_guest * dwo.occupancy AS occupancy,
-                    
-                    -- consolidate services
-                    CASE
-            			WHEN is_for_guest = 1 AND cd.type = 1 THEN od.is_brk_tray_service * dwo.occupancy
-                        WHEN is_for_guest = 1 AND cd.type = 2 THEN od.is_lunch_tray_service * dwo.occupancy
-                        WHEN is_for_guest = 1 AND cd.type = 3 THEN od.is_dinner_tray_service * dwo.occupancy
-            			WHEN is_for_guest = 0 AND cd.type = 1 THEN od.is_brk_tray_service
-                        WHEN is_for_guest = 0 AND cd.type = 2 THEN od.is_lunch_tray_service
-                        WHEN is_for_guest = 0 AND cd.type = 3 THEN od.is_dinner_tray_service
-            			ELSE NULL
-            		END                             AS is_tray_service,
-                    
-                    CASE
-            			WHEN is_for_guest = 1 AND cd.type = 1 THEN od.is_brk_escort_service * dwo.occupancy
-                        WHEN is_for_guest = 1 AND cd.type = 2 THEN od.is_lunch_escort_service * dwo.occupancy
-                        WHEN is_for_guest = 1 AND cd.type = 3 THEN od.is_dinner_escort_service * dwo.occupancy
-                        WHEN is_for_guest = 0 AND cd.type = 1 THEN od.is_brk_escort_service
-                        WHEN is_for_guest = 0 AND cd.type = 2 THEN od.is_lunch_escort_service
-                        WHEN is_for_guest = 0 AND cd.type = 3 THEN od.is_dinner_escort_service
-            			ELSE NULL
-            		END                             AS is_escort_service,
-                    
-                    CASE
-            			WHEN is_for_guest = 1 AND cd.type = 1 THEN od.is_brk_takeout_service * dwo.occupancy
-                        WHEN is_for_guest = 1 AND cd.type = 2 THEN od.is_lunch_takeout_service * dwo.occupancy
-                        WHEN is_for_guest = 1 AND cd.type = 3 THEN od.is_dinner_takeout_service * dwo.occupancy
-                        WHEN is_for_guest = 0 AND cd.type = 1 THEN od.is_brk_takeout_service
-                        WHEN is_for_guest = 0 AND cd.type = 2 THEN od.is_lunch_takeout_service
-                        WHEN is_for_guest = 0 AND cd.type = 3 THEN od.is_dinner_takeout_service
-            			ELSE NULL
-            		END                             AS is_takeout_service,
-                    
-                    GROUP_CONCAT(
-            			DISTINCT CONCAT(
-            				TRIM(od.item_options), ':',
-            				io.option_name, ':',
-            				od.date, ':', 
-            				id.item_name, ':',
-                            od.quantity
-            			) 
-            			ORDER BY 
-                            TRIM(od.item_options),
-                            io.option_name,
-                            od.date,
-                            id.item_name,
-                            od.quantity
-            			SEPARATOR ';'
-            		)                               AS items
-                    
-            	FROM order_details od
-            	LEFT JOIN room_details rd           ON rd.id = od.room_id
-                LEFT JOIN item_details id           ON id.id = od.item_id
-                LEFT JOIN category_details cd       ON cd.id = id.cat_id
-                LEFT JOIN date_wise_occupancies dwo ON dwo.room_id = rd.id 
-                                                    AND dwo.date = od.date
-                LEFT JOIN (
-                    SELECT id, option_name, is_paid_item
-                    FROM item_options
-                    WHERE is_paid_item = '1'
-                ) io                                ON io.id = cast(trim(od.item_options) AS SIGNED INTEGER)
-                
-            	WHERE od.date BETWEEN '$start_date' AND '$end_date'
-            	GROUP BY 1,2,3,4
-            ) sq
-            GROUP BY 1,2,3;";
-    }
-
     public function getChargeReportV2(Request $request)
     {
         $start_date = $end_date = null;
@@ -4439,231 +4335,12 @@ class DinningController extends Controller
             return $this->sendResultJSON('0', 'Invalid parameters!!', []);
         }
 
-        $is_single_day = ($start_date === $end_date);
-
-        // hint on usage of service class
-        // $chargeReportService = new ChargeReportService();
-
-        // populate base items
-        $baseItemList = [];
-        $baseData = [];
-        $baseOptions = [];
-        foreach (self::SERVICE_LOOKUP as $key => $value) {
-            $baseItemList[$key] = [
-                'item_name' => $key,
-                'real_item_name' => $value,
-            ];
-
-            $baseData[$key] = 0;
-            $baseOptions[$key] = [];
-        }
-
-        $report_breakfast_list = $report_lunch_list = $report_dinner_list = [];
-        $breakfastOptionsList = $lunchOptionsList = $dinnerOptionsList = [];
-        $should_show_breakfast_items = $should_show_lunch_items = $should_show_dinner_items = false;
-
-        $meal_rows = DB::select(
-            $this->constructMealQueryV2(
-                $start_date,
-                $end_date
-            )
+        $chargeReport = $this->chargeReportService->getChargeReport(
+            $start_date,
+            $end_date
         );
 
-        foreach ($meal_rows as $meal_row) {
-
-            // determine meal
-            $meal = $meal_row->meal;
-            if (!$meal) continue;
-
-            // to check: T, E, TO, G, itemOptionId
-            $to_check = [
-                $meal_row->is_tray_service,
-                $meal_row->is_escort_service,
-                $meal_row->is_takeout_service,
-                $meal_row->is_for_guest ? $meal_row->occupancy : 0,
-                $meal_row->items
-            ];
-
-            // skip if all zero/empty
-            if (count(array_filter($to_check, fn($v) => !empty($v))) === 0) continue;
-            ${'should_show_'.$meal.'_items'} = true;
-
-            // make new room entry if not exists
-            $guest_suffix = $meal_row->is_for_guest ? ' G' : '';
-            $report_meal_list = &${'report_'.$meal.'_list'};
-            $room_name = $meal_row->room_name . $guest_suffix;
-            if (!isset($report_meal_list[$room_name])) {
-                $report_meal_list[$room_name] = [
-                    'room_no' => $room_name,
-                    'room_id' => $meal_row->room_id,
-                    'is_for_guest' => $meal_row->is_for_guest,
-                    'data' => $baseData,
-                    'option' => $baseOptions
-                ];
-            }
-
-            // set up reference
-            $meal_data = &$report_meal_list[$room_name]['data'];
-            $meal_options = &$report_meal_list[$room_name]['option'];
-
-            // populate quantities
-            $meal_data['T'] += $meal_row->is_tray_service;
-            $meal_data['E'] += $meal_row->is_escort_service;
-            $meal_data['TO'] += $meal_row->is_takeout_service;
-            if ( $meal_row->is_for_guest ) {
-                $meal_data['G'] += $meal_row->occupancy;
-            }
-
-            // options
-            if ($meal_row->items) {
-                $meal_options_list = &${$meal.'OptionsList'};
-
-                foreach (explode(';', $meal_row->items) as $item_entry) {
-                    [$option_id, $option_name, $item_date, $item_name, $option_quantity] = explode(':', $item_entry);
-
-                    $item_option_title = 'O'.$option_id;
-
-                    // meal_options_list
-                    if (!isset($meal_options_list[$item_option_title])) {
-                        $meal_options_list[$item_option_title] = [
-                            'item_name' => $item_option_title,
-                            'real_item_name' => $option_name,
-                            'item_option_id' => $option_id
-                        ];
-                    }
-
-                    // report_meal_list data
-                    // $option_count = $meal_row->is_for_guest ? $meal_row->occupancy : 1;
-                    $meal_data[$item_option_title] = ($meal_data[$item_option_title] ?? 0) + $option_quantity;
-
-                    // report_meal_list option
-                    if (!isset($meal_options[$item_option_title])) {
-                        $meal_options[$item_option_title] = [];
-                    }
-
-                    if ($is_single_day) {
-                        $meal_options[$item_option_title][$item_name] = [
-                            'itemName' => $item_name,
-                        ];
-                    } else {
-                        if (!isset($meal_options[$item_option_title][$item_date])) {
-                            $meal_options[$item_option_title][$item_date] = [
-                                'date' => $item_date,
-                                'items' => [
-                                    $item_name => [
-                                        'itemName' => $item_name,
-                                    ]
-                                ]
-                            ];
-                        } else {
-                            $meal_options[$item_option_title][$item_date]['items'][$item_name] = [
-                                'itemName' => $item_name
-                            ];
-                        }
-                    }
-                }
-            }
-        }
-
-        // sort options list by keys
-        ksort($breakfastOptionsList);
-        ksort($lunchOptionsList);
-        ksort($dinnerOptionsList);
-
-        $breakfastItemList = $should_show_breakfast_items ? $baseItemList + $breakfastOptionsList : [];
-        $lunchItemList = $should_show_lunch_items ? $baseItemList + $lunchOptionsList : [];
-        $dinnerItemList = $should_show_dinner_items ? $baseItemList + $dinnerOptionsList : [];
-
-        // backfill all missing options from item list to report list with zero quantity
-        foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
-            $meal_item_list = &${$meal.'ItemList'};
-            $report_meal_list = &${'report_'.$meal.'_list'};
-
-            foreach ($meal_item_list as $item_key => $item_value) {
-                foreach ($report_meal_list as &$room_entry) {
-                    if (!array_key_exists($item_key, $room_entry['data'])) {
-                        $room_entry['data'][$item_key] = 0;
-                    }
-                    if (!array_key_exists($item_key, $room_entry['option'])) {
-                        $room_entry['option'][$item_key] = [];
-                    }
-                }
-            }
-        }
-
-        $service_keys = ['T', 'E', 'TO', 'G'];
-        $sortOptions = function(&$optionArr) use ($service_keys) {
-            uksort($optionArr, function($a, $b) use ($service_keys) {
-                $isAService = in_array($a, $service_keys);
-                $isBService = in_array($b, $service_keys);
-            
-                // Service keys always come first, keep their order
-                if ($isAService && $isBService) {
-                    return array_search($a, $service_keys) - array_search($b, $service_keys);
-                }
-                if ($isAService) return -1;
-                if ($isBService) return 1;
-            
-                // Both are O keys, sort numerically
-                if ($a[0] === 'O' && $b[0] === 'O') {
-                    return intval(substr($a, 1)) - intval(substr($b, 1));
-                }
-            
-                // If only one is O, O comes after service keys
-                if ($a[0] === 'O') return 1;
-                if ($b[0] === 'O') return -1;
-            
-                // Otherwise, keep original order (or sort alphabetically if needed)
-                return 0;
-            });
-        };
-
-        // Usage: after building each room_entry['option'] array
-        foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
-            $report_meal_list = &${'report_'.$meal.'_list'};
-            foreach ($report_meal_list as &$room_entry) {
-                $sortOptions($room_entry['data']);
-                $sortOptions($room_entry['option']);
-            }
-        }
-
-        foreach (['breakfast', 'lunch', 'dinner'] as $meal) {
-            // convert item list to indexed array
-            $meal_item_list = &${$meal.'ItemList'};
-            $meal_item_list = array_values($meal_item_list);
-
-            // convert report meal list to indexed array
-            $report_meal_list = &${'report_'.$meal.'_list'};
-            $report_meal_list = array_values($report_meal_list);
-
-            foreach ($report_meal_list as &$room_entry) {
-                // convert options to indexed array
-                foreach ($room_entry['option'] as $option_key => $option_value) {
-                    // only process option keys
-                    if ($option_key[0] !== 'O') continue;
-
-                    // if not single day, convert date items to indexed array first
-                    if (!$is_single_day) {
-                        foreach ($option_value as $date_key => $date_value) {
-                            $option_value[$date_key]['items'] = array_values($date_value['items']);
-                        }
-                    }
-
-                    // finally convert option to indexed array
-                    $room_entry['option'][$option_key] = array_values($option_value);
-                }
-            }  
-        }
-
-        $finalData = [
-            'breakfast_item_list' => array_values($breakfastItemList),
-            'report_breakfast_list' => array_values($report_breakfast_list ?? []),
-            'lunch_item_list' =>   array_values($lunchItemList),
-            'report_lunch_list' => array_values($report_lunch_list ?? []),
-            'dinner_item_list' => array_values($dinnerItemList),
-            'report_dinner_list' => array_values($report_dinner_list ?? [])
-        ];
-        return $this->sendResultJSON('1', '', $finalData);
+        return $this->sendResultJSON('1', '', $chargeReport);
     }
 
     // --- END CHARGE REPORT FUNCTIONS ---
@@ -4722,596 +4399,135 @@ class DinningController extends Controller
         $userId = null;
         $files = $_FILES;
 
-        try {
-
-            if ($request->header('Authorization')) {
-
-                $token = $request->header('Authorization');
-                $token = explode(" ", $token);
-                if (is_array($token) && count($token) == 2 && in_array("Bearer", $token)) {
-                    $token = base64_decode(base64_decode($token[1]));
-                    if ($token != "") {
-                        $token_parts = json_decode($token, true);
-                        if (is_array($token_parts) && count($token_parts) == 3) {
-
-                            $userId = $token_parts["user_id"];
-                        } else {
-                            return response()->json(['ResponseCode' => "11", 'ResponseText' => "Unauthorised"], 200);
-                        }
+        if ($request->header('Authorization')) {
+            $token = $request->header('Authorization');
+            $token = explode(" ", $token);
+            if (is_array($token) && count($token) == 2 && in_array("Bearer", $token)) {
+                $token = base64_decode(base64_decode($token[1]));
+                if ($token != "") {
+                    $token_parts = json_decode($token, true);
+                    if (is_array($token_parts) && count($token_parts) == 3) {
+                        $userId = $token_parts["user_id"];
+                    } else {
+                        return response()->json([
+                            'ResponseCode' => "11",
+                            'ResponseText' => "Unauthorised"
+                        ], 200);
                     }
                 }
-            } else {
-
-                return response()->json(['ResponseCode' => "11", 'ResponseText' => "Unauthorised"], 200);
             }
-
-            $validator = Validator::make($request->all(), [
-                "form_type" => "required",
-                "data" => "required",
-                "file.*" => "required"
-            ], [
-                "form_type.required" => "Please enter Form Type",
-                "data.required" => "Please enter Form Data",
-                "file.*.required" => "Please Upload File(s)",
-            ]);
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $form_type = $request->input('form_type');
-            $form_data = $request->input('data');
-            $room_id = $request->input('room_id');
-            $follow_up_assigned_to = $request->input('follow_up_assigned_to');
-
-            if (!in_array($form_type, [1, 2, 3])) {
-                return $this->sendResultJSON("2", "Invalid Form Type");
-            }
-
-            if ($form_type == 3 && !array_key_exists('file', $files)) {
-                return $this->sendResultJSON("2", "Signature Not Found");
-            }
-
-            $uniqueFileName = uniqid() . time() . '.pdf';
-
-            $form = FormResponse::create([
-                'form_type_id' => $form_type,
-                'form_response' => json_decode($form_data, true),
-                'created_by' => $userId,
-                // 'created_by' => "1",
-                'file_name' => $uniqueFileName,
-                'room_id' => $room_id,
-                'follow_up_assigned_to' => (!empty($follow_up_assigned_to) && $form_type == 1) ? $follow_up_assigned_to : 0
-            ]);
-
-            $imageOnlyAttachments = [];
-            $mediaLinks = [];
-            $filesToDelete = [];
-
-            foreach ($files as $key => $file) {
-
-                $thumbnailFileName = null;
-
-                if (substr($key, 0, -1) != 'thumbnail') { // remove the trailing 1,2 .....
-
-                    $fileExtension = explode("/", $file['type']);
-                    $mediaFileName = uniqid() . time() . '.' . end($fileExtension);
-                    Storage::put('public/FormResponses/media/' . $mediaFileName, file_get_contents($file['tmp_name']));
-                    $mediaLinks[] = Storage::url('public/FormResponses/media/' . $mediaFileName);
-
-                    if ($fileExtension[0] == 'image') {
-                        $imageOnlyAttachments[] = Storage::url('public/FormResponses/media/' . $mediaFileName);
-                        $filesToDelete[] = 'public/FormResponses/media/' . $mediaFileName;
-                    }
-
-                    if (array_key_exists("thumbnail" . substr($key, -1), $files) && $fileExtension[0] == 'video') {
-
-                        $originalThumbnailFile = $files["thumbnail" . substr($key, -1)];
-
-                        $thumbnailExtension = explode("/", $originalThumbnailFile['type']);
-                        $thumbnailFileName = uniqid() . time() . '.' . end($thumbnailExtension);
-                        Storage::put('public/FormResponses/media/thumbnail/' . $thumbnailFileName, file_get_contents($originalThumbnailFile['tmp_name']));
-                    }
-
-                    $attachmentCreated = FormMediaAttachments::create([
-                        'name' => $mediaFileName,
-                        'form_response_id' => $form->id,
-                        'type' => $fileExtension[0],
-                        'file_extension' => end($fileExtension),
-                        'size_in_kb' => ceil($file['size'] / 1024),
-                        'thumbnail' => $thumbnailFileName
-                    ]);
-                }
-            }
-
-            $data = [];
-            $data['formType'] = FormType::find($form_type)->name;
-            $data['images'] = $imageOnlyAttachments;
-
-            $formData =  json_decode($form_data, true);
-
-            $data = array_merge($data, $formData);
-
-            if ($form_type == 3) {
-
-                if (!count($imageOnlyAttachments)) {
-                    return $this->sendResultJSON("2", "Signature Not Found after saving the attachments");
-                }
-
-                $data['signature'] = $imageOnlyAttachments[0];
-                $pdf = PDF::loadView('resident-move-in-summary', $data);
-            }
-            if ($form_type == 1) {
-
-                $data['followUp_done_by'] = !empty($follow_up_assigned_to) ? User::find($follow_up_assigned_to)->name : null;
-
-                $pdf = PDF::loadView('demo-form-copy-backup', $data);
-            }
-            if ($form_type == 2) {
-
-                // $data = [];
-
-                // $data['formType'] = FormType::find($form_type)->name;
-                // $data['images'] = $imageOnlyAttachments;
-                $printFormData =  json_decode($form_data, true);
-
-                $pdf = PDF::loadView('temp-form-template', $printFormData);
-            }
-
-            $content = $pdf->download()->getOriginalContent();
-
-            Storage::put('public/FormResponses/' . $uniqueFileName, $content);
-
-            $formData = json_decode($form_data, true);
-
-            // this if block is for fom type = 1
-
-            if (
-                array_key_exists("followUp_issue", $formData)
-                || array_key_exists("followUp_findings", $formData)
-                || array_key_exists("followUp_action_plan", $formData)
-                || array_key_exists("followUp_possible_solutions", $formData)
-                || array_key_exists("followUp_examine_result", $formData)
-            ) {
-                if (
-                    $formData["followUp_issue"] ||
-                    $formData["followUp_findings"] ||
-                    $formData["followUp_action_plan"] ||
-                    $formData["followUp_possible_solutions"] ||
-                    $formData["followUp_examine_result"]
-                ) {
-                    $form->is_follow_up_incomplete = 0;
-                } else {
-                    $form->is_follow_up_incomplete = 1;
-                }
-            } else {
-                $form->is_follow_up_incomplete = 1;
-            }
-
-            // this is for form type is other than 1
-
-            if (in_array($form_type, [2, 3])) {
-                $form->is_follow_up_incomplete = 0;
-            }
-
-            $form->save();
-
-
-            return $this->sendResultJSON("1", "Successfully Submitted", array("submitted_form_id" => $form->id, 'form_link' => Storage::url('public/FormResponses/' . $uniqueFileName), 'media_links' => $mediaLinks, 'isFollowUpIncomplete' => $form->is_follow_up_incomplete));
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
+        } else {
+            return response()->json([
+                'ResponseCode' => "11",
+                'ResponseText' => "Unauthorised"
+            ], 200);
         }
+
+        $validator = Validator::make($request->all(), [
+            "form_type" => "required",
+            "data" => "required",
+            "file.*" => "required"
+        ], [
+            "form_type.required" => "Please enter Form Type",
+            "data.required" => "Please enter Form Data",
+            "file.*.required" => "Please Upload File(s)",
+        ]);
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
+        }
+
+        $form_type = $request->input('form_type');
+        $form_data = $request->input('data');
+        $room_id = $request->input('room_id');
+        $follow_up_assigned_to = $request->input('follow_up_assigned_to');
+
+        return $this->formsAppService->saveForm(
+            $userId,
+            $form_type,
+            $form_data,
+            $room_id,
+            $follow_up_assigned_to,
+            $files
+        );
     }
 
     public function editGeneratedFormResponsePhase1(Request $request)
     {
-
-        // this will for form type 1,2
-
-        try {
-
-            $validator = Validator::make($request->all(), [
-                "form_id" => "required",
-                "data" => "required"
-            ], [
-                "form_id.required" => "Please enter Form Id",
-                "data.required" => "Please enter Form Data",
-            ]);
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $form_id = $request->input('form_id');
-            $form_data = $request->input('data');
-            $follow_up_assigned_to = $request->input('follow_up_assigned_to');
-            $files = $_FILES;
-
-
-
-            // $uniqueFileName = uniqid() . time() . '.pdf';
-
-            $existingFormResponse = FormResponse::find($form_id);
-
-            if ($existingFormResponse->form_type_id == 3) { // 'file' is signature
-
-                if (array_key_exists('file', $files)) {
-                    return $this->editGeneratedFormResponseForResidentMoveInSummaryReport($request, $files);
-                } else {
-                    return $this->sendResultJSON("0", "Signature is not sent");
-                }
-            }
-
-            if (!$existingFormResponse) {
-                return $this->sendResultJSON("0", "Form with This Id is not exist");
-            }
-
-            if ($existingFormResponse->file_name) {
-
-                Storage::delete('public/FormResponses/' . $existingFormResponse->file_name);
-            }
-
-
-
-            $existingFormResponse->form_response = json_decode($form_data, true);
-            // $existingFormResponse->file_name = $uniqueFileName;
-
-            $formData = json_decode($form_data, true);
-
-            // form type == 1
-
-            if (
-                array_key_exists("followUp_issue", $formData)
-                || array_key_exists("followUp_findings", $formData)
-                || array_key_exists("followUp_action_plan", $formData)
-                || array_key_exists("followUp_possible_solutions", $formData)
-                || array_key_exists("followUp_examine_result", $formData)
-            ) {
-                if (
-                    $formData["followUp_issue"] ||
-                    $formData["followUp_findings"] ||
-                    $formData["followUp_action_plan"] ||
-                    $formData["followUp_possible_solutions"] ||
-                    $formData["followUp_examine_result"]
-                ) {
-                    $existingFormResponse->is_follow_up_incomplete = 0;
-                } else {
-                    $existingFormResponse->is_follow_up_incomplete = 1;
-                }
-            } else {
-                $existingFormResponse->is_follow_up_incomplete = 1;
-            }
-
-            // form type != 1
-
-            if (in_array($existingFormResponse->form_type_id, [2, 3])) {
-                $existingFormResponse->is_follow_up_incomplete = 0;
-            }
-
-            $existingFormResponse->follow_up_assigned_to = (!empty($follow_up_assigned_to) && $existingFormResponse->form_type_id == 1) ? $follow_up_assigned_to : 0;
-
-            $existingFormResponse->save();
-
-            // $formData =  (array)json_decode($form_data,true); 
-            // $formDataArray = json_decode($formData[0],true);
-
-            // $data = [];
-            // $data['formType'] = FormType::find($existingFormResponse->form_type_id)->name;
-            // $data['data'] =json_decode($form_data,true);
-            // $data['images'] = [];
-
-            // $pdf = PDF::loadView('form-template', $data);
-            // $content = $pdf->download()->getOriginalContent();
-
-            // Storage::put('public/FormResponses/'.$uniqueFileName,$content);
-
-            $newLink = $this->regenerateFormResponsePhase1($form_id);
-
-
-
-
-            return $this->sendResultJSON("1", "Successfully Submitted", array('new_form_link' => $newLink, 'isFollowUpIncomplete' => $existingFormResponse->is_follow_up_incomplete));
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
-        }
-    }
-
-    public function editGeneratedFormResponseForResidentMoveInSummaryReport(Request $request, $files)
-    { // form type == 3
-
-        try {
-
-            $validator = Validator::make($request->all(), [
-                "form_id" => "required",
-                "data" => "required"
-            ], [
-                "form_id.required" => "Please enter Form Id",
-                "data.required" => "Please enter Form Data",
-            ]);
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $form_id = $request->input('form_id');
-            $form_data = $request->input('data');
-
-            // $uniqueFileName = uniqid() . time() . '.pdf';
-
-            $existingFormResponse = FormResponse::find($form_id);
-
-            if (!$existingFormResponse) {
-                return $this->sendResultJSON("0", "Form with This Id is not exist");
-            }
-
-            if ($existingFormResponse->file_name) {
-
-                Storage::delete('public/FormResponses/' . $existingFormResponse->file_name);
-            }
-
-
-
-            $existingFormResponse->form_response = json_decode($form_data, true);
-            // $existingFormResponse->file_name = $uniqueFileName;
-
-            $formData = json_decode($form_data, true);
-
-            if (in_array($existingFormResponse->form_type_id, [2, 3])) {
-                $existingFormResponse->is_follow_up_incomplete = 0;
-            }
-
-            $existingFormResponse->save();
-
-            // $formData =  (array)json_decode($form_data,true); 
-            // $formDataArray = json_decode($formData[0],true);
-
-            // $data = [];
-            // $data['formType'] = FormType::find($existingFormResponse->form_type_id)->name;
-            // $data['data'] =json_decode($form_data,true);
-            // $data['images'] = [];
-
-            // $pdf = PDF::loadView('form-template', $data);
-            // $content = $pdf->download()->getOriginalContent();
-
-            // Storage::put('public/FormResponses/'.$uniqueFileName,$content);
-
-            $newLink = $this->regenerateFormUiResponseForResidentMoveInSummary($form_id, $files);
-
-
-
-
-            return $this->sendResultJSON("1", "Successfully Submitted", array('new_form_link' => $newLink, 'isFollowUpIncomplete' => $existingFormResponse->is_follow_up_incomplete));
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
-        }
-    }
-
-    public function regenerateFormUiResponseForResidentMoveInSummary($formId, $files)
-    {
-
-        $mediaLinks = [];
-
-        $uniqueFileName = uniqid() . time() . '.pdf';
-
-        $existingFormResponse = FormResponse::find($formId);
-
-        $existingFormResponse->file_name = $uniqueFileName;
-
-        $existingFormResponse->save();
-
-        foreach ($files as $key => $file) {
-
-            $fileExtension = explode("/", $file['type']);
-
-            if ($fileExtension[0] == 'image') {
-
-                $mediaFileName = uniqid() . time() . '.' . end($fileExtension);
-                Storage::put('public/FormResponses/media/' . $mediaFileName, file_get_contents($file['tmp_name']));
-                $mediaLinks[] = Storage::url('public/FormResponses/media/' . $mediaFileName);
-
-                FormMediaAttachments::where(['form_response_id' => $existingFormResponse->id])->delete();
-
-                $attachmentCreated = FormMediaAttachments::create([
-                    'name' => $mediaFileName,
-                    'form_response_id' => $existingFormResponse->id,
-                    'type' => $fileExtension[0],
-                    'file_extension' => end($fileExtension),
-                    'size_in_kb' => ceil($file['size'] / 1024),
-                    'thumbnail' => null
-                ]);
-            }
+        $validator = Validator::make($request->all(), [
+            "form_id" => "required",
+            "data" => "required"
+        ], [
+            "form_id.required" => "Please enter Form Id",
+            "data.required" => "Please enter Form Data",
+        ]);
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
 
-        $data = [];
+        $form_id = $request->input('form_id');
+        $form_data = $request->input('data');
+        $follow_up_assigned_to = $request->input('follow_up_assigned_to');
+        $files = $_FILES;
 
-        $newFormData = $existingFormResponse->form_response;
-
-        $data =  $newFormData;
-        $data['signature'] = $mediaLinks[0];
-
-        $pdf = null;
-
-        $pdf = PDF::loadView('resident-move-in-summary', $data);
-
-        if (empty($pdf)) {
-            return $this->sendResultJSON("0", "Unknown Form Type Id in Edit Form Response:-" . $existingFormResponse->form_type_id);
-        }
-
-        $content = $pdf->download()->getOriginalContent();
-
-        Storage::put('public/FormResponses/' . $uniqueFileName, $content);
-
-        return Storage::url('public/FormResponses/' . $uniqueFileName);
-    }
-
-    public function regenerateFormResponsePhase1($formId)
-    {
-
-        try {
-
-            $uniqueFileName = uniqid() . time() . '.pdf';
-
-            $existingFormResponse = FormResponse::find($formId);
-
-            if ($existingFormResponse->file_name) {
-
-                Storage::delete('public/FormResponses/' . $existingFormResponse->file_name);
-            }
-
-            $existingFormResponse->file_name = $uniqueFileName;
-
-            $existingFormResponse->save();
-
-            // $formData =  (array)json_decode($form_data,true); 
-            // $formDataArray = json_decode($formData[0],true);
-
-            $results = FormMediaAttachments::where([
-                'form_response_id' => $formId,
-                'type' => 'image'
-            ])->get();
-
-            $images = [];
-
-            foreach ($results as $attachment) {
-                $images[] = Storage::url('public/FormResponses/media/' . $attachment['name']);
-            }
-
-            $data = [];
-
-            $data['formType'] = FormType::find($existingFormResponse->form_type_id)->name;
-            $data['images'] = $images;
-            $newFormData = $existingFormResponse->form_response;
-
-            $data = array_merge($data, $newFormData);
-
-            $pdf = null;
-
-            if ($existingFormResponse->form_type_id == 3) {
-                $pdf = PDF::loadView('resident-move-in-summary', $data);
-            }
-            if ($existingFormResponse->form_type_id == 1) {
-
-                $data['followUp_done_by'] = $existingFormResponse->follow_up_assigned_to ? User::find($existingFormResponse->follow_up_assigned_to)->name : null;
-                $pdf = PDF::loadView('demo-form-copy-backup', $data);
-            }
-            if ($existingFormResponse->form_type_id == 2) {
-                $pdf = PDF::loadView('temp-form-template', $data);
-            }
-
-            if (empty($pdf)) {
-                return $this->sendResultJSON("0", "Unknown Form Type Id in Edit Form Response:-" . $existingFormResponse->form_type_id);
-            }
-
-            $content = $pdf->download()->getOriginalContent();
-
-            Storage::put('public/FormResponses/' . $uniqueFileName, $content);
-
-            return Storage::url('public/FormResponses/' . $uniqueFileName);
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", "Edit PDF Method:- " . $e->getMessage());
-        }
+        return $this->formsAppService->editGeneratedFormResponse(
+            $form_id,
+            $form_data,
+            $follow_up_assigned_to,
+            $files
+        );
     }
 
     public function addAttachmentsToExistingFormPhase1(Request $request)
     {
+        $validator = Validator::make($request->all(), [
+            "form_id" => "required",
+            "file.*" => "required"
+        ], [
+            "form_id.required" => "Please enter Form Id",
+            "file.*.required" => "Please Upload File(s)",
+        ]);
 
-        try {
-            $files = $_FILES;
-            $validator = Validator::make($request->all(), [
-                "form_id" => "required",
-                "file.*" => "required"
-            ], [
-                "form_id.required" => "Please enter Form Id",
-                "file.*.required" => "Please Upload File(s)",
-            ]);
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $imageOnlyAttachments = [];
-            $mediaLinks = [];
-
-            $formId = $request->input('form_id');
-
-
-            foreach ($files as $key => $file) {
-
-                $thumbnailFileName = null;
-
-
-                if (substr($key, 0, -1) != 'thumbnail') { // remove the trailing 1,2 .....
-
-                    $fileExtension = explode("/", $file['type']);
-                    $mediaFileName = uniqid() . time() . '.' . end($fileExtension);
-                    Storage::put('public/FormResponses/media/' . $mediaFileName, file_get_contents($file['tmp_name']));
-                    $mediaLinks[] = Storage::url('public/FormResponses/media/' . $mediaFileName);
-
-                    if ($fileExtension[0] == 'image') {
-                        $imageOnlyAttachments[] = Storage::url('public/FormResponses/media/' . $mediaFileName);
-                    }
-
-                    if (array_key_exists("thumbnail" . substr($key, -1), $files) && $fileExtension[0] == 'video') {
-
-                        $originalThumbnailFile = $files["thumbnail" . substr($key, -1)];
-
-                        $thumbnailExtension = explode("/", $originalThumbnailFile['type']);
-                        $thumbnailFileName = uniqid() . time() . '.' . end($thumbnailExtension);
-                        Storage::put('public/FormResponses/media/thumbnail/' . $thumbnailFileName, file_get_contents($originalThumbnailFile['tmp_name']));
-                    }
-
-                    $attachmentCreated = FormMediaAttachments::create([
-                        'name' => $mediaFileName,
-                        'form_response_id' => $formId,
-                        'type' => $fileExtension[0],
-                        'file_extension' => end($fileExtension),
-                        'size_in_kb' => ceil($file['size'] / 1024),
-                        'thumbnail' => $thumbnailFileName
-                    ]);
-                }
-            }
-
-            $results = FormMediaAttachments::where([
-                'form_response_id' => $formId,
-            ])->orderBy('id', 'DESC')->get();
-
-            $attachments = [];
-
-            foreach ($results as $attachment) {
-                $attachments[] = $attachment;
-            }
-
-            $newLink = $this->regenerateFormResponsePhase1($formId);
-
-            return $this->sendResultJSON("1", "Attachments Uploaded Successfully", array("new_form_link" => $newLink, "attachments" => $attachments));
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
+
+        $formId = $request->get('form_id');
+        $files = $_FILES;
+        return $this->formResponseService
+            ->addAttachmentsToExistingForm($formId, $files);
     }
 
     public function deleteFormAttachmentPhase1(Request $request)
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                "form_id" => "required",
-                "attachment_id" => "required"
-            ], [
-                "form_id.required" => "Please enter Form Id",
-                "attachment_id.required" => "Please enter Attachment Id"
-            ]);
-            if ($validator->fails()) {
-                return $this->sendResultJSON("2", $validator->errors()->first());
-            }
-
-            $attachmentId = $request->get('attachment_id');
-            $formId = $request->get('form_id');
-
-            FormMediaAttachments::where(['id' => $attachmentId, 'form_response_id' => $formId])->delete();
-
-            $attachments = FormMediaAttachments::where('form_response_id', $formId)->orderBy('id', 'DESC')->get();
-
-            $newLink = $this->regenerateFormResponsePhase1($formId);
-
-            return $this->sendResultJSON("1", "Attachment Deleted Successfully", array("newLink" => $newLink, "attachments" => $attachments));
-        } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
+        $validator = Validator::make($request->all(), [
+            "form_id" => "required",
+            "attachment_id" => "required"
+        ], [
+            "form_id.required" => "Please enter Form Id",
+            "attachment_id.required" => "Please enter Attachment Id"
+        ]);
+        
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                "2",
+                $validator->errors()->first()
+            );
         }
+
+        $attachmentId = $request->get('attachment_id');
+        $formId = $request->get('form_id');
+        
+        return $this->formResponseService
+            ->deleteFormAttachment($formId, $attachmentId);
     }
 
     public function printOrderDataTemp(Request $request)
@@ -5333,28 +4549,28 @@ class DinningController extends Controller
             $preference_details = array();
 
             $preferences = ItemPreference::all();
-            foreach (count($preferences) > 0 ? $preferences : array() as $p) {
-                $preference_details[$p->id] = array("name" => $p->pname, "name_cn" => ($p->pname_cn != null ? $p->pname_cn : $p->pname));
+            foreach ($preferences as $p) {
+                $preference_details[$p->id] = array(
+                    "name" => $p->pname,
+                    "name_cn" => $p->pname_cn ?? $p->pname
+                );
             }
 
             $category_details = array();
 
             $categoryDetails = CategoryDetail::all();
-            foreach (count($categoryDetails) > 0 ? $categoryDetails : array() as $cd) {
+            foreach ($categoryDetails as $cd) {
 
 
                 if ($cd->type == 1) {
-
                     $category_details["breakfast"][] = $cd->id;
                 }
 
                 if ($cd->type == 2) {
-
                     $category_details["lunch"][] = $cd->id;
                 }
 
                 if ($cd->type == 3) {
-
                     $category_details["dinner"][] = $cd->id;
                 }
             }
@@ -5377,16 +4593,13 @@ class DinningController extends Controller
 
             $order_data = OrderDetail::where("date", $date)->orderBy("id", "asc")->get();
 
-            foreach (count($order_data) > 0 ? $order_data : array() as $o) {
+            foreach ($order_data as $o) {
 
                 $breakfast = $lunch = $dinner = array();
 
                 if (array_key_exists($meal_type, $category_details)) {
-
                     if ($o->itemData) {
-
                         if (!in_array($o->itemData->categoryData->type, $category_details[$meal_type])) {
-
                             continue;
                         }
                     }
@@ -5405,12 +4618,6 @@ class DinningController extends Controller
 
                 if (isset($o->itemData) && isset($o->itemData->categoryData)) {
 
-                    // if (in_array($o->id , $ordersEncountered)){
-                    //     continue;
-                    // }
-
-                    // $ordersEncountered[] = $o->id;
-
                     $cat_data = $o->itemData->categoryData;
                     $type = intval($cat_data->type);
                     if ($o->item_options != "") {
@@ -5423,7 +4630,7 @@ class DinningController extends Controller
 
                     if ($o->preference != "") {
                         $c_preferences = explode(",", $o->preference);
-                        foreach (count($c_preferences) > 0 ? $c_preferences : array() as $cp) {
+                        foreach ($c_preferences as $cp) {
                             $cp = intval($cp);
                             if ($preference_details[$cp]) {
                                 array_push($preference_array, $preference_details[$cp]['name']);
@@ -5432,7 +4639,16 @@ class DinningController extends Controller
                     }
 
                     $o->cat_id = intval($o->itemData->categoryData->id);
-                    $data = array("category" => (intval($cat_data->parent_id) == 0 ? $cat_data->cat_name : ($cat_data->catParentId ? $cat_data->catParentId->cat_name : "")), "sub_cat" => (intval($cat_data->parent_id) == 0 ? "" : $cat_data->cat_name), "item_name" => $o->itemData->item_name, "quantity" => intval($o->quantity), "options" => $option_details, "preference" => $preference_array, "order_id" => $o->id);
+                    $data = array(
+                        "category" => (intval($cat_data->parent_id) == 0 ? $cat_data->cat_name : ($cat_data->catParentId ? $cat_data->catParentId->cat_name : "")),
+                        "sub_cat" => (intval($cat_data->parent_id) == 0 ? "" : $cat_data->cat_name),
+                        "item_name" => $o->itemData->item_name,
+                        "quantity" => intval($o->quantity),
+                        "options" => $option_details,
+                        "preference" => $preference_array,
+                        "order_id" => $o->id
+                    );
+
                     if (!in_array(intval($o->itemData->categoryData->id), [2, 7, 10, 13])) { // LUNCH SOUP , LUNCH DESSERT, DINNER DESSERT , 13 is deleted
 
                         if ($type == 1) {
@@ -5450,16 +4666,9 @@ class DinningController extends Controller
 
                 $spi_data = RoomDetail::selectRaw("special_instrucations,food_texture,resident_name,room_name")->where("id", $room_id)->first();
 
-                if ($spi_data)
-                    $instruction = $spi_data->special_instrucations;
-
-                $food_texture = $spi_data ? $spi_data->food_texture : "";
-
-                $resident_name = "NA";
-
-                if ($spi_data) {
-                    $resident_name = $spi_data->resident_name != null ? $spi_data->resident_name : "NA";
-                }
+                $instruction = $spi_data?->special_instrucations;
+                $food_texture = $spi_data?->food_texture ?? "";
+                $resident_name = $spi_data?->resident_name ?? "NA";
 
                 if ($o->is_for_guest) {
 
@@ -5472,53 +4681,29 @@ class DinningController extends Controller
                 $items = null;
 
                 if ($meal_type == 'breakfast') {
-
                     $items = $breakfast;
-                    // $items = $combinedItemsData[$room_id]['breakfast'][$o->is_for_guest];
-
                 } else if ($meal_type == 'lunch') {
-
                     $items = $lunch;
                 } else if ($meal_type == 'dinner') {
-
                     $items = $dinner;
                 }
-
-
-                // $finalData[] = [
-                //         "Items" => $items,
-                //         'special_instruction' => $instruction, 
-                //         'food_texture' => $food_texture,
-                //         'resident_name' => $resident_name ,
-                //         'is_brk_tray_service' => $lastOrder ? $lastOrder->is_brk_tray_service : 0 , 
-                //         'is_lunch_tray_service' => $lastOrder ? $lastOrder->is_lunch_tray_service : 0,
-                //         'is_dinner_tray_service' => $lastOrder ? $lastOrder->is_dinner_tray_service : 0, 
-                //         'is_brk_escort_service' => $lastOrder ? $lastOrder->is_brk_escort_service : 0, 
-                //         'is_lunch_escort_service' => $lastOrder ? $lastOrder->is_lunch_escort_service : 0,
-                //         'is_dinner_escort_service' => $lastOrder ? $lastOrder->is_dinner_escort_service : 0 ,
-                //         'room_id' => $o->is_for_guest ? 0 : $room_id,
-                //         'room_name' => $o->is_for_guest ? $spi_data->room_name . " Guest" : $spi_data->room_name,
-                //         'is_guest' => $o->is_for_guest
-
-                // ];
 
                 $finalData[] = [
                     'special_instruction' => $instruction,
                     'food_texture' => $food_texture,
                     'resident_name' => $resident_name,
-                    'is_brk_tray_service' => $lastOrder ? $lastOrder->is_brk_tray_service : 0,
-                    'is_lunch_tray_service' => $lastOrder ? $lastOrder->is_lunch_tray_service : 0,
-                    'is_dinner_tray_service' => $lastOrder ? $lastOrder->is_dinner_tray_service : 0,
-                    'is_brk_escort_service' => $lastOrder ? $lastOrder->is_brk_escort_service : 0,
-                    'is_lunch_escort_service' => $lastOrder ? $lastOrder->is_lunch_escort_service : 0,
-                    'is_dinner_escort_service' => $lastOrder ? $lastOrder->is_dinner_escort_service : 0,
-                    'is_brk_takeout_service' => $lastOrder ? $lastOrder->is_brk_takeout_service : 0,
-                    'is_lunch_takeout_service' => $lastOrder ? $lastOrder->is_lunch_takeout_service : 0,
-                    'is_dinner_takeout_service' => $lastOrder ? $lastOrder->is_dinner_takeout_service : 0,
+                    'is_brk_tray_service' => $lastOrder?->is_brk_tray_service ?? 0,
+                    'is_lunch_tray_service' => $lastOrder?->is_lunch_tray_service ?? 0,
+                    'is_dinner_tray_service' => $lastOrder?->is_dinner_tray_service ?? 0,
+                    'is_brk_escort_service' => $lastOrder?->is_brk_escort_service ?? 0,
+                    'is_lunch_escort_service' => $lastOrder?->is_lunch_escort_service ?? 0,
+                    'is_dinner_escort_service' => $lastOrder?->is_dinner_escort_service ?? 0,
+                    'is_brk_takeout_service' => $lastOrder?->is_brk_takeout_service ?? 0,
+                    'is_lunch_takeout_service' => $lastOrder?->is_lunch_takeout_service ?? 0,
+                    'is_dinner_takeout_service' => $lastOrder?->is_dinner_takeout_service ?? 0,
                     'room_id' => $o->room_id,
-                    'room_name' => $o->is_for_guest ? $spi_data->room_name . " Guest" : $spi_data->room_name,
+                    'room_name' => $spi_data->room_name . ($o->is_for_guest ? " Guest" : ""),
                     'is_guest' => $o->is_for_guest
-
                 ];
             }
         }
@@ -5548,60 +4733,17 @@ class DinningController extends Controller
 
     public function getMoveInSummaryValues()
     {
-
-        $data = MoveInSummaryValues::select('key_param', 'value')->get();
-
-        $finalData = [];
-
-        foreach ($data as $row) {
-
-            $finalData[$row->key_param] = $row->value;
-        }
-
-        return $this->sendResultJSON('1', '', array('Data' => $finalData));
+        return $this->$formsAppService->getMoveInSummaryValues();
     }
 
     public function getRoomDetails($room_id)
     {
-
-        try{
-
-            $roomDetails = RoomDetail::find($room_id);
-
-            if (!$roomDetails) {
-                return $this->sendResultJSON("0", "Room Not Found");
-            }
-
-            return $this->sendResultJSON("1", "Room Details Found", array('Data' => $roomDetails));
-
-        }
-
-        catch (\Exception $e) {
-            return $this->sendResultJSON("0", "Error in fetching room details: " . $e->getMessage());
-        }
-
+        return $this->$diningAppService->getRoomDetails($room_id);
     }
 
-    public function updateRoomDetails(Request $request , $room_id){
-
-        try{
-
-            $roomDetails = RoomDetail::find($room_id);
-
-            if (!$roomDetails) {
-                return $this->sendResultJSON("0", "Room Not Found");
-            }
-
-            $roomDetails->update($request->all());
-
-            return $this->sendResultJSON("1", "Room Details Updated Successfully");
-
-        }
-
-        catch (\Exception $e) {
-            return $this->sendResultJSON("0", "Error in updating room details: " . $e->getMessage());
-        }
-
+    public function updateRoomDetails(Request $request, $room_id)
+    {
+        return $this->diningAppService->updateRoomDetails($room_id, $request->all());
     }
 
     public function getCategorySpecificItems(Request $request){
@@ -5645,8 +4787,6 @@ class DinningController extends Controller
         catch (\Exception $e) {
             return $this->sendResultJSON("0", "Error in fetching items: " . $e->getMessage());
         }
-
-
     }
 
     public function logActivity() {}

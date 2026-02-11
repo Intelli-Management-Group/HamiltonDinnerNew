@@ -35,8 +35,23 @@ use App\Repositories\Eloquent\RoomDetailRepository;
 use App\Repositories\Contracts\SettingRepositoryInterface;
 use App\Repositories\Eloquent\SettingRepository;
 
-use App\Repositories\Contracts\FormTypeRepositoryInterface;
-use App\Repositories\Eloquent\FormTypeRepository;
+use App\Repositories\Contracts\OrderDetailRepositoryInterface;
+use App\Repositories\Eloquent\OrderDetailRepository;
+
+use App\Repositories\Contracts\Forms\FormMediaAttachmentsRepositoryInterface;
+use App\Repositories\Eloquent\Forms\FormMediaAttachmentsRepository;
+
+use App\Repositories\Contracts\Forms\FormResponseRepositoryInterface;
+use App\Repositories\Eloquent\Forms\FormResponseRepository;
+
+use App\Repositories\Contracts\Forms\FormTypeRepositoryInterface;
+use App\Repositories\Eloquent\Forms\FormTypeRepository;
+
+use App\Repositories\Contracts\Forms\MoveInSummaryValuesRepositoryInterface;
+use App\Repositories\Eloquent\Forms\MoveInSummaryValuesRepository;
+
+use App\Repositories\Contracts\Reports\ChargeReportRepositoryInterface;
+use App\Repositories\Eloquent\Reports\ChargeReportRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -61,7 +76,16 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(MenuDetailRepositoryInterface::class, MenuDetailRepository::class);
         $this->app->bind(RoomDetailRepositoryInterface::class, RoomDetailRepository::class);
         $this->app->bind(SettingRepositoryInterface::class, SettingRepository::class);
+        $this->app->bind(OrderDetailRepositoryInterface::class, OrderDetailRepository::class);
+
+        // Forms Repositories
+        $this->app->bind(FormMediaAttachmentsRepositoryInterface::class, FormMediaAttachmentsRepository::class);
+        $this->app->bind(FormResponseRepositoryInterface::class, FormResponseRepository::class);
         $this->app->bind(FormTypeRepositoryInterface::class, FormTypeRepository::class);
+        $this->app->bind(MoveInSummaryValuesRepositoryInterface::class, MoveInSummaryValuesRepository::class);
+
+        // Report Repositories
+        $this->app->bind(ChargeReportRepositoryInterface::class, ChargeReportRepository::class);
     }
 
     /**

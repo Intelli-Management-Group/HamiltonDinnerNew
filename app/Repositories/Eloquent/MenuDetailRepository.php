@@ -19,6 +19,41 @@ class MenuDetailRepository implements MenuDetailRepositoryInterface
         return $this->model->find($id);
     }
 
+    /** 
+     * Find MenuDetail by date.
+     * 
+     * @param string $date
+     * @return MenuDetail|null
+     */
+    public function findByDate(string $date): ?MenuDetail
+    {
+        return $this->model
+            ->whereDate('date', $date) // whereDate is from Eloquent's query builder
+            ->first();
+    }
+
+    /** Find most recent MenuDetail.
+     * 
+     * @return MenuDetail|null
+     */
+    public function findLatest(): ?MenuDetail
+    {
+        return $this->model
+            ->orderBy('date', 'desc')
+            ->first();
+    }
+
+    /** 
+     * Find most recent MenuDetail date.
+     * 
+     * @return string|null
+     */
+    public function findLatestDate(): ?string
+    {
+        return optional($this->findLatest())->date;
+    }
+
+
     public function query(array $filters = []): Builder
     {
         return $this->model->latest();
@@ -34,9 +69,12 @@ class MenuDetailRepository implements MenuDetailRepositoryInterface
             ->paginate($perPage, ['*'], 'page', $pageNumber);
     }
 
-    public function getAll(array $filters = []): Collection
+    public function getAll(
+        array $filters = [],
+        array $columns = ['*']
+    ): Collection
     {
-        return $this->query($filters)->get();
+        return $this->query($filters)->get($columns);
     }
 
     public function findSoftDeletedByDate(string $date): ?MenuDetail

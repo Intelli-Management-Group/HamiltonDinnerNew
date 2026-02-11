@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Repositories\Eloquent;
+namespace App\Repositories\Eloquent\Forms;
 
 use App\Models\FormType;
-use App\Repositories\Contracts\FormTypeRepositoryInterface;
+use App\Repositories\Contracts\Forms\FormTypeRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;

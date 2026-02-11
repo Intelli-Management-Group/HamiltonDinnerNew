@@ -51,8 +51,10 @@ class RoomDetailService
             $pageNumber = (int)($params['pagenumber'] ?? 1);
 
             /** @var LengthAwarePaginator $rooms */
-            $rooms = $this->roomDetails->paginateWithActiveStatus(
-                $filters, $pageSize, $pageNumber
+            $rooms = $this->roomDetails->paginate(
+                filters: $filters,
+                perPage: $pageSize,
+                pageNumber: $pageNumber
             );
 
             return [
@@ -73,7 +75,9 @@ class RoomDetailService
         }
 
         /** @var Collection $rooms */
-        $rooms = $this->roomDetails->getAllWithActiveStatus($filters);
+        $rooms = $this->roomDetails->getAll(
+            filters: $filters
+        );
 
         return [
             'statusCode' => 200,

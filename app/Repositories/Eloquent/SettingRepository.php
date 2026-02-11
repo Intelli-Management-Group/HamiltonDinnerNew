@@ -7,6 +7,7 @@ use App\Repositories\Contracts\SettingRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class SettingRepository implements SettingRepositoryInterface
 {
@@ -70,5 +71,12 @@ class SettingRepository implements SettingRepositoryInterface
     public function bulkDeleteByIds(array $ids): int
     {
         return $this->model->whereIn('id', $ids)->delete();
+    }
+
+    public function getAllKeyValues(): array
+    {
+        return DB::table('settings')
+            ->pluck('value', 'key')
+            ->toArray();
     }
 }

@@ -11,17 +11,22 @@ interface UserRepositoryInterface
 {
     public function findById($id): ?User;
 
-    public function findWithPermissionsById($id): ?User;
-
-    public function queryWithPermissions(array $filters = []): Builder;
-
-    public function paginateWithPermissions(
+    public function query(
         array $filters = [],
+        array $relations = [],
+    ): Builder;
+
+    public function paginate(
+        array $filters = [],
+        array $relations = [],
         int $perPage = 15,
         int $page = 1
     ): LengthAwarePaginator;
 
-    public function getAllWithPermissions(array $filters = []): Collection;
+    public function getAll(
+        array $filters = [],
+        array $relations = []
+    ): Collection;
 
     public function findSoftDeletedById($id): ?User;
 

@@ -39,5 +39,10 @@ class FormResponse extends Model
     public function attachments(){
         return $this->hasMany(FormMediaAttachments::class);
     }
-    
+
+    /** Scope a query to retrieve form responses with their form type. */
+    public function scopeWithFormType($query)
+    {
+        return $query->with('formType');
+    }
 }

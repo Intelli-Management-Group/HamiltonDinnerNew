@@ -2,14 +2,16 @@
 
 namespace App\Repositories\Contracts;
 
-use App\Models\FormType;
+use App\Models\OrderDetail;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-interface FormTypeRepositoryInterface
+interface OrderDetailRepositoryInterface
 {
-    public function findById($id): ?FormType;
+    public function findById($id): ?OrderDetail;
+
+    public function findOrderReportSummaries(string $date, array $ids): Collection;
 
     public function query(array $filters = []): Builder;
 
@@ -21,11 +23,11 @@ interface FormTypeRepositoryInterface
 
     public function getAll(array $filters = []): Collection;
 
-    public function create(array $data): FormType;
+    public function create(array $data): OrderDetail;
 
-    public function save(FormType $formType): FormType;
+    public function save(OrderDetail $orderDetail): OrderDetail;
 
-    public function delete(FormType $formType): bool;
+    public function delete(OrderDetail $orderDetail): bool;
 
     public function bulkDeleteByIds(array $ids): int;
 }

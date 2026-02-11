@@ -11,6 +11,12 @@ interface MenuDetailRepositoryInterface
 {
     public function findById($id): ?MenuDetail;
 
+    public function findByDate(string $date): ?MenuDetail;
+
+    public function findLatest(): ?MenuDetail;
+
+    public function findLatestDate(): ?string;
+
     public function query(array $filters = []): Builder;
 
     public function paginate(

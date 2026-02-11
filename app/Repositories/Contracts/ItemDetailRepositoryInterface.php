@@ -11,6 +11,11 @@ interface ItemDetailRepositoryInterface
 {
     public function findById($id): ?ItemDetail;
 
+    public function findOrderReportSummaries(
+        array $ids, 
+        array $columns = ['id', 'item_name', 'cat_id']
+    ): Collection;
+
     public function queryWithCategoryId(array $filters = []): Builder;
 
     public function paginateWithCategoryId(

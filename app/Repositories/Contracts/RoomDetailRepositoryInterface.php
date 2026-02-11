@@ -11,15 +11,23 @@ interface RoomDetailRepositoryInterface
 {
     public function findById($id): ?RoomDetail;
 
-    public function queryWithActiveStatus(array $filters = []): Builder;
-
-    public function paginateWithActiveStatus(
+    public function query(
         array $filters = [],
+        array $relations = []
+    ): Builder;
+
+    public function paginate(
+        array $filters = [],
+        array $relations = [],
         int $perPage = 15,
         int $pageNumber = 1
     ): LengthAwarePaginator;
 
-    public function getAllWithActiveStatus(array $filters = []): Collection;
+    public function getAll(
+        array $filters = [],
+        array $relations = [],
+        array $columns = ['*']
+    ): Collection;
 
     public function create(array $data): RoomDetail;
 

@@ -54,8 +54,11 @@ class UserService
             $pageNumber = (int)($params['pagenumber'] ?? 1);
 
             /** @var LengthAwarePaginator $users */
-            $users = $this->users->paginateWithPermissions(
-                $filters, $pageSize, $pageNumber
+            $users = $this->users->paginate(
+                filters: $filters, 
+                relations: ['permissions'],
+                pageSize: $pageSize,
+                pageNumber: $pageNumber
             );
 
             return [
@@ -76,7 +79,10 @@ class UserService
         }
 
         /** @var Collection $users */
-        $users = $this->users->getAllWithPermissions($filters);
+        $users = $this->users->getAll(
+            filters: $filters,
+            relations: ['permissions']
+        );
 
         return [
             'statusCode' => 200,
@@ -90,7 +96,7 @@ class UserService
 
     public function show(int $id): array
     {
-        $user = $this->users->findWithPermissionsById($id);
+        $user = $this->users->findById($id);
 
         if (!$user) {
             return [

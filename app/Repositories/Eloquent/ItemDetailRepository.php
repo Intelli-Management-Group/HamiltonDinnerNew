@@ -19,6 +19,22 @@ class ItemDetailRepository implements ItemDetailRepositoryInterface
         return $this->model->find($id);
     }
 
+    public function findOrderReportSummaries(
+        array $ids, 
+        array $columns = ['id', 'item_name', 'cat_id']
+    ): Collection
+    {
+        if (empty($ids)) {
+            return collect();
+        }
+
+        return $this->model
+            ->select($columns)
+            ->whereIn('id', $ids)
+            ->orderBy('cat_id')
+            ->get();
+    }
+
     public function queryWithCategoryId(array $filters = []): Builder
     {
         return $this->model

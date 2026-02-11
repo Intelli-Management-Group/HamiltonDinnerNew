@@ -10,46 +10,81 @@ use Illuminate\Database\Eloquent\Collection;
 
 class UserRepository implements UserRepositoryInterface
 {
+    // Allowed relations and scopes for eager loading
+    private const ALLOWED_RELATIONS = [
+        'role',
+        'permissions',
+    ];
+
     public function __construct(
         private User $model
     ) {}
 
-    public function findById($id): ?User
+    public function findById(
+        int $id,
+        array $filters = [],
+        array $relations = [],
+    ): ?User
     {
-        return $this->model->find($id);
+        return $this->query($filters, $relations)->find($id);
     }
 
-    public function findWithPermissionsById($id): ?User
+    public function query(
+        array $filters = [],
+        array $relations = [],
+    ): Builder
     {
-        // withPermissions() is a local scope defined in the User model
-        // to eager load permissions relationship.
-        // Please refer to scopeWithPermissions() in User model for details.
-        return $this->model->withPermissions()->find($id);
-    }
+        $query = $this->model->newQuery();
 
-    public function queryWithPermissions(array $filters = []): Builder
-    {
+        // Eager load allowed relations
+        $query = $this->applyRelations($query, $relations);
+
+        if (!empty($filters['role_id'])) {
+            if (is_array($filters['role_id'])) {
+                $query->whereIn('role_id', $filters['role_id']);
+            } else {
+                $query->where('role_id', $filters['role_id']);
+            }
+        }
+
+        if (!empty($filters['deleted_at'])) {
+            if ($filters['deleted_at'] === 'only') {
+                $query->onlyTrashed();
+            } elseif ($filters['deleted_at'] === 'with') {
+                $query->withTrashed();
+            } elseif ($filters['deleted_at'] === 'without') {
+                $query->whereNull('deleted_at');
+            }
+        }
+
+        // Apply allowed scopes
         // search() is a local scope defined in the User model
         // for filtering based on search criteria.
         // Please refer to scopeSearch() in User model for details.
-        return $this->model->withPermissions()
-            ->search($filters['search'] ?? null)
-            ->latest();
-    }
+        if (!empty($filters['search'])) {
+            $query->search($filters['search']);
+        }
 
-    public function paginateWithPermissions(
-        array $filters = [], 
-        int $pageSize = 15, 
+        return $query->latest();
+    }
+    
+    public function paginate(
+        array $filters = [],
+        array $relations = [],
+        int $pageSize = 15,
         int $pageNumber = 1
     ): LengthAwarePaginator
     {
-        return $this->queryWithPermissions($filters)
+        return $this->query($filters, $relations)
             ->paginate($pageSize, ['*'], 'page', $pageNumber);
     }
 
-    public function getAllWithPermissions(array $filters = []): Collection
+    public function getAll(
+        array $filters = [],
+        array $relations = []
+    ): Collection
     {
-        return $this->queryWithPermissions($filters)->get();
+        return $this->query($filters, $relations)->get();
     }
 
     public function findSoftDeletedByEmail(string $email): ?User
@@ -81,5 +116,20 @@ class UserRepository implements UserRepositoryInterface
         return $this->model
             ->whereIn('id', $ids)
             ->delete();
+    }
+
+    // Helper functions to apply filters, relations, and scopes
+    private function applyRelations(
+        Builder $query,
+        array $relations
+    ): Builder
+    {
+        $safe_relations = array_values(array_intersect($relations, self::ALLOWED_RELATIONS));
+
+        if (!empty($safe_relations)) {
+            $query->with($safe_relations);
+        }
+
+        return $query;
     }
 }
