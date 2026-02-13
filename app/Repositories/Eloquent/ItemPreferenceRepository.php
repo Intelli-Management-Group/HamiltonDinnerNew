@@ -45,6 +45,11 @@ class ItemPreferenceRepository implements ItemPreferenceRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): ItemPreference
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(ItemPreference $itemPreference): ItemPreference
     {
         $itemPreference->save();

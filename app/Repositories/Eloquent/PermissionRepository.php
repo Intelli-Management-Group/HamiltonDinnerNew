@@ -54,6 +54,11 @@ class PermissionRepository implements PermissionRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): Permission
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(Permission $permission): Permission
     {
         $permission->save(); // Built-in Eloquent save method

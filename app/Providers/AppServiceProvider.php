@@ -17,6 +17,9 @@ use App\Repositories\Eloquent\RoleRepository;
 use App\Repositories\Contracts\CategoryDetailRepositoryInterface;
 use App\Repositories\Eloquent\CategoryDetailRepository;
 
+use App\Repositories\Contracts\DateWiseOccupancyRepositoryInterface;
+use App\Repositories\Eloquent\DateWiseOccupancyRepository;
+
 use App\Repositories\Contracts\ItemDetailRepositoryInterface;
 use App\Repositories\Eloquent\ItemDetailRepository;
 
@@ -70,6 +73,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PermissionRepositoryInterface::class, PermissionRepository::class);
         $this->app->bind(RoleRepositoryInterface::class, RoleRepository::class);
         $this->app->bind(CategoryDetailRepositoryInterface::class, CategoryDetailRepository::class);
+    $this->app->bind(DateWiseOccupancyRepositoryInterface::class, DateWiseOccupancyRepository::class);
         $this->app->bind(ItemDetailRepositoryInterface::class, ItemDetailRepository::class);
         $this->app->bind(ItemOptionRepositoryInterface::class, ItemOptionRepository::class);
         $this->app->bind(ItemPreferenceRepositoryInterface::class, ItemPreferenceRepository::class);

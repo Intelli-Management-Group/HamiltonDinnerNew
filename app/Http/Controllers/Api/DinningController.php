@@ -44,8 +44,11 @@ use App\Models\UserActivity;
 use App\Services\MenuDetailService;
 use App\Services\RoomDetailService;
 use App\Services\DiningAppService;
-use App\Services\FormsAppService;
+use App\Services\Forms\FormsAppService;
 use App\Services\Reports\ChargeReportService;
+
+// Support
+use App\Support\ApiResponse;
 
 use Tymon\JWTAuth\Facades\JWTAuth;
 
@@ -80,137 +83,14 @@ class DinningController extends Controller
             }
             $room_no = $request->input("room_no");
             $password = $request->input("password");
-            $user = RoomDetail::where("room_name", $room_no)->where("password", $password)->first();
 
-            $last_date = "";
-            $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
-            if ($menu_data) {
-                $last_date = Carbon::parse($menu_data->date)->format('Y-m-d');
-            }
-
-            $rooms = RoomDetail::where("is_active", 1)->get();
-            $rooms_array = array();
-            foreach (count($rooms) > 0 ? $rooms : array() as $r) {
-                array_push($rooms_array, array("id" => $r->id, "name" => $r->room_name, "occupancy" => $r->occupancy, "resident_name" => $r->resident_name));
-            }
-
-            $settings = DB::table('settings')->get();
-
-            $settingsArray = [];
-
-            foreach ($settings as $setting) {
-                $settingsArray[$setting->key] = $setting->value;
-            }
-
-            if (!$user) {
-                $user = User::where("user_name", $room_no)->first();
-
-                if ($user) {
-                    if (!Hash::check($password, $user->password)) {
-                        return $this->sendResultJSON("2", "User not Found");
-                    } else {
-                        $role = intval($user->role_id) == 1 ? "admin" : "kitchen";
-                        $roleName = Role::select('name')->where('id', $user->role_id)->get();
-                        $user_token = $this->generate_access_token($user->id, $role);
-                        $formTypes = "";
-
-                        $formTypes = FormType::all();
-
-                        $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (3,4,5,6,7) AND u.deleted_at IS NULL";
-
-                        $userResults = DB::select($userQuery);
-
-                        $userData = [];
-
-                        foreach ($userResults as $userResult) {
-
-                            $userData[] = [
-                                'id' => $userResult->id,
-                                'role_name' => $userResult->roleName,
-                                'name' => $userResult->userName,
-                                'email' => $userResult->email,
-                            ];
-                        }
-
-                        return $this->sendResultJSON("1", "Successfully Login", 
-                            array(
-                                'room_id' => 0,
-                                'rooms' => $rooms_array,
-                                'breakfast_guideline' => $settingsArray['site.app_breakfast_msg'],
-                                'breakfast_guideline_cn' => $settingsArray['site.app_breakfast_msg_cn'] != "" ? $settingsArray['site.app_breakfast_msg_cn'] : $settingsArray['site.app_breakfast_msg'],
-                                'lunch_guideline' => $settingsArray['site.app_lunch_msg'],
-                                'lunch_guideline_cn' => $settingsArray['site.app_lunch_msg_cn'] != "" ? $settingsArray['site.app_lunch_msg_cn'] : $settingsArray['site.app_lunch_msg'],
-                                'dinner_guideline' => $settingsArray['site.app_dinner_msg'],
-                                'dinner_guideline_cn' => $settingsArray['site.app_dinner_msg_cn'] != "" ? $settingsArray['site.app_dinner_msg_cn'] : $settingsArray['site.app_dinner_msg'],
-                                'room_number' => "",
-                                'occupancy' => 0,
-                                'resident_name' => "",
-                                'language' => 0,
-                                'last_menu_date' => $last_date,
-                                'authentication_token' => $user_token,
-                                'role' => $roleName[0]['name'],
-                                'form_types' => $formTypes,
-                                'user_list' => $userData,
-                                'user_id' => $user->id,
-                                'show_incident' => $settingsArray['show_incident'],
-                                'show_dining' => $settingsArray['show_dining']));
-                    }
-                } else {
-                    //if room exists
-                    if (RoomDetail::where("room_name", $room_no)->first()) {
-                        return $this->sendResultJSON("2", "Room Number or Password is incorrect");
-                    } else {
-                        $message = "User not Found";
-
-                        # WHY? To suggest similar room numbers if user entered wrong room number?
-                        # This is a quality of life feature, but it should not be implemented here. This is poorly thought out.
-                        # Recommendation is to comment this out, and handle it another way if needed.
-                        
-                        return $this->sendResultJSON("2", $message);
-                        
-                        // $roomIds = RoomDetail::select('room_name')->where("room_name", 'like', '%' . $room_no . '%')->get();
-
-                        // $customMessage = "";
-                        // $similarRoomFound = [];
-
-                        // foreach ($roomIds as $roomId) {
-                        //     $similarRoomFound[] = $roomId->room_name;
-                        // }
-
-                        // if (count($similarRoomFound) > 1) {
-                        //     $customMessage = "There are " . count($similarRoomFound) . " residents in room " . $room_no . ". Please enter " . implode(" OR ", $similarRoomFound);
-                        // }
-
-                        // return $this->sendResultJSON("2", !empty($customMessage) ? $customMessage : $message);
-                    }
-                }
-            }
-
-
-            if ($user->is_active == 1) {
-                $user_token = $this->generate_access_token($user->id, "user");
-                return $this->sendResultJSON("1", "Successfully Login", 
-                    array(
-                        'room_id' => $user->id,
-                        'rooms' => $rooms_array,
-                        'breakfast_guideline' => $settingsArray['site.app_breakfast_msg'],
-                        'breakfast_guideline_cn' => $settingsArray['site.app_breakfast_msg_cn'] != "" ? $settingsArray['site.app_breakfast_msg_cn'] : $settingsArray['site.app_breakfast_msg'],
-                        'lunch_guideline' => $settingsArray['site.app_lunch_msg'],
-                        'lunch_guideline_cn' => $settingsArray['site.app_lunch_msg_cn'] != "" ? $settingsArray['site.app_lunch_msg_cn'] : $settingsArray['site.app_lunch_msg'],
-                        'dinner_guideline' => $settingsArray['site.app_dinner_msg'],
-                        'dinner_guideline_cn' => $settingsArray['site.app_dinner_msg_cn'] != "" ? $settingsArray['site.app_dinner_msg_cn'] : $settingsArray['site.app_dinner_msg'],
-                        'room_number' => $user->room_name,
-                        'occupancy' => $user->occupancy,
-                        'resident_name' => $user->resident_name,
-                        'language' => intval($user->language),
-                        'last_menu_date' => $last_date,
-                        'authentication_token' => $user_token,
-                        'role' => "user"));
-            } else {
-                return $this->sendResultJSON("3", "User not active");
-            }
+            return $this->diningAppService->login($room_no, $password);
+            
         } catch (\Exception $e) {
-            return $this->sendResultJSON("0", $e->getMessage());
+            return ApiResponse::format(
+                status: '0',
+                message: $e->getMessage()
+            );
         }
     }
 
@@ -724,101 +604,19 @@ class DinningController extends Controller
             );
         }
 
-        $roomResult = $this->roomDetailService->findRoomById($room_id);
-        if ($roomResult['statusCode'] == 404) {
-            return ApiResponse::format(
-                status: '2',
-                message: 'Room not found'
-            );
-        }
+        $orderData = [
+            'is_for_guest' => (int) $request->input('is_for_guest', 0),
+            'is_brk_tray_service' => (int) $request->input('is_brk_tray_service', 0),
+            'is_lunch_tray_service' => (int) $request->input('is_lunch_tray_service', 0),
+            'is_dinner_tray_service' => (int) $request->input('is_dinner_tray_service', 0),
+            'is_brk_escort_service' => (int) $request->input('is_brk_escort_service', 0),
+            'is_lunch_escort_service' => (int) $request->input('is_lunch_escort_service', 0),
+            'is_dinner_escort_service' => (int) $request->input('is_dinner_escort_service', 0),
+            'orders_to_change' => $request->input('orders_to_change'),
+            'occupancy' => $request->input('occupancy')
+        ];
 
-        $room = $roomResult['payload']['data'];
-
-        $is_for_guest = (int) $request->input('is_for_guest', 0);
-        
-        $is_brk_tray_service = (int) $request->input('is_brk_tray_service', 0);
-        $is_lunch_tray_service = (int) $request->input('is_lunch_tray_service', 0);
-        $is_dinner_tray_service = (int) $request->input('is_dinner_tray_service', 0);
-
-        $is_brk_escort_service = (int) $request->input('is_brk_escort_service', 0);
-        $is_lunch_escort_service = (int) $request->input('is_lunch_escort_service', 0);
-        $is_dinner_escort_service = (int) $request->input('is_dinner_escort_service', 0);
-
-        OrderDetail::where("is_for_guest", $is_for_guest)
-            ->where("date", $date)
-            ->where("room_id", $room_id)
-            ->update([
-                'is_brk_tray_service' => $is_brk_tray_service,
-                'is_lunch_tray_service' => $is_lunch_tray_service,
-                'is_dinner_tray_service' => $is_dinner_tray_service,
-                'is_brk_escort_service' => $is_brk_escort_service,
-                'is_lunch_escort_service' => $is_lunch_escort_service,
-                'is_dinner_escort_service' => $is_dinner_escort_service
-            ]);
-
-        $occupancy = $request->input('occupancy');
-
-        $item_array = $order_array = array();
-        if ($room_id != "" && $date != "") {
-            if ($request->input('orders_to_change') && $request->input('orders_to_change') != "") {
-                $new_data = json_decode($request->input('orders_to_change'));
-                foreach ($new_data as $n) {
-                    $n->order_id = intval($n->order_id);
-                    $n->qty = intval($n->qty);
-                    if ($n->order_id == 0 && $n->qty != 0) {
-                            $order = new OrderDetail();
-
-                            $order->room_id = $room_id;
-                            $order->date = $date;
-                            $order->item_id = $n->item_id;
-                            $order->item_options = $n->item_options;
-                            $order->preference = $n->preference;
-                            $order->quantity = $n->qty;
-                            $order->comment = "";
-                            $order->status = 0;
-
-                            $order->is_for_guest = $is_for_guest;
-                            $order->is_brk_tray_service = $is_brk_tray_service;
-                            $order->is_lunch_tray_service = $is_lunch_tray_service;
-                            $order->is_dinner_tray_service = $is_dinner_tray_service;
-
-                            $order->is_brk_escort_service = $is_brk_escort_service;
-                            $order->is_lunch_escort_service = $is_lunch_escort_service;
-                            $order->is_dinner_escort_service = $is_dinner_escort_service;
-
-                            $order->save();
-
-                            array_push($item_array, $n->item_id);
-                            array_push($order_array, $order->id);
-                    } else {
-                        if ($n->qty == 0) {
-                            OrderDetail::where("id", $n->order_id)->delete();
-                            array_push($item_array, $n->item_id);
-                            array_push($order_array, 0);
-                        } else {
-                            OrderDetail::where("id", $n->order_id)->update([
-                                'quantity' => $n->qty, 
-                                'item_options' => $n->item_options, 
-                                'preference' => $n->preference, 
-                                'comment' => ""
-                            ]);
-                        }
-                    }
-                }
-            }
-
-            if ($is_for_guest) {
-                DateWiseOccupancy::updateOrCreate([
-                    'date' => $date,
-                    'room_id'   => $room_id,
-                ], [
-                    'occupancy' => $occupancy,
-                ]);
-            }
-
-
-            return $this->sendResultJSON('1', 'success', array('item_id' => $item_array, 'order_id' => $order_array));
-        }
+        return $this->diningAppService->updateOrder($room_id, $date, $orderData);
     }
 
     public function updateOrderBulk(Request $request)
@@ -4537,198 +4335,11 @@ class DinningController extends Controller
         $room_name = intval($request->input('room_name'));
         $meal_type = $request->input('meal_type');
 
-        $instruction = "";
-        $food_texture = "";
-        $resident_name = "";
-        $breakfast = $lunch = $dinner = array();
-
-        $finalData = [];
-
-        if ($date != "" && $room_name != "") {
-
-            $preference_details = array();
-
-            $preferences = ItemPreference::all();
-            foreach ($preferences as $p) {
-                $preference_details[$p->id] = array(
-                    "name" => $p->pname,
-                    "name_cn" => $p->pname_cn ?? $p->pname
-                );
-            }
-
-            $category_details = array();
-
-            $categoryDetails = CategoryDetail::all();
-            foreach ($categoryDetails as $cd) {
-
-
-                if ($cd->type == 1) {
-                    $category_details["breakfast"][] = $cd->id;
-                }
-
-                if ($cd->type == 2) {
-                    $category_details["lunch"][] = $cd->id;
-                }
-
-                if ($cd->type == 3) {
-                    $category_details["dinner"][] = $cd->id;
-                }
-            }
-
-            // print_r($category_details);die;
-
-            $roomIds = RoomDetail::select('id', 'room_name')->where("room_name", 'like', '%' . $room_name . '%')->get();
-
-            $allowedRoomIds = [];
-
-            foreach ($roomIds as $roomId) {
-
-                $allowedRoomIds[$roomId->id] = $roomId->room_name;
-            }
-
-            $ordersEncountered = [];
-
-            $combinedItemsData = [];
-
-
-            $order_data = OrderDetail::where("date", $date)->orderBy("id", "asc")->get();
-
-            foreach ($order_data as $o) {
-
-                $breakfast = $lunch = $dinner = array();
-
-                if (array_key_exists($meal_type, $category_details)) {
-                    if ($o->itemData) {
-                        if (!in_array($o->itemData->categoryData->type, $category_details[$meal_type])) {
-                            continue;
-                        }
-                    }
-                }
-
-                if (!array_key_exists($o->room_id, $allowedRoomIds)) {
-                    continue;
-                }
-
-                $preference_array = array();
-                $option_details = "";
-
-                $room_id = $o->room_id;
-
-
-
-                if (isset($o->itemData) && isset($o->itemData->categoryData)) {
-
-                    $cat_data = $o->itemData->categoryData;
-                    $type = intval($cat_data->type);
-                    if ($o->item_options != "") {
-                        $option_data = ItemOption::select("option_name")->where("id", $o->item_options)->first();
-                        if ($option_data) {
-                            $option_details = $option_data->option_name;
-                        }
-                    }
-
-
-                    if ($o->preference != "") {
-                        $c_preferences = explode(",", $o->preference);
-                        foreach ($c_preferences as $cp) {
-                            $cp = intval($cp);
-                            if ($preference_details[$cp]) {
-                                array_push($preference_array, $preference_details[$cp]['name']);
-                            }
-                        }
-                    }
-
-                    $o->cat_id = intval($o->itemData->categoryData->id);
-                    $data = array(
-                        "category" => (intval($cat_data->parent_id) == 0 ? $cat_data->cat_name : ($cat_data->catParentId ? $cat_data->catParentId->cat_name : "")),
-                        "sub_cat" => (intval($cat_data->parent_id) == 0 ? "" : $cat_data->cat_name),
-                        "item_name" => $o->itemData->item_name,
-                        "quantity" => intval($o->quantity),
-                        "options" => $option_details,
-                        "preference" => $preference_array,
-                        "order_id" => $o->id
-                    );
-
-                    if (!in_array(intval($o->itemData->categoryData->id), [2, 7, 10, 13])) { // LUNCH SOUP , LUNCH DESSERT, DINNER DESSERT , 13 is deleted
-
-                        if ($type == 1) {
-                            array_push($breakfast, $data);
-                            $combinedItemsData[$o->room_id]['breakfast'][$o->is_for_guest][] = $data;
-                        } else if ($type == 2) {
-                            array_push($lunch, $data);
-                            $combinedItemsData[$o->room_id]['lunch'][$o->is_for_guest][] = $data;
-                        } else {
-                            array_push($dinner, $data);
-                            $combinedItemsData[$o->room_id]['dinner'][$o->is_for_guest][] = $data;
-                        }
-                    }
-                }
-
-                $spi_data = RoomDetail::selectRaw("special_instrucations,food_texture,resident_name,room_name")->where("id", $room_id)->first();
-
-                $instruction = $spi_data?->special_instrucations;
-                $food_texture = $spi_data?->food_texture ?? "";
-                $resident_name = $spi_data?->resident_name ?? "NA";
-
-                if ($o->is_for_guest) {
-
-                    $lastOrder = OrderDetail::where("date", $date)->where("is_for_guest", 1)->where("room_id", $room_id)->orderBy('id', 'DESC')->first();
-                } else {
-
-                    $lastOrder = OrderDetail::where("date", $date)->where("room_id", $room_id)->orderBy('id', 'DESC')->first();
-                }
-
-                $items = null;
-
-                if ($meal_type == 'breakfast') {
-                    $items = $breakfast;
-                } else if ($meal_type == 'lunch') {
-                    $items = $lunch;
-                } else if ($meal_type == 'dinner') {
-                    $items = $dinner;
-                }
-
-                $finalData[] = [
-                    'special_instruction' => $instruction,
-                    'food_texture' => $food_texture,
-                    'resident_name' => $resident_name,
-                    'is_brk_tray_service' => $lastOrder?->is_brk_tray_service ?? 0,
-                    'is_lunch_tray_service' => $lastOrder?->is_lunch_tray_service ?? 0,
-                    'is_dinner_tray_service' => $lastOrder?->is_dinner_tray_service ?? 0,
-                    'is_brk_escort_service' => $lastOrder?->is_brk_escort_service ?? 0,
-                    'is_lunch_escort_service' => $lastOrder?->is_lunch_escort_service ?? 0,
-                    'is_dinner_escort_service' => $lastOrder?->is_dinner_escort_service ?? 0,
-                    'is_brk_takeout_service' => $lastOrder?->is_brk_takeout_service ?? 0,
-                    'is_lunch_takeout_service' => $lastOrder?->is_lunch_takeout_service ?? 0,
-                    'is_dinner_takeout_service' => $lastOrder?->is_dinner_takeout_service ?? 0,
-                    'room_id' => $o->room_id,
-                    'room_name' => $spi_data->room_name . ($o->is_for_guest ? " Guest" : ""),
-                    'is_guest' => $o->is_for_guest
-                ];
-            }
-        }
-
-        $dataToBeSent = [];
-
-        $encounteredRoomIds = [];
-
-        foreach ($finalData as $item) {
-
-            if (in_array($item['room_name'], $encounteredRoomIds)) {
-                continue;
-            }
-
-            $encounteredRoomIds[] = $item['room_name'];
-
-            if (array_key_exists($item['room_id'], $combinedItemsData)) {
-
-                $item['Items'] = $combinedItemsData[$item['room_id']][$meal_type][$item['is_guest']];
-
-                $dataToBeSent[] = $item;
-            }
-        }
-
-        return $this->sendResultJSON('1', '', array('Data' => $dataToBeSent));
+        return $this->diningAppService->printOrderData(
+            $room_name,
+            $date,
+            $meal_type
+        );
     }
 
     public function getMoveInSummaryValues()

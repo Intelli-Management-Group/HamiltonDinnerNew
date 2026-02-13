@@ -25,9 +25,10 @@ interface RoleRepositoryInterface
 
     public function findSoftDeletedByName(string $name): ?Role;
 
-    public function nameConflictWithDeleted(string $name): ?Role;
+    public function nameConflictWithDeleted(string $name): bool;
 
     public function create(array $data): Role;
+    public function upsertByFilters(array $filters, array $data): Role;
 
     public function save(Role $role): Role;
 

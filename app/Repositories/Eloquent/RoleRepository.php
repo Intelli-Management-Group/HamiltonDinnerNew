@@ -56,18 +56,22 @@ class RoleRepository implements RoleRepositoryInterface
             ->first();
     }
 
-    public function nameConflictWithDeleted(string $name): ?Role
+    public function nameConflictWithDeleted(string $name): bool
     {
         return $this->model->withTrashed()
             ->where('name', $name)
             ->whereNotNull('deleted_at')
-            ->where('id', '<>', $excludingId)
             ->exists();
     }
 
     public function create(array $data): Role
     {
         return $this->model->create($data);
+    }
+
+    public function upsertByFilters(array $filters, array $data): Role
+    {
+        return $this->model->updateOrCreate($filters, $data);
     }
 
     public function save(Role $role): Role

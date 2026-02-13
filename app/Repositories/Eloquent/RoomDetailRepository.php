@@ -36,6 +36,14 @@ class RoomDetailRepository implements RoomDetailRepositoryInterface
         // Eager load allowed relations
         $query = $this->applyRelations($query, $relations);
 
+        if (array_key_exists('room_name', $filters)) {
+            $query->where('room_name', 'like', '%' . $filters['room_name'] . '%');
+        }
+
+        if (array_key_exists('password', $filters)) {
+            $query->where('password', $filters['password']);
+        }
+
         // Apply allowed scopes
         // isActive() is a local scope defined in the RoomDetail model
         // for filtering based on active status.
@@ -68,6 +76,11 @@ class RoomDetailRepository implements RoomDetailRepositoryInterface
     public function create(array $data): RoomDetail
     {
         return $this->model->create($data);
+    }
+
+    public function upsertByFilters(array $filters, array $data): RoomDetail
+    {
+        return $this->model->updateOrCreate($filters, $data);
     }
 
     public function save(RoomDetail $room): RoomDetail

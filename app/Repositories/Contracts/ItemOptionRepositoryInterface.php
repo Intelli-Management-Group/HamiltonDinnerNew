@@ -23,6 +23,8 @@ interface ItemOptionRepositoryInterface
 
     public function create(array $data): ItemOption;
 
+    public function upsertByFilters(array $filters, array $data): ItemOption;
+
     public function save(ItemOption $itemOption): ItemOption;
 
     public function delete(ItemOption $itemOption): bool;

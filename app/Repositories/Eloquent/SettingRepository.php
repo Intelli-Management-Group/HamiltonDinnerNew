@@ -57,6 +57,11 @@ class SettingRepository implements SettingRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): Setting
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(Setting $setting): Setting
     {
         $setting->save(); // Built-in Eloquent save method

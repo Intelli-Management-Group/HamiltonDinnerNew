@@ -23,6 +23,8 @@ interface ItemPreferenceRepositoryInterface
 
     public function create(array $data): ItemPreference;
 
+    public function upsertByFilters(array $filters, array $data): ItemPreference;
+
     public function save(ItemPreference $itemPreference): ItemPreference;
 
     public function delete(ItemPreference $itemPreference): bool;

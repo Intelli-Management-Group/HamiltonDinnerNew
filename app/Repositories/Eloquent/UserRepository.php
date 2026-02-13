@@ -39,6 +39,10 @@ class UserRepository implements UserRepositoryInterface
         // Eager load allowed relations
         $query = $this->applyRelations($query, $relations);
 
+        if (array_key_exists('user_name', $filters)) {
+            $query->where('user_name', $filters['user_name']);
+        }
+
         if (!empty($filters['role_id'])) {
             if (is_array($filters['role_id'])) {
                 $query->whereIn('role_id', $filters['role_id']);
@@ -98,6 +102,11 @@ class UserRepository implements UserRepositoryInterface
     public function create(array $data): User
     {
         return $this->model->create($data);
+    }
+
+    public function upsertByFilters(array $filters, array $data): User
+    {
+        return $this->model->updateOrCreate($filters, $data);
     }
 
     public function save(User $user): User

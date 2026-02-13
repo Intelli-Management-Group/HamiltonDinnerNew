@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Services\Forms;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Support\ApiResponse;
 
 use App\Repositories\Contracts\UserRepositoryInterface;
-use App\Repositories\Contracts\Forms\FormMediaAttachmentRepositoryInterface;
+use App\Repositories\Contracts\Forms\FormMediaAttachmentsRepositoryInterface;
 use App\Repositories\Contracts\Forms\FormResponseRepositoryInterface;
 use App\Repositories\Contracts\Forms\FormTypeRepositoryInterface;
 use App\Repositories\Contracts\Forms\MoveInSummaryValuesRepositoryInterface;
@@ -31,7 +31,7 @@ class FormsAppService
 
     public function __construct(
         private UserRepositoryInterface $users,
-        private FormMediaAttachmentRepositoryInterface $formMediaAttachments,
+        private FormMediaAttachmentsRepositoryInterface $formMediaAttachments,
         private FormResponseRepositoryInterface $formResponses,
         private FormTypeRepositoryInterface $formTypes,
         private MoveInSummaryValuesRepositoryInterface $moveInSummaryValues

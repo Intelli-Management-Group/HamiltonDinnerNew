@@ -28,6 +28,8 @@ interface ItemDetailRepositoryInterface
 
     public function create(array $data): ItemDetail;
 
+    public function upsertByFilters(array $filters, array $data): ItemDetail;
+
     public function save(ItemDetail $itemDetail): ItemDetail;
 
     public function delete(ItemDetail $itemDetail): bool;

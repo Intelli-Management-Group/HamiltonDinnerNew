@@ -24,6 +24,7 @@ interface SettingRepositoryInterface
     public function getAllWithParameters(array $filters = []): Collection;
 
     public function create(array $data): Setting;
+    public function upsertByFilters(array $filters, array $data): Setting;
 
     public function save(Setting $setting): Setting;
 

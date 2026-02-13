@@ -44,6 +44,11 @@ class FormMediaAttachmentsRepository implements FormMediaAttachmentsRepositoryIn
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): FormMediaAttachments
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(FormMediaAttachments $formMediaAttachments): FormMediaAttachments
     {
         $formMediaAttachments->save();

@@ -46,6 +46,11 @@ class CategoryDetailRepository implements CategoryDetailRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): CategoryDetail
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(CategoryDetail $category): CategoryDetail
     {
         $category->save();

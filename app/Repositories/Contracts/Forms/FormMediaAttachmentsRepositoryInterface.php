@@ -23,6 +23,8 @@ interface FormMediaAttachmentsRepositoryInterface
 
     public function create(array $data): FormMediaAttachments;
 
+    public function upsertByFilters(array $filters, array $data): FormMediaAttachments;
+
     public function save(FormMediaAttachments $formMediaAttachments): FormMediaAttachments;
     public function delete(FormMediaAttachments $formMediaAttachments): bool;
 

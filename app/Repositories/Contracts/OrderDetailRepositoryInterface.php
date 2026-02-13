@@ -17,13 +17,21 @@ interface OrderDetailRepositoryInterface
 
     public function paginate(
         array $filters = [],
+        array $relations = [],
         int $perPage = 15,
         int $pageNumber = 1
     ): LengthAwarePaginator;
 
-    public function getAll(array $filters = []): Collection;
+    public function getAll(
+        array $filters = [], 
+        array $relations = [],
+        array $columns = ['*']
+    ): Collection;
+
+    public function updateByFilters(array $filters, array $data): int;
 
     public function create(array $data): OrderDetail;
+    public function upsertByFilters(array $filters, array $data): OrderDetail;
 
     public function save(OrderDetail $orderDetail): OrderDetail;
 

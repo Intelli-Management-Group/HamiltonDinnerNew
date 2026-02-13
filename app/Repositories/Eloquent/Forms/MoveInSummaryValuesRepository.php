@@ -44,6 +44,11 @@ class MoveInSummaryValuesRepository implements MoveInSummaryValuesRepositoryInte
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): MoveInSummaryValues
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(MoveInSummaryValues $moveInSummaryValues): MoveInSummaryValues
     {
         $moveInSummaryValues->save();

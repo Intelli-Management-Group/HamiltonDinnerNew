@@ -9,7 +9,11 @@ use Illuminate\Database\Eloquent\Collection;
 
 interface UserRepositoryInterface
 {
-    public function findById($id): ?User;
+    public function findById(
+        int $id,
+        array $filters = [],
+        array $relations = []
+    ): ?User;
 
     public function query(
         array $filters = [],
@@ -28,9 +32,11 @@ interface UserRepositoryInterface
         array $relations = []
     ): Collection;
 
-    public function findSoftDeletedById($id): ?User;
+    public function findSoftDeletedByEmail(string $email): ?User;
 
     public function create(array $data): User;
+
+    public function upsertByFilters(array $filters, array $data): User;
 
     public function save(User $user): User;
 

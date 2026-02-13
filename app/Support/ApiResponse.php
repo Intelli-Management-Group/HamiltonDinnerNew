@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use Illuminate\Http\JsonResponse;
+
 class ApiResponse
 {
     /**
@@ -12,7 +14,7 @@ class ApiResponse
         ?string $message = null,
         array $data = [],
         int $statusCode = 200
-    ): array {
+    ): JsonResponse {
         $return_data = [
             'ResponseCode' => $status,
             'ResponseText' => $message,

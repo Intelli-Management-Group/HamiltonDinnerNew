@@ -46,6 +46,11 @@ class ItemOptionRepository implements ItemOptionRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): ItemOption
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(ItemOption $itemOption): ItemOption
     {
         $itemOption->save();

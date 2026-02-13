@@ -9,7 +9,11 @@ use Illuminate\Database\Eloquent\Collection;
 
 interface RoomDetailRepositoryInterface
 {
-    public function findById($id): ?RoomDetail;
+    public function findById(
+        int $id,
+        array $filters = [],
+        array $relations = []
+    ): ?RoomDetail;
 
     public function query(
         array $filters = [],
@@ -30,6 +34,7 @@ interface RoomDetailRepositoryInterface
     ): Collection;
 
     public function create(array $data): RoomDetail;
+    public function upsertByFilters(array $filters, array $data): RoomDetail;
 
     public function save(RoomDetail $room): RoomDetail;
 

@@ -62,6 +62,11 @@ class ItemDetailRepository implements ItemDetailRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): ItemDetail
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(ItemDetail $itemDetail): ItemDetail
     {
         $itemDetail->save();

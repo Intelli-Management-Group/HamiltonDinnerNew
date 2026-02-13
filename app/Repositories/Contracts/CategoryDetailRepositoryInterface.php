@@ -23,6 +23,8 @@ interface CategoryDetailRepositoryInterface
 
     public function create(array $data): CategoryDetail;
 
+    public function upsertByFilters(array $filters, array $data): CategoryDetail;
+
     public function save(CategoryDetail $category): CategoryDetail;
 
     public function delete(CategoryDetail $category): bool;

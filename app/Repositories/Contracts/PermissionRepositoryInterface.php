@@ -11,6 +11,7 @@ interface PermissionRepositoryInterface
     public function getAllNames(): array;
 
     public function create(array $data): Permission;
+    public function upsertByFilters(array $filters, array $data): Permission;
 
     public function save(Permission $permission): Permission;
     

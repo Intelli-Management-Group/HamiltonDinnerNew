@@ -2,7 +2,7 @@
 
 namespace App\Repositories\Contracts\Forms;
 
-use App\Models\FormType;
+use App\Models\FormResponse;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,6 +22,8 @@ interface FormResponseRepositoryInterface
     public function getAllWithFormType(array $filters = []): Collection;
 
     public function create(array $data): FormResponse;
+
+    public function upsertByFilters(array $filters, array $data): FormResponse;
 
     public function save(FormResponse $formResponse): FormResponse;
     public function delete(FormResponse $formResponse): bool;

@@ -44,6 +44,11 @@ class FormTypeRepository implements FormTypeRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): FormType
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(FormType $formType): FormType
     {
         $formType->save();

@@ -25,11 +25,16 @@ interface MenuDetailRepositoryInterface
         int $pageNumber = 1
     ): LengthAwarePaginator;
 
-    public function getAll(array $filters = []): Collection;
+    public function getAll(
+        array $filters = [],
+        array $columns = ['*']
+    ): Collection;
 
     public function findSoftDeletedByDate(string $date): ?MenuDetail;
 
     public function create(array $data): MenuDetail;
+
+    public function upsertByFilters(array $filters, array $data): MenuDetail;
 
     public function save(MenuDetail $menuDetail): MenuDetail;
 

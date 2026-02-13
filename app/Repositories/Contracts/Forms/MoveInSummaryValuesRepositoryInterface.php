@@ -23,6 +23,8 @@ interface MoveInSummaryValuesRepositoryInterface
     public function getAll(array $filters = []): Collection;
 
     public function create(array $data): MoveInSummaryValues;
+
+    public function upsertByFilters(array $filters, array $data): MoveInSummaryValues;
     public function save(MoveInSummaryValues $moveInSummaryValues): MoveInSummaryValues;
 
     public function delete(MoveInSummaryValues $moveInSummaryValues): bool;

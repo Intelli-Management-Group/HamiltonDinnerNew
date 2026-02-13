@@ -47,6 +47,11 @@ class FormResponseRepository implements FormResponseRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function upsertByFilters(array $filters, array $data): FormResponse
+    {
+        return $this->model->updateOrCreate($filters, $data);
+    }
+
     public function save(FormResponse $formResponse): FormResponse
     {
         $formResponse->save();

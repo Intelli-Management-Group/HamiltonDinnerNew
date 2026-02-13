@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class OrderDetailRepositry implements OrderDetailRepositoryInterface
+class OrderDetailRepository implements OrderDetailRepositoryInterface
 {
     // Allowed relations and scopes for eager loading
     private const ALLOWED_RELATIONS = [];
@@ -76,6 +76,10 @@ class OrderDetailRepositry implements OrderDetailRepositoryInterface
             $query->where('is_for_guest', (int) $filters['is_for_guest']);
         }
 
+        if (isset($filters['order_by'])) {
+            $query->orderBy($filters['order_by'], $filters['order_direction'] ?? 'asc');
+        }
+
         return $query->latest();
     }
 
@@ -98,9 +102,19 @@ class OrderDetailRepositry implements OrderDetailRepositoryInterface
         return $this->query($filters, $relations)->get($columns);
     }
 
+    public function updateByFilters(array $filters, array $data): int
+    {
+        return $this->query($filters)->update($data);
+    }
+
     public function create(array $data): OrderDetail
     {
         return $this->model->create($data);
+    }
+
+    public function upsertByFilters(array $filters, array $data): OrderDetail
+    {
+        return $this->model->updateOrCreate($filters, $data);
     }
 
     public function save(OrderDetail $orderDetail): OrderDetail

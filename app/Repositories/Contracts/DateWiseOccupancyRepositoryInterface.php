@@ -1,15 +1,15 @@
 <?php
 
-namespace App\Repositories\Contracts\Forms;
+namespace App\Repositories\Contracts;
 
-use App\Models\FormType;
+use App\Models\DateWiseOccupancy;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-interface FormTypeRepositoryInterface
+interface DateWiseOccupancyRepositoryInterface
 {
-    public function findById($id): ?FormType;
+    public function findById($id): ?DateWiseOccupancy;
 
     public function query(array $filters = []): Builder;
 
@@ -21,13 +21,13 @@ interface FormTypeRepositoryInterface
 
     public function getAll(array $filters = []): Collection;
 
-    public function create(array $data): FormType;
+    public function upsertByFilters(array $filters, array $data): DateWiseOccupancy;
 
-    public function upsertByFilters(array $filters, array $data): FormType;
+    public function create(array $data): DateWiseOccupancy;
 
-    public function save(FormType $formType): FormType;
+    public function save(DateWiseOccupancy $dateWiseOccupancy): DateWiseOccupancy;
 
-    public function delete(FormType $formType): bool;
+    public function delete(DateWiseOccupancy $dateWiseOccupancy): bool;
 
     public function bulkDeleteByIds(array $ids): int;
 }
