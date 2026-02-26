@@ -47,7 +47,8 @@ class MenuDetailRepository extends BaseRepository implements MenuDetailRepositor
      */
     public function findLatestDate(): ?string
     {
-        return optional($this->findLatest())->date;
+        $latest = $this->findLatest();
+        return $latest?->date?->toJSON();
     }
 
     public function findSoftDeletedByDate(string $date): ?MenuDetail

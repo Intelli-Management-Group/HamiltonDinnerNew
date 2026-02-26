@@ -323,15 +323,13 @@ class OrderReportService
         }
         unset($row);
 
-        // For range mode: sort by room_id then room_name naturally
-        if (!$isSingleDay) {
-            usort($finalArray, function ($a, $b) {
-                if ($a['room_id'] != $b['room_id']) {
-                    return $a['room_id'] - $b['room_id'];
-                }
-                return strnatcmp($a['room_name'], $b['room_name']);
-            });
-        }
+        // Sort by room_id then room_name naturally (guest rows follow their base room)
+        usort($finalArray, function ($a, $b) {
+            if ($a['room_id'] != $b['room_id']) {
+                return $a['room_id'] - $b['room_id'];
+            }
+            return strnatcmp($a['room_name'], $b['room_name']);
+        });
 
         $finalArray = array_values($finalArray);
 

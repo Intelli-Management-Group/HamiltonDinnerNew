@@ -30,7 +30,7 @@
     {
       "name": "Menus: show",
       "method": "GET",
-      "path": "/admin/menus/1",
+      "path": "/admin/menus/434",
       "expectStatus": 200
     },
 
@@ -72,7 +72,7 @@
     {
       "name": "Item Details: show",
       "method": "GET",
-      "path": "/admin/item-details/1",
+      "path": "/admin/item-details/773",
       "expectStatus": 200
     },
 
@@ -114,7 +114,7 @@
     {
       "name": "Roles: show",
       "method": "GET",
-      "path": "/admin/roles/1",
+      "path": "/admin/roles/8",
       "expectStatus": 200
     },
 
@@ -194,6 +194,40 @@
       "method": "GET",
       "path": "/admin/reports",
       "query": { "start_date": "2026-02-15", "end_date": "2026-02-28" },
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Order Report: no params (error)",
+      "method": "GET",
+      "path": "/admin/reports",
+      "expectStatus": 200
+    },
+    {
+      "name": "Order Report: only start_date (error)",
+      "method": "GET",
+      "path": "/admin/reports",
+      "query": { "start_date": "2026-02-15" },
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Menus: show (not found)",
+      "method": "GET",
+      "path": "/admin/menus/999999",
+      "expectStatus": 404
+    },
+    {
+      "name": "Item Details: show (not found)",
+      "method": "GET",
+      "path": "/admin/item-details/999999",
+      "expectStatus": 404
+    },
+    {
+      "name": "Charge Report: missing dates (error)",
+      "method": "POST",
+      "path": "/admin/temp-get-charges-report",
+      "body": {},
       "expectStatus": 200
     }
   ]

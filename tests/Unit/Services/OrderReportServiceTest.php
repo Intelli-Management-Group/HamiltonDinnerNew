@@ -747,4 +747,192 @@ class OrderReportServiceTest extends TestCase
         $this->assertLessThan($posLS, $posBA, 'BA (breakfast) should come before LS (lunch)');
         $this->assertLessThan($posDD, $posLS, 'LS (lunch) should come before DD (dinner)');
     }
+
+    // -----------------------------------------------------------------------
+    // Unhappy paths / edge cases
+    // -----------------------------------------------------------------------
+
+    #[Test]
+    public function single_day_with_no_active_rooms_returns_empty(): void
+    {
+        // Menu exists and has items, but no active rooms → no rows
+        $item = $this->makeItem(10, 1, 'Eggs');
+
+        $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
+        $menuRepo->shouldReceive('findByDate')->andReturn(
+            $this->makeMenu(['breakfast' => [10], 'lunch' => [], 'dinner' => []])
+        );
+        $menuRepo->shouldReceive('findLatestDate')->andReturn('2026-01-01');
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection()); // no active rooms
+
+        // Item/order repos are still called (menu has items → allItemIds non-empty)
+        $itemRepo = Mockery::mock(ItemDetailRepositoryInterface::class);
+        $itemRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection([$item]));
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection());
+
+        $service = $this->makeService([
+            'menuDetails'  => $menuRepo,
+            'roomDetails'  => $roomRepo,
+            'itemDetails'  => $itemRepo,
+            'orderDetails' => $orderRepo,
+        ]);
+
+        $result = $service->getOrderReport('2026-01-01', null, null);
+
+        $this->assertEmpty($result['result']['rows']);
+        $this->assertNull($result['total']);
+    }
+
+    #[Test]
+    public function range_with_start_after_end_returns_empty(): void
+    {
+        // DatePeriod produces no dates when start > end
+        $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
+        $menuRepo->shouldReceive('findByDate')->never();
+        $menuRepo->shouldReceive('findLatestDate')->andReturn('2026-01-01');
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$this->makeRoom(1, '101')]));
+
+        $service = $this->makeService([
+            'menuDetails' => $menuRepo,
+            'roomDetails' => $roomRepo,
+        ]);
+
+        $result = $service->getOrderReport(null, '2026-01-10', '2026-01-01');
+
+        $this->assertEmpty($result['result']['rows']);
+        $this->assertNull($result['total']);
+    }
+
+    #[Test]
+    public function single_day_alternative_cat_id_produces_numeric_columns(): void
+    {
+        // cat_id in ALTERNATIVE [4, 8, 11] → B1, L1 titles (not CAT_ID map)
+        $room     = $this->makeRoom(1, '101');
+        $brkAlt   = $this->makeItem(10, 4,  'Oatmeal'); // cat_id=4 → ALTERNATIVE → B1
+        $lunchAlt = $this->makeItem(20, 8,  'Pasta');   // cat_id=8 → ALTERNATIVE → L1
+
+        $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
+        $menuRepo->shouldReceive('findByDate')->andReturn(
+            $this->makeMenu(['breakfast' => [10], 'lunch' => [20], 'dinner' => []])
+        );
+        $menuRepo->shouldReceive('findLatestDate')->andReturn('2026-01-01');
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room]));
+
+        $itemRepo = Mockery::mock(ItemDetailRepositoryInterface::class);
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([10])->andReturn(new Collection([$brkAlt]));
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([20])->andReturn(new Collection([$lunchAlt]));
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection([
+            $this->makeOrder(1, 10, 2),
+            $this->makeOrder(1, 20, 3),
+        ]));
+
+        $service = $this->makeService([
+            'menuDetails'  => $menuRepo,
+            'roomDetails'  => $roomRepo,
+            'itemDetails'  => $itemRepo,
+            'orderDetails' => $orderRepo,
+        ]);
+
+        $result  = $service->getOrderReport('2026-01-01', null, null);
+        $row     = $result['result']['rows'][0];
+        $titles  = array_column($result['columns'][2], 'title');
+
+        $this->assertSame(2, $row['B1']); // breakfast alternative
+        $this->assertSame(3, $row['L1']); // lunch alternative
+        $this->assertContains('B1', $titles);
+        $this->assertContains('L1', $titles);
+    }
+
+    #[Test]
+    public function single_day_ab_alternative_cat_id_produces_lettered_columns(): void
+    {
+        // cat_id in AB_ALTERNATIVE [5, 3] on lunch/dinner → LA, DA titles
+        $room      = $this->makeRoom(1, '101');
+        $lunchEnt  = $this->makeItem(10, 3,  'Beef Entree');   // cat_id=3 → LA
+        $dinnerEnt = $this->makeItem(20, 5,  'Salmon Entree'); // cat_id=5 → DA
+
+        $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
+        $menuRepo->shouldReceive('findByDate')->andReturn(
+            $this->makeMenu(['breakfast' => [], 'lunch' => [10], 'dinner' => [20]])
+        );
+        $menuRepo->shouldReceive('findLatestDate')->andReturn('2026-01-01');
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room]));
+
+        $itemRepo = Mockery::mock(ItemDetailRepositoryInterface::class);
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([10])->andReturn(new Collection([$lunchEnt]));
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([20])->andReturn(new Collection([$dinnerEnt]));
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection([
+            $this->makeOrder(1, 10, 1),
+            $this->makeOrder(1, 20, 2),
+        ]));
+
+        $service = $this->makeService([
+            'menuDetails'  => $menuRepo,
+            'roomDetails'  => $roomRepo,
+            'itemDetails'  => $itemRepo,
+            'orderDetails' => $orderRepo,
+        ]);
+
+        $result  = $service->getOrderReport('2026-01-01', null, null);
+        $row     = $result['result']['rows'][0];
+        $titles  = array_column($result['columns'][2], 'title');
+
+        $this->assertSame(1, $row['LA']); // lunch AB alternative
+        $this->assertSame(2, $row['DA']); // dinner AB alternative
+        $this->assertContains('LA', $titles);
+        $this->assertContains('DA', $titles);
+    }
+
+    #[Test]
+    public function single_day_rows_sorted_by_room_id_ascending(): void
+    {
+        // Rooms come from repo in descending ID order; usort must fix it for single-day too
+        $room3 = $this->makeRoom(3, '103');
+        $room1 = $this->makeRoom(1, '101');
+        $room2 = $this->makeRoom(2, '102');
+        $item  = $this->makeItem(10, 1, 'Eggs');
+
+        $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
+        $menuRepo->shouldReceive('findByDate')->andReturn(
+            $this->makeMenu(['breakfast' => [10], 'lunch' => [], 'dinner' => []])
+        );
+        $menuRepo->shouldReceive('findLatestDate')->andReturn('2026-01-01');
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room3, $room1, $room2]));
+
+        $itemRepo = Mockery::mock(ItemDetailRepositoryInterface::class);
+        $itemRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection([$item]));
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection());
+
+        $service = $this->makeService([
+            'menuDetails'  => $menuRepo,
+            'roomDetails'  => $roomRepo,
+            'itemDetails'  => $itemRepo,
+            'orderDetails' => $orderRepo,
+        ]);
+
+        $result = $service->getOrderReport('2026-01-01', null, null);
+        $rows   = $result['result']['rows'];
+
+        $this->assertSame(1, $rows[0]['room_id']);
+        $this->assertSame(2, $rows[1]['room_id']);
+        $this->assertSame(3, $rows[2]['room_id']);
+    }
 }
