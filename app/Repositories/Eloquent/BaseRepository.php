@@ -93,6 +93,9 @@ abstract class BaseRepository implements BaseRepositoryInterface
         array $relations
     ): Builder
     {
+        // Only eager-load relations that are explicitly whitelisted in ALLOWED_RELATIONS.
+        // This prevents callers from loading arbitrary relations (e.g. deeply nested or
+        // sensitive ones) just by passing a name.
         $safeRelations = array_values(
             array_intersect($relations, $this->allowedRelations())
         );
@@ -106,6 +109,8 @@ abstract class BaseRepository implements BaseRepositoryInterface
 
     protected function allowedRelations(): array
     {
+        // Concrete repositories declare: protected const ALLOWED_RELATIONS = ['items', ...];
+        // An empty array means no eager loading is permitted for that repository.
         return defined('static::ALLOWED_RELATIONS')
             ? static::ALLOWED_RELATIONS
             : [];
@@ -113,6 +118,9 @@ abstract class BaseRepository implements BaseRepositoryInterface
 
     protected function allowedOrderByColumns(): array
     {
+        // If ALLOWED_ORDER_BY_COLUMNS is defined and non-empty, only those columns can be
+        // sorted. If the array is empty (or the constant is not declared), any alphanumeric
+        // column name is accepted. Populate this whenever ordering is exposed to user input.
         return defined('static::ALLOWED_ORDER_BY_COLUMNS')
             ? static::ALLOWED_ORDER_BY_COLUMNS
             : [];
@@ -173,6 +181,13 @@ abstract class BaseRepository implements BaseRepositoryInterface
         array $filters
     ): Builder
     {
+        // Only active when the caller explicitly passes a 'deleted_at' key.
+        // Without it, the model's default scope applies (soft-delete models exclude deleted rows).
+        //
+        // Accepted values:
+        //   'only'    / 'onlyTrashed' → only soft-deleted rows
+        //   'with'    / 'withTrashed' → all rows, including deleted
+        //   'without' / 'exclude' / null → explicitly exclude deleted (same as default)
         if (!array_key_exists('deleted_at', $filters)) {
             return $query;
         }
@@ -195,6 +210,9 @@ abstract class BaseRepository implements BaseRepositoryInterface
         return $query;
     }
 
+    // Every concrete repository must implement this to add model-specific WHERE clauses,
+    // default ordering, or joins. It is called automatically by query() / paginate() / getAll().
+    // The $filters array is whatever the caller passed — check existing repositories for examples.
     abstract protected function applyFilters(
         Builder $query,
         array $filters

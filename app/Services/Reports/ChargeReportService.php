@@ -10,18 +10,26 @@ class ChargeReportService
         protected ChargeReportRepositoryInterface $chargeReportRepository
     ) {}
 
+    // MEAL_LOOKUP maps the numeric meal value stored in the DB (1/2/3) to a short string
+    // used as part of variable names below (e.g. "brk" → $report_brk_list). It must match
+    // the values the SQL query returns in the `meal` column.
     private const MEAL_LOOKUP = [
         1 => 'brk',
         2 => 'lunch',
         3 => 'dinner'
     ];
 
+    // MEAL_ALIASES_REV maps those short strings to the human-readable meal name used in
+    // the final response keys (e.g. "brk" → "breakfast").
     private const MEAL_ALIASES_REV = [
         'brk' => 'breakfast',
         'lunch' => 'lunch',
         'dinner' => 'dinner'
     ];
 
+    // SERVICE_LOOKUP defines the fixed columns that appear in every meal table before any
+    // item-option columns. T/E/TO/G are always present; item options (O1, O2, …) are added
+    // dynamically based on what the SQL query returns.
     private const SERVICE_LOOKUP = [
         'T' => 'Tray Service',
         'E' => 'Escort Service',
@@ -77,6 +85,10 @@ class ChargeReportService
 
             // make new room entry if not exists
             $guest_suffix = $meal_row->is_for_guest ? ' G' : '';
+            // Variable-variable syntax: ${'report_'.$meal.'_list'} resolves at runtime to one of
+            // $report_breakfast_list, $report_lunch_list, or $report_dinner_list depending on $meal.
+            // The same pattern is used throughout this method to avoid repeating identical logic
+            // three times. If you need to trace what's happening, substitute the meal name mentally.
             $report_meal_list = &${'report_'.$meal.'_list'};
             $room_name = $meal_row->room_name . $guest_suffix;
             if (!isset($report_meal_list[$room_name])) {
@@ -105,6 +117,10 @@ class ChargeReportService
             if ($meal_row->items) {
                 $meal_options_list = &${$meal.'OptionsList'};
 
+                // The SQL query concatenates item-option selections into a single string:
+                //   "optionId:optionName:date:itemName:quantity;optionId:optionName:…"
+                // e.g. "12:Extra Sauce:2026-02-15:Chicken:1;14:No Salt:2026-02-15:Chicken:2"
+                // Each semicolon-separated segment is one item-option for this room/meal.
                 foreach (explode(';', $meal_row->items) as $item_entry) {
                     [$option_id, $option_name, $item_date, $item_name, $option_quantity] = explode(':', $item_entry);
 

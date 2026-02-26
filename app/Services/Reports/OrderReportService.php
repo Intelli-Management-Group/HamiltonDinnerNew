@@ -9,7 +9,24 @@ use App\Repositories\Contracts\RoomDetailRepositoryInterface;
 
 class OrderReportService
 {
-    // Meal/category constants — mirrors OrderController
+    // Each menu item belongs to a category (cat_id). The category determines the column
+    // title shown in the report. Three mutually exclusive rules apply — checked in order:
+    //
+    //   ALTERNATIVE    — numeric suffix per meal. The Nth item of this type in a meal
+    //                    gets that number: first cat_id=4 in breakfast → "B1", next → "B2".
+    //
+    //   AB_ALTERNATIVE — lettered suffix (lunch/dinner only). First item → "LA"/"DA",
+    //                    second → "LB"/"DB". Breakfast items of this type are ignored.
+    //
+    //   CAT_ID         — fixed two-letter code. Multiple items of the same code get a
+    //                    count appended only when there is more than one: "BA", "BA2", …
+    //                    Examples: 1→"BA" (Breakfast entrée A), 2→"LS" (Lunch Soup),
+    //                              7→"LD" (Lunch Dessert), 13→"DD" (Dinner Dessert).
+    //
+    // The first character of every column title is always the meal prefix (B/L/D).
+    // Items whose cat_id matches none of these constants produce an empty title and
+    // are effectively ignored in the column output.
+
     private const CAT_ID = [
         1  => 'BA',
         2  => 'LS',
@@ -17,10 +34,8 @@ class OrderReportService
         13 => 'DD',
     ];
 
-    // represented as b/l/d alternatives (numbered: B1, L2, …)
     private const ALTERNATIVE = [4, 8, 11];
 
-    // represented as l/d entrees (lettered: LA, LB, …)
     private const AB_ALTERNATIVE = [5, 3];
 
     private const PREFIX_MEAL = [
@@ -42,6 +57,13 @@ class OrderReportService
      * Pass exactly one of:
      *   $date                    — single-day mode
      *   $startDate + $endDate    — date-range mode
+     *
+     * The two modes share the same loop but differ in what each row contains:
+     *   single-day: rows include has_breakfast_order / has_lunch_order / has_dinner_order /
+     *               is_for_guest flags; column tooltips are plain item-name strings.
+     *   range:      those per-day flags are absent; tooltips are date-keyed arrays
+     *               {date → item_name} so the front end can show what each column meant
+     *               on each day of the range.
      *
      * @return array{result: array, columns: array, total: array|null, last_menu_date: mixed}
      */
@@ -112,10 +134,16 @@ class OrderReportService
             $lunchItems     = empty($menuItems['lunch'])     ? [] : $this->itemDetails->findOrderReportSummaries($menuItems['lunch']);
             $dinnerItems    = empty($menuItems['dinner'])    ? [] : $this->itemDetails->findOrderReportSummaries($menuItems['dinner']);
 
+            // $isFirst gates column-header generation. We only build the $soups / $mains /
+            // $alternatives / $desserts arrays from the very first room of each date —
+            // after that, the column structure is fixed for this date's iteration.
             $isFirst = true;
 
             foreach ($allRooms as $r) {
                 $roomId   = $r->id;
+                // $addGuest tracks whether any guest order exists for this room.
+                // Guest rows ("{room_name} G") are only written to $finalArray when this
+                // is true, so empty guest rows don't clutter the report.
                 $addGuest = false;
 
                 $currItemArray = [];
@@ -137,7 +165,16 @@ class OrderReportService
                     $currItemArray[$roomKey] = $entry;
                 }
 
-                // Closure defined per room — $isFirst captured by value at definition time.
+                // For each menu item this closure:
+                //   1. Computes the column title from cat_id (see constant comments above).
+                //   2. If $isFirst, registers the column definition (title, tooltip, field).
+                //   3. Records the room's order quantity for that column (0 if no order).
+                //   4. Accumulates the running total across all rooms.
+                //   5. Increments the numeric / letter counters for the next item.
+                //
+                // $isFirst is captured by VALUE, not by reference. The closure is redefined
+                // fresh for each room, so it always captures the value $isFirst had at that
+                // point. Only the first room's closure sees $isFirst === true.
                 $processMealItems = function (
                     $items,
                     $mealPrefix,

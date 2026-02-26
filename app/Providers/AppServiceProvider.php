@@ -60,10 +60,13 @@ class AppServiceProvider extends ServiceProvider
 {
     /**
      * Register any application services.
-     * This is where we bind interfaces to their implementations.
-     * For example, we bind UserRepositoryInterface to UserRepository. 
-     * Whenever the UserRepositoryInterface is needed, 
-     * an instance of UserRepository will be provided.
+     *
+     * This is where we tell Laravel which concrete class to use when a type-hinted
+     * interface is injected (e.g. UserRepositoryInterface → UserRepository).
+     *
+     * Whenever you create a new Repository, add a binding here.
+     * Services like OrderReportService do NOT need a binding — Laravel resolves them
+     * automatically as long as all their constructor dependencies are already bound.
      *
      * @return void
      */

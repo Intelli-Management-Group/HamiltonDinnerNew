@@ -68,6 +68,10 @@ class OrderReportServiceTest extends TestCase
 
     private function makeMenu(array $items): MenuDetail
     {
+        // Must return a real MenuDetail instance, not stdClass. Mockery enforces the
+        // ?MenuDetail return type declared on MenuDetailRepositoryInterface::findByDate(),
+        // and will throw a TypeError if the mock returns a plain object instead.
+        // MenuDetail casts 'items' to array, so assigning directly works without a DB connection.
         $m = new MenuDetail();
         $m->items = $items; // ['breakfast' => [...], 'lunch' => [...], 'dinner' => [...]]
         return $m;
