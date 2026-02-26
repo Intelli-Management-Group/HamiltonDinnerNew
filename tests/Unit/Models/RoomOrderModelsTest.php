@@ -7,6 +7,8 @@ use App\Models\MoveInSummaryValues;
 use App\Models\OrderDetail;
 use App\Models\RoomDetail;
 use App\Models\Setting;
+use App\Repositories\Eloquent\RoomDetailRepository;
+use App\Repositories\Eloquent\SettingRepository;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -16,7 +18,7 @@ class RoomOrderModelsTest extends TestCase
     use RefreshDatabase;
 
     /** @test */
-    public function room_detail_scope_is_active_filters_rooms()
+    public function room_detail_filters_by_active_with_repository()
     {
         RoomDetail::create([
             'room_name' => '101',
@@ -28,7 +30,8 @@ class RoomOrderModelsTest extends TestCase
             'is_active' => 0,
         ]);
 
-        $results = RoomDetail::isActive(1)->get();
+        $repository = new RoomDetailRepository(new RoomDetail());
+        $results = $repository->getAll(['is_active' => 1]);
 
         $this->assertCount(1, $results);
         $this->assertSame('101', $results->first()->room_name);
@@ -77,7 +80,7 @@ class RoomOrderModelsTest extends TestCase
     }
 
     /** @test */
-    public function setting_scopes_filter_records()
+    public function setting_filters_by_group_with_repository()
     {
         Setting::create([
             'key' => 'site.app_name',
@@ -97,7 +100,8 @@ class RoomOrderModelsTest extends TestCase
             'group' => 'mail',
         ]);
 
-        $results = Setting::group('site')->get();
+        $repository = new SettingRepository(new Setting());
+        $results = $repository->getAll(['group' => 'site']);
 
         $this->assertCount(1, $results);
         $this->assertSame('site.app_name', $results->first()->key);

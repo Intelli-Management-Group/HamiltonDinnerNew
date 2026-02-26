@@ -29,10 +29,10 @@ class AdminAuthService
         $allPermissions = array_fill_keys($allPermissionsResult, 0);
 
         $loggedInUser = $this->users
-            ->findById($user->id, relations: ['permissions'])
+            ->findById($user->id, relations: ['permissionList'])
             ?->toArray();
         if ($loggedInUser) {
-            foreach ($loggedInUser['permissions'] as $permission) {
+            foreach ($loggedInUser['permission_list'] as $permission) {
                 $allPermissions[$permission['name']] = 1;
             }
         }

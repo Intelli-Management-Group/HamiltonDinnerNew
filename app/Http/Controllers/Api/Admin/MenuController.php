@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Validator;
 
 class MenuController extends Controller
 {
+    public function __construct(
+        private MenuDetailService $menuDetailService
+    ) {}
+
     /**
      * Display a listing of menu details.
      *

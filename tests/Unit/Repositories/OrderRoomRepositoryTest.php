@@ -69,7 +69,7 @@ class OrderRoomRepositoryTest extends TestCase
             'is_for_guest' => 0,
         ]);
 
-        $this->orders->updateByFilters([
+        $this->orders->upsertByFilters([
             'room_id' => 3,
             'date' => $date,
         ], [
@@ -99,6 +99,43 @@ class OrderRoomRepositoryTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertSame(30, $results->first()->item_id);
+    }
+
+    /** @test */
+    public function it_sums_quantities_by_date_and_item()
+    {
+        $date = now()->toDateString();
+
+        OrderDetail::forceCreate([
+            'room_id' => 1,
+            'date' => $date,
+            'item_id' => 40,
+            'quantity' => 2,
+            'status' => 0,
+            'is_for_guest' => 0,
+        ]);
+
+        OrderDetail::forceCreate([
+            'room_id' => 2,
+            'date' => $date,
+            'item_id' => 40,
+            'quantity' => 3,
+            'status' => 0,
+            'is_for_guest' => 1,
+        ]);
+
+        OrderDetail::forceCreate([
+            'room_id' => 3,
+            'date' => $date,
+            'item_id' => 41,
+            'quantity' => 5,
+            'status' => 0,
+            'is_for_guest' => 0,
+        ]);
+
+        $sum = $this->orders->sumQuantityByDateAndItem($date, 40);
+
+        $this->assertSame(5, $sum);
     }
 
     /** @test */

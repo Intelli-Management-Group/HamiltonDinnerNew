@@ -65,15 +65,17 @@ class User extends Authenticatable implements JWTSubject
     
     /** 
      * Define many-to-many relationship with Permission through RoleHasPermissions.
-     * 
-     * Usage: 
-     * $user->permissions (to get the permissions associated with the user)
+     * Named permissionList (not permissions) to avoid clashing with Spatie's own
+     * permissions() method from HasRoles/HasPermissions. Serialises as permission_list in JSON.
+     *
+     * Usage:
+     * $user->permissionList (to get the permissions associated with the user)
      * Eager Loading:
-     * User::with('permissions')->get();
-     * 
+     * User::with('permissionList')->get();
+     *
      * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough
      */
-    public function permissions()
+    public function permissionList()
     {
         return $this->hasManyThrough(
             Permission::class,

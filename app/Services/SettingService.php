@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class SettingService
+class SettingService extends BaseService
 {
     public function __construct(
         private SettingRepositoryInterface $settings
@@ -19,24 +19,17 @@ class SettingService
         $setting = $this->settings->findById($id);
 
         if (!$setting) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'Setting not found',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'Setting not found',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $setting,
-                'message' => 'Setting retrieved successfully'
-            ]
-        ];
+        return $this->successResponse(
+            data: $setting,
+            message: 'Setting retrieved successfully'
+        );
     }
 
     public function findSettingByKey(string $key): array
@@ -44,24 +37,17 @@ class SettingService
         $setting = $this->settings->findByKey($key);
 
         if (!$setting) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'Setting not found',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'Setting not found',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $setting,
-                'message' => 'Setting retrieved successfully'
-            ]
-        ];
+        return $this->successResponse(
+            data: $setting,
+            message: 'Setting retrieved successfully'
+        );
     }
 
     public function list(array $params): array
@@ -86,36 +72,35 @@ class SettingService
             $pageNumber = (int)($params['pagenumber'] ?? $params['page'] ?? 1);
 
             /** @var LengthAwarePaginator $settings */
-            $settings = $this->settings->paginateWithParameters(
-                $filters, $pageSize, $pageNumber
+            $settings = $this->settings->paginate(
+                $filters,
+                [],
+                $pageSize,
+                $pageNumber
             );
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'data'    => $settings->items(),
-                    'meta'    => [
-                        'current_page' => $settings->currentPage(),
-                        'last_page' => $settings->lastPage(),
-                        'per_page' => $settings->perPage(),
-                        'total' => $settings->total(),
-                    ],
-                    'message' => 'Settings retrieved successfully'
+            return $this->paginatedResponse(
+                paginator: $settings,
+                statusCode: 200,
+                message: 'Settings retrieved successfully',
+                paginationKey: 'meta',
+                paginationData: [
+                    'current_page' => $settings->currentPage(),
+                    'last_page' => $settings->lastPage(),
+                    'per_page' => $settings->perPage(),
+                    'total' => $settings->total(),
                 ]
-            ];
+            );
         } else {
             /** @var Collection $settings */
-            $settings = $this->settings->getAllWithParameters($filters);
+            $settings = $this->settings->getAll($filters);
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'data'    => $settings,
-                    'message' => 'Settings retrieved successfully'
-                ]
-            ];
+            return $this->collectionResponse(
+                collection: $settings,
+                statusCode: 200,
+                message: 'Settings retrieved successfully',
+                includeCount: false
+            );
         }
     }
 
@@ -140,14 +125,11 @@ class SettingService
             $createdSettings[] = $this->settings->create($item);
         }
 
-        return [
-            'statusCode' => 201,
-            'payload'    => [
-                'success' => true,
-                'data'    => $isBatch ? $createdSettings : $createdSettings[0],
-                'message' => count($createdSettings) . " setting(s) created successfully"
-            ]
-        ];
+        return $this->successResponse(
+            data: $isBatch ? $createdSettings : $createdSettings[0],
+            message: count($createdSettings) . ' setting(s) created successfully',
+            statusCode: 201
+        );
     }
 
     /**
@@ -162,14 +144,10 @@ class SettingService
         $setting->fill($data);
         $this->settings->save($setting);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $setting,
-                'message' => 'Setting updated successfully'
-            ]
-        ];
+        return $this->successResponse(
+            data: $setting,
+            message: 'Setting updated successfully'
+        );
     }
 
     /**
@@ -216,15 +194,12 @@ class SettingService
                         (count($updatedSettings) > 0 ? count($updatedSettings) . " setting(s) updated." : ''));
         
         $settings = array_merge($createdSettings, $updatedSettings);
-        
-        return [
-            'statusCode' => $statusCode,
-            'payload'    => [
-                'success' => true,
-                'data'    => $settings,
-                'message' => $message
-            ]
-        ];
+
+        return $this->successResponse(
+            data: $settings,
+            message: $message,
+            statusCode: $statusCode
+        );
     }
 
     /**
@@ -237,13 +212,11 @@ class SettingService
     {
         $this->settings->delete($setting);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'Setting deleted successfully.'
-            ]
-        ];
+        return $this->successResponse(
+            message: 'Setting deleted successfully.',
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     /**
@@ -256,12 +229,10 @@ class SettingService
     {
         $deletedCount = $this->settings->bulkDeleteByIds($ids);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => "{$deletedCount} setting(s) deleted successfully."
-            ]
-        ];
+        return $this->successResponse(
+            message: "{$deletedCount} setting(s) deleted successfully.",
+            statusCode: 200,
+            includeData: false
+        );
     }
 }

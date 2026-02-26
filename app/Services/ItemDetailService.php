@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class ItemDetailService
+class ItemDetailService extends BaseService
 {
     public function __construct(
         private ItemDetailRepositoryInterface $itemDetails
@@ -19,23 +19,14 @@ class ItemDetailService
         $item = $this->itemDetails->findById($id);
 
         if (!$item) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'ItemDetail not found.',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'ItemDetail not found.',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $item
-            ]
-        ];
+        return $this->successResponse($item);
     }
 
     public function list(array $params): array
@@ -51,38 +42,17 @@ class ItemDetailService
             $pageNumber = (int)($params['pagenumber'] ?? 1);
 
             /** @var LengthAwarePaginator $items */
-            $items = $this->itemDetails->paginateWithCategoryId(
-                $filters, $pageSize, $pageNumber
+            $items = $this->itemDetails->paginate(
+                $filters, [], $pageSize, $pageNumber
             );
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'data'    => $items->items(),
-                    'pagination' => [
-                        'total' => $items->total(),
-                        'per_page' => $items->perPage(),
-                        'current_page' => $items->currentPage(),
-                        'last_page' => $items->lastPage(),
-                        'from' => $items->firstItem(),
-                        'to' => $items->lastItem()
-                    ]
-                ]
-            ];
+            return $this->paginatedResponse($items);
         }
 
         /** @var Collection $items */
-        $items = $this->itemDetails->getAllWithCategoryId($filters);
+    $items = $this->itemDetails->getAll($filters);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $items,
-                'count'   => $items->count()
-            ]
-        ];
+        return $this->collectionResponse($items);
     }
 
     public function store(array $data): array
@@ -90,14 +60,11 @@ class ItemDetailService
         /** @var ItemDetail $item */
         $item = $this->itemDetails->create($data);
 
-        return [
-            'statusCode' => 201,
-            'payload'    => [
-                'success' => true,
-                'message' => 'ItemDetail created successfully.',
-                'data'    => $item
-            ]
-        ];
+        return $this->successResponse(
+            data: $item,
+            message: 'ItemDetail created successfully.',
+            statusCode: 201
+        );
     }
 
     public function update(ItemDetail $item, array $data): array
@@ -105,39 +72,31 @@ class ItemDetailService
         $item->fill($data);
         $this->itemDetails->save($item);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'ItemDetail updated successfully.',
-                'data'    => $item
-            ]
-        ];
+        return $this->successResponse(
+            data: $item,
+            message: 'ItemDetail updated successfully.'
+        );
     }
 
     public function destroy(ItemDetail $item): array
     {
         $this->itemDetails->delete($item);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'ItemDetail deleted successfully.'
-            ]
-        ];
+        return $this->successResponse(
+            message: 'ItemDetail deleted successfully.',
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     public function bulkDestroy(array $ids): array
     {
         $deletedCount = $this->itemDetails->bulkDeleteByIds($ids);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => "{$deletedCount} ItemDetails deleted successfully."
-            ]
-        ];
+        return $this->successResponse(
+            message: "{$deletedCount} ItemDetails deleted successfully.",
+            statusCode: 200,
+            includeData: false
+        );
     }
 }

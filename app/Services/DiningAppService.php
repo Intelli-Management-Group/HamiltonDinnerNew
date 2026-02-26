@@ -18,6 +18,8 @@ use App\Support\ApiResponse;
 use App\Repositories\Contracts\CategoryDetailRepositoryInterface;
 use App\Repositories\Contracts\DateWiseOccupancyRepositoryInterface;
 use App\Repositories\Contracts\Forms\FormTypeRepositoryInterface;
+use App\Repositories\Contracts\ItemDetailRepositoryInterface;
+use App\Repositories\Contracts\ItemOptionRepositoryInterface;
 use App\Repositories\Contracts\ItemPreferenceRepositoryInterface;
 use App\Repositories\Contracts\MenuDetailRepositoryInterface;
 use App\Repositories\Contracts\OrderDetailRepositoryInterface;
@@ -32,6 +34,8 @@ class DiningAppService
         private CategoryDetailRepositoryInterface $categoryDetails,
         private DateWiseOccupancyRepositoryInterface $dateWiseOccupancies,
         private FormTypeRepositoryInterface $formTypes,
+        private ItemDetailRepositoryInterface $itemDetails,
+        private ItemOptionRepositoryInterface $itemOptions,
         private ItemPreferenceRepositoryInterface $itemPreferences,
         private MenuDetailRepositoryInterface $menuDetails,
         private OrderDetailRepositoryInterface $orderDetails,
@@ -209,6 +213,117 @@ class DiningAppService
         return 'Bearer ' . base64_encode(base64_encode($token));
     }
 
+    public function getUserData($user)
+    {
+        $roleName = $this->roles->findById($user->role_id)?->name;
+
+        $lastDate = $this->menuDetails->findLatestDate() ?? "";
+        if ($lastDate) {
+            $lastDate = Carbon::parse($lastDate)->format('Y-m-d');
+        }
+
+        $rooms = $this->roomDetails->getAll(
+            filters: ['is_active' => 1],
+            relations: [],
+            columns: ['id', 'room_name', 'occupancy', 'resident_name']
+        );
+
+        // Rename room_name → name for API compatibility
+        $roomsArray = $rooms->toArray();
+        array_walk($roomsArray, function (&$room) {
+            $room['name'] = $room['room_name'];
+            unset($room['room_name']);
+        });
+
+        $settingsArray = $this->settings->getAllKeyValues();
+
+        if ($roleName == "user") {
+            return ApiResponse::format(
+                status: '1',
+                message: '',
+                data: [
+                    'occupancy' => $user->occupancy,
+                    'language' => intval($user->language),
+                    'last_menu_date' => $lastDate,
+                    'role' => $roleName,
+                    'breakfast_guideline' => $settingsArray['site.app_breakfast_msg'],
+                    'breakfast_guideline_cn' => (
+                        $settingsArray['site.app_breakfast_msg_cn'] != "" 
+                        ? $settingsArray['site.app_breakfast_msg_cn']
+                        : $settingsArray['site.app_breakfast_msg']
+                    ),
+                    'lunch_guideline' => $settingsArray['site.app_lunch_msg'],
+                    'lunch_guideline_cn' => (
+                        $settingsArray['site.app_lunch_msg_cn'] != ""
+                        ? $settingsArray['site.app_lunch_msg_cn']
+                        : $settingsArray['site.app_lunch_msg']
+                    ),
+                    'dinner_guideline' => $settingsArray['site.app_dinner_msg'],
+                    'dinner_guideline_cn' => (
+                        $settingsArray['site.app_dinner_msg_cn'] != ""
+                        ? $settingsArray['site.app_dinner_msg_cn']
+                        : $settingsArray['site.app_dinner_msg']
+                    ),
+                    'rooms' => $roomsArray,
+                ]
+            );
+        } else {
+            $formTypes = $this->formTypes->getAll();
+
+            $userResults = $this->users->getAll(
+                filters: [
+                    'deleted_at' => 'without',
+                    'role_id' => [3,4,5,6,7]
+                ],
+                relations: [
+                    'role'
+                ],
+            );
+
+            $userList = $userResults->map(fn ($user) => [
+                'id' => $user->id,
+                'role_name' => $user->role?->name,
+                'name' => $user->name,
+                'email' => $user->email,
+            ])->values()->all();
+
+            return ApiResponse::format(
+                status: '1',
+                message: '',
+                data: [
+                    'occupancy' => 0,
+                    'language' => 0,
+                    'last_menu_date' => $lastDate,
+                    'role' => $roleName,
+                    'breakfast_guideline' => $settingsArray['site.app_breakfast_msg'],
+                    'breakfast_guideline_cn' => (
+                        $settingsArray['site.app_breakfast_msg_cn'] != "" 
+                        ? $settingsArray['site.app_breakfast_msg_cn']
+                        : $settingsArray['site.app_breakfast_msg']
+                    ),
+                    'lunch_guideline' => $settingsArray['site.app_lunch_msg'],
+                    'lunch_guideline_cn' => (
+                        $settingsArray['site.app_lunch_msg_cn'] != ""
+                        ? $settingsArray['site.app_lunch_msg_cn']
+                        : $settingsArray['site.app_lunch_msg']
+                    ),
+                    'dinner_guideline' => $settingsArray['site.app_dinner_msg'],
+                    'dinner_guideline_cn' => (
+                        $settingsArray['site.app_dinner_msg_cn'] != ""
+                        ? $settingsArray['site.app_dinner_msg_cn']
+                        : $settingsArray['site.app_dinner_msg']
+                    ),
+                    'form_types' => $formTypes,
+                    'rooms' => $roomsArray,
+                    'user_list' => $userList,
+                    'user_id' => $user->id,
+                    'show_incident' => $settingsArray['show_incident'],
+                    'show_dining' => $settingsArray['show_dining']
+                ]
+            );
+        }
+    }
+
     public function getRoomList()
     {
         // Retrieve Rooms
@@ -217,8 +332,9 @@ class DiningAppService
             relations: [],
             columns: ['id', 'room_name', 'occupancy']);
 
-        // Rename column
-        array_walk($rooms->toArray(), function (&$room) {
+        // Rename room_name → name for API compatibility
+        $roomsArray = $rooms->toArray();
+        array_walk($roomsArray, function (&$room) {
             $room['name'] = $room['room_name'];
             unset($room['room_name']);
         });
@@ -228,7 +344,7 @@ class DiningAppService
 
         // Define data to return
         $data = [
-            'rooms' => $rooms,
+            'rooms' => $roomsArray,
             'last_menu_date' => $last_date,
         ];
 
@@ -263,6 +379,412 @@ class DiningAppService
                 message: "Error in fetching room details: " . $e->getMessage()
             );
         }
+    }
+
+    public function getOrderList(int $roomId, string $date)
+    {
+        $subCatDetails = array();
+        $catArray = array();
+        $breakfast = $lunch = $dinner = array();
+
+        $items = array();
+
+        $menuData = $this->menuDetails->getAll(
+            filters: ['date' => $date],
+            columns: ['items']
+        );
+
+        foreach ($menuData as $menu) {
+            $menuItems = $menu->items;
+
+            if (is_string($menuItems)) {
+                $menuItems = json_decode($menuItems, true);
+            }
+
+            if (!is_array($menuItems)) {
+                continue;
+            }
+
+            foreach ($menuItems as $menuItem) {
+                if (empty($menuItem)) {
+                    continue;
+                }
+
+                if (is_array($menuItem)) {
+                    foreach ($menuItem as $id) {
+                        if ($id !== '' && $id !== null) {
+                            $items[] = (int) $id;
+                        }
+                    }
+                } else {
+                    $items[] = (int) $menuItem;
+                }
+            }
+        }
+
+        $items = array_values(array_unique($items));
+
+        $optionDetails = $preferenceDetails = array();
+
+        if (!empty($items)) {
+            $optionDetails = $this->itemOptions->getAll()
+                ->keyBy('id')
+                ->map(fn ($o) => [
+                    'option_name' => $o->option_name,
+                    'option_name_cn' => $o->option_name_cn ?? $o->option_name,
+                ])
+                ->all();
+            
+            $preferenceDetails = $this->itemPreferences->getAll()
+                ->keyBy('id')
+                ->map(fn ($p) => [
+                    'name' => $p->pname,
+                    'name_cn' => $p->pname_cn ?? $p->pname,
+                ])
+                ->all();
+
+            $categoryData = $this->itemDetails
+                ->findByIdsAndParentFlag($items, true);
+            
+            foreach ($categoryData as $c) {
+                if (!isset($catArray[$c->cat_id])) {
+                    $catArray[$c->cat_id] = [
+                        'cat_id' => $c->cat_id,
+                        'cat_name' => $c->category?->cat_name ?? "",
+                        'chinese_name' => $c->category?->category_chinese_name ?? "",
+                        'items' => [],
+                        'type' => $c->category?->type ?? ""
+                    ];
+                }
+
+                $options = $preference = [];
+
+                if ($roomId != 0) {
+                    $orderData = $this->orderDetails->getAll(
+                        filters: [
+                            'room_id' => $roomId,
+                            'date' => $date,
+                            'item_id' => $c->id,
+                            'is_for_guest' => 0
+                        ]
+                    )->first();
+
+                    if ($c->options != "") {
+                        $cOptions = json_decode($c->options, true);
+                        foreach ($cOptions as $co) {
+                            $co = intval($co);
+                            if ($optionDetails[$co]) {
+                                $options[$co] = array(
+                                    'id' => $co,
+                                    'name' => $optionDetails[$co]['option_name'],
+                                    'c_name' => $optionDetails[$co]['option_name_cn'],
+                                    'is_selected' => (
+                                        $orderData?->item_options != null
+                                        ? intval($co == $orderData->item_options) 
+                                        : 0
+                                    )
+                                );
+                            }
+                        }
+                    }
+
+                    if ($c->preference != "") {
+                        $cPreferences = json_decode($c->preference, true);
+                        foreach ($cPreferences as $cp) {
+                            $cp = intval($cp);
+                            if ($preferenceDetails[$cp]) {
+                                $isSelected = (
+                                    $orderData?->preference != null
+                                    && in_array($cp, explode(',', $orderData->preference))
+                                );
+
+                                $preference[$cp] = array(
+                                    'id' => $cp,
+                                    'name' => $preferenceDetails[$cp]['name'],
+                                    'c_name' => $preferenceDetails[$cp]['name_cn'],
+                                    'is_selected' => intval($isSelected)
+                                );
+                            }
+                        }
+                    }
+
+                    $catArray[$c->cat_id]['items'][] = array(
+                        'type' => "item",
+                        'parent_id' => $c->category->parent_id ?? 0,
+                        'item_id' => $c->id,
+                        'item_name' => $c->item_name,
+                        'chinese_name' => $c->item_chinese_name,
+                        'options' => array_values($options),
+                        'preference' => array_values($preference),
+                        'item_image' => !empty($c->item_image)
+                            ? Storage::url($c->item_image) : null,
+                        'qty' => $orderData?->is_for_guest === 0
+                            ? $orderData->quantity : 0,
+                        'comment' => "",
+                        'order_id' => $orderData?->id ?? 0  
+                    );
+                } else {
+                    $sum = $this->orderDetails->sumQuantityByDateAndItem($date, $c->id);
+
+                    if ($c->options != "") {
+                        $cOptions = json_decode($c->options, true);
+                        foreach ($cOptions as $co) {
+                            $co = intval($co);
+
+                            $itemCount = $this->orderDetails->getAll(
+                                filters: [
+                                    'date' => $date,
+                                    'item_id' => $c->id,
+                                    'item_options' => $co,
+                                ]
+                            )->count();
+
+                            if ($optionDetails[$co]) {
+                                $options[$co] = array(
+                                    'id' => $co,
+                                    'name' => $optionDetails[$co]['option_name'],
+                                    'c_name' => $optionDetails[$co]['option_name_cn'],
+                                    'is_selected' => 0,
+                                    'item_count' => $itemCount
+                                );
+                            }
+                        }
+                    }
+
+                    $catArray[$c->cat_id]['items'][] = array(
+                        'type' => "item",
+                        'parent_id' => $c->category->parent_id ?? 0,
+                        'item_id' => $c->id,
+                        'item_name' => $c->item_name,
+                        'chinese_name' => $c->item_chinese_name,
+                        'is_expanded' => (int) (count(array_values($options)) > 0),
+                        'options' => array_values($options),
+                        'preference' => array_values($preference),
+                        'item_image' => !empty($c->item_image)
+                            ? Storage::url($c->item_image) : null,
+                        'qty' => $sum,
+                        'comment' => "",
+                        'order_id' => 0  
+                     );
+                }
+            }
+
+            $subCatData = $this->itemDetails
+                ->findByIdsAndParentFlag($items, false);
+
+            foreach ($subCatData as $sc) {
+                if (!isset($subCatDetails[$sc->cat_id])) {
+                    $subCatDetails[$sc->cat_id] = [
+                        "cat_id" => $sc->cat_id,
+                        "cat_name" => $sc->category?->cat_name ?? "",
+                        "chinese_name" => $sc->category?->category_chinese_name ?? "",
+                        "parent_id" => $sc->category?->parent_id ?? 0,
+                        "items" => []
+                    ];
+                }
+
+                $scParentId = $sc->category?->parent_id ?? 0;
+
+                if (!isset($catArray[$scParentId])) {
+                    $scParent = $this->categoryDetails->findById($scParentId);
+
+                    $catArray[$scParentId] = [
+                        'cat_id' => $scParentId,
+                        'cat_name' => $scParent?->cat_name ?? "",
+                        'chinese_name' => $scParent?->category_chinese_name ?? "",
+                        'items' => [],
+                        'type' => $scParent?->type ?? ""
+                    ];
+                }
+
+                $options = $preference = [];
+
+                if ($roomId != 0) {
+                    $orderData = $this->orderDetails->getAll(
+                        filters: [
+                            'room_id' => $roomId,
+                            'date' => $date,
+                            'item_id' => $sc->id,
+                            'is_for_guest' => 0
+                        ]
+                    )->first();
+
+                    if ($sc->options != "") {
+                        $scOptions = json_decode($sc->options, true);
+                        foreach ($scOptions as $sco) {
+                            $sco = intval($sco);
+                            if ($optionDetails[$sco]) {
+                                $options[$sco] = array(
+                                    'id' => $sco,
+                                    'name' => $optionDetails[$sco]['option_name'],
+                                    'c_name' => $optionDetails[$sco]['option_name_cn'],
+                                    'is_selected' => (
+                                        $orderData?->item_options != null
+                                        ? intval($sco == $orderData->item_options) 
+                                        : 0
+                                    )
+                                );
+                            }
+                        }
+                    }
+
+                    if ($sc->preference != "") {
+                        $scPreferences = json_decode($sc->preference, true);
+                        foreach ($scPreferences as $scp) {
+                            $scp = intval($scp);
+                            if ($preferenceDetails[$scp]) {
+                                $isSelected = (
+                                    $orderData?->preference != null
+                                    && in_array($scp, explode(',', $orderData->preference))
+                                );
+
+                                $preference[$scp] = array(
+                                    'id' => $scp,
+                                    'name' => $preferenceDetails[$scp]['name'],
+                                    'c_name' => $preferenceDetails[$scp]['name_cn'],
+                                    'is_selected' => intval($isSelected)
+                                );
+                            }
+                        }
+                    }
+
+                    $subCatDetails[$sc->cat_id]['items'][] = array(
+                        'item_id' => $sc->id,
+                        'parent_id' => $scParentId,
+                        'item_name' => $sc->item_name,
+                        'chinese_name' => $sc->item_chinese_name,
+                        'item_image' => !empty($sc->item_image)
+                            ? Storage::url($sc->item_image) : null,
+                        'options' => array_values($options),
+                        'preference' => array_values($preference),
+                        'qty' => $orderData?->is_for_guest === 0
+                            ? $orderData->quantity : 0,
+                        'comment' => "",
+                        'order_id' => $orderData?->id ?? 0
+                    );
+                } else {
+                    $sum = $this->orderDetails->sumQuantityByDateAndItem($date, $sc->id);
+
+                    if ($sc->options != "") {
+                        $scOptions = json_decode($sc->options, true);
+                        foreach ($scOptions as $sco) {
+                            $sco = intval($sco);
+
+                            $itemCount = $this->orderDetails->getAll(
+                                filters: [
+                                    'date' => $date,
+                                    'item_id' => $sc->id,
+                                    'item_options' => $sco,
+                                ]
+                            )->count();
+
+                            if ($optionDetails[$sco]) {
+                                $options[$sco] = array(
+                                    'id' => $sco,
+                                    'name' => $optionDetails[$sco]['option_name'],
+                                    'c_name' => $optionDetails[$sco]['option_name_cn'],
+                                    'is_selected' => 0,
+                                    'item_count' => $itemCount
+                                );
+                            }
+                        }
+                    }
+
+                    $subCatDetails[$sc->cat_id]['items'][] = array(
+                        'item_id' => $sc->id,
+                        'parent_id' => $scParentId,
+                        'item_name' => $sc->item_name,
+                        'chinese_name' => $sc->item_chinese_name,
+                        'item_image' => !empty($sc->item_image)
+                            ? Storage::url($sc->item_image) : null,
+                        'is_expanded' => (int) (count(array_values($options)) > 0),
+                        'options' => array_values($options),
+                        'preference' => array_values($preference),
+                        'qty' => $sum,
+                        'comment' => "",
+                        'order_id' => 0
+                    );
+                }
+            }
+
+            foreach ($subCatDetails as $scd) {
+                if (isset($catArray[$scd['parent_id']])) {
+                    $catArray[$scd['parent_id']]['items'][] = array(
+                        'type' => "sub_cat",
+                        'item_id' => null,
+                        'cat_id' => $scd['cat_id'],
+                        'parent_id' => $scd['parent_id'],
+                        'item_name' => $scd['cat_name'],
+                        'chinese_name' => $scd['chinese_name'],
+                        'options' => [],
+                        'preference' => [],
+                        'item_image' => "",
+                        'qty' => 0,
+                        'comment' => "",
+                        'order_id' => 0
+                    );
+
+                    foreach ($scd['items'] as $item) {
+                        $catArray[$scd['parent_id']]['items'][] = array_merge(
+                            $item,
+                            ['type' => "sub_cat_item"]
+                        );
+                    }
+                }
+            }
+
+        }
+
+        foreach ($catArray as $cat) {
+            $type = intval($cat['type'] ?? 0);
+            unset($cat['type']);
+
+            if ($type == 1) {
+                $breakfast[] = $cat;
+            } else if ($type == 2) {
+                $lunch[] = $cat;
+            } else if ($type == 3) {
+                $dinner[] = $cat;
+            }
+        }
+
+        $lastMenuDate = $this->menuDetails->findLatestDate() ?? "";
+        if ($lastMenuDate) {
+            $lastMenuDate = Carbon::parse($lastMenuDate)->format('Y-m-d');
+        }
+
+    $instructions = $this->roomDetails->findById($roomId)?->special_instrucations ?? "";
+
+        $trayServiceData = $this->orderDetails->getAll(
+            filters: [
+                'room_id' => $roomId,
+                'date' => $date,
+                'is_for_guest' => 0,
+                'order_by' => 'id',
+                'order_direction' => 'desc'
+            ]
+        )->first();
+
+        return ApiResponse::format(
+            status: '1',
+            message: '',
+            data: [
+                'breakfast' => $breakfast,
+                'lunch' => $lunch,
+                'dinner' => $dinner,
+                'last_menu_date' => $lastMenuDate,
+                'special_instruction' => $instructions,
+                'is_brk_tray_service' => $trayServiceData?->is_brk_tray_service ?? 0,
+                'is_lunch_tray_service' => $trayServiceData?->is_lunch_tray_service ?? 0,
+                'is_dinner_tray_service' => $trayServiceData?->is_dinner_tray_service ?? 0,
+                'is_brk_escort_service' => $trayServiceData?->is_brk_escort_service ?? 0,
+                'is_lunch_escort_service' => $trayServiceData?->is_lunch_escort_service ?? 0,
+                'is_dinner_escort_service' => $trayServiceData?->is_dinner_escort_service ?? 0,
+                'is_brk_takeout_service' => $trayServiceData?->is_brk_takeout_service ?? 0,
+                'is_lunch_takeout_service' => $trayServiceData?->is_lunch_takeout_service ?? 0,
+                'is_dinner_takeout_service' => $trayServiceData?->is_dinner_takeout_service ?? 0
+            ]
+        );
     }
 
     public function updateRoomDetails(int $roomId, array $data)
@@ -315,7 +837,7 @@ class DiningAppService
             $orders_to_change = $orderData['orders_to_change'];
             $occupancy = $orderData['occupancy'];
 
-            $this->orderDetails->updateByFilters([
+            $this->orderDetails->upsertByFilters([
                 'room_id' => $roomId,
                 'date' => $date,
                 'is_for_guest' => $is_for_guest
@@ -407,6 +929,538 @@ class DiningAppService
         }
     }
 
+    public function updateOrderBulk(
+        int $roomId,
+        string $date,
+        string $ordersToChange
+    ) {
+        if (!$roomId || !$date) {
+            return ApiResponse::format(
+                status: '2',
+                message: 'Room id or date is missing'
+            );
+        }
+
+        $room = $this->roomDetails->findById($roomId);
+        if (!$room) {
+            return ApiResponse::format(
+                status: '2',
+                message: 'Room not found'
+            );
+        }
+
+        $orderData = json_decode($ordersToChange, true);
+        $item_array = $order_array = array();
+        foreach ($orderData as $order) {
+            
+            $internalDate = $order['date'];
+            $is_brk_tray_service = $order['is_brk_tray_service'] ?? 0;
+            $is_lunch_tray_service = $order['is_lunch_tray_service'] ?? 0;
+            $is_dinner_tray_service = $order['is_dinner_tray_service'] ?? 0;
+            $is_brk_escort_service = $order['is_brk_escort_service'] ?? 0;
+            $is_lunch_escort_service = $order['is_lunch_escort_service'] ?? 0;
+            $is_dinner_escort_service = $order['is_dinner_escort_service'] ?? 0;
+            $is_brk_takeout_service = $order['is_brk_takeout_service'] ?? 0;
+            $is_lunch_takeout_service = $order['is_lunch_takeout_service'] ?? 0;
+            $is_dinner_takeout_service = $order['is_dinner_takeout_service'] ?? 0;
+
+            $this->orderDetails->upsertByFilters([
+                'room_id' => $roomId,
+                'date' => $internalDate,
+            ], [
+                'is_brk_tray_service' => $is_brk_tray_service,
+                'is_lunch_tray_service' => $is_lunch_tray_service,
+                'is_dinner_tray_service' => $is_dinner_tray_service,
+                'is_brk_escort_service' => $is_brk_escort_service,
+                'is_lunch_escort_service' => $is_lunch_escort_service,
+                'is_dinner_escort_service' => $is_dinner_escort_service,
+                'is_brk_takeout_service' => $is_brk_takeout_service,
+                'is_lunch_takeout_service' => $is_lunch_takeout_service,
+                'is_dinner_takeout_service' => $is_dinner_takeout_service,
+            ]);
+
+            if ($request['items']) {
+                foreach($request['items'] as $n) {
+                    $n['order_id'] = intval($n['order_id']);
+                    $n['qty'] = intval($n['qty']);
+
+                    if ($n['order_id'] == 0) {
+                        if ($n['qty'] != 0) {
+                            $order = $this->orderDetails->create([
+                                'room_id' => $roomId,
+                                'date' => $internalDate,
+                                'item_id' => $n['item_id'],
+                                'item_options' => $n['item_options'],
+                                'preference' => $n['preference'],
+                                'quantity' => $n['qty'],
+                                'comment' => '',
+                                'status' => 0,
+
+                                'is_brk_tray_service' => $is_brk_tray_service,
+                                'is_lunch_tray_service' => $is_lunch_tray_service,
+                                'is_dinner_tray_service' => $is_dinner_tray_service,
+
+                                'is_brk_escort_service' => $is_brk_escort_service,
+                                'is_lunch_escort_service' => $is_lunch_escort_service,
+                                'is_dinner_escort_service' => $is_dinner_escort_service,
+
+                                'is_brk_takeout_service' => $is_brk_takeout_service,
+                                'is_lunch_takeout_service' => $is_lunch_takeout_service,
+                                'is_dinner_takeout_service' => $is_dinner_takeout_service,
+                            ]);
+                            
+                            $item_array[] = $n['item_id'];
+                            $order_array[] = $order->id;
+                        }
+                    } else {
+                        $order = $this->orderDetails->findById($n['order_id']);
+                        if ($order) {
+                            if ($n['qty'] != 0) {
+                                $order->quantity = $n['qty'];
+                                $order->item_options = $n['item_options'];
+                                $order->preference = $n['preference'];
+                                $order->comment = '';
+
+                                $this->orderDetails->save($order);
+                            } else {
+                                $this->orderDetails->delete($order);
+                                $item_array[] = $n['item_id'];
+                                $order_array[] = 0;    
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return ApiResponse::format(
+            status: '1',
+            message: 'success',
+            data: [
+                'item_id' => $item_array,
+                'order_id' => $order_array
+            ]
+        );
+    }
+
+    public function getGuestOrderList($roomId, $date)
+    {
+        $subCatDetails = array();
+        $catArray = array();
+        $breakfast = $lunch = $dinner = array();
+
+        $items = array();
+
+        $menuData = $this->menuDetails->getAll(
+            filters: ['date' => $date],
+            columns: ['items']
+        );
+
+        foreach ($menuData as $menu) {
+            $menuItems = $menu->items;
+
+            if (is_string($menuItems)) {
+                $menuItems = json_decode($menuItems, true);
+            }
+
+            if (!is_array($menuItems)) {
+                continue;
+            }
+
+            foreach ($menuItems as $menuItem) {
+                if (empty($menuItem)) {
+                    continue;
+                }
+
+                if (is_array($menuItem)) {
+                    foreach ($menuItem as $id) {
+                        if ($id !== '' && $id !== null) {
+                            $items[] = (int) $id;
+                        }
+                    }
+                } else {
+                    $items[] = (int) $menuItem;
+                }
+            }
+        }
+
+        $items = array_values(array_unique($items));
+
+        $optionDetails = $preferenceDetails = array();
+        if (!empty($items)) {
+            $optionDetails = $this->itemOptions->getAll()
+                ->keyBy('id')
+                ->map(fn ($o) => [
+                    'option_name' => $o->option_name,
+                    'option_name_cn' => $o->option_name_cn ?? $o->option_name,
+                ])
+                ->all();
+            
+            $preferenceDetails = $this->itemPreferences->getAll()
+                ->keyBy('id')
+                ->map(fn ($p) => [
+                    'name' => $p->pname,
+                    'name_cn' => $p->pname_cn ?? $p->pname,
+                ])
+                ->all();
+
+            $categoryData = $this->itemDetails
+                ->findByIdsAndParentFlag($items, true);
+
+            foreach ($categoryData as $c) {
+                if (!isset($catArray[$c->cat_id])) {
+                    $catArray[$c->cat_id] = array(
+                        "cat_id" => $c->cat_id,
+                        "cat_name" => $c->category?->cat_name ?? "",
+                        "chinese_name" => $c->category?->category_chinese_name ?? "",
+                        "items" => array(),
+                        "type" => $c->category?->type ?? ""
+                    );
+                }
+
+                $options = array();
+                $preference = array();
+
+                if ($roomId != 0) {
+                    $orderData = $this->orderDetails->getAll(
+                        filters: [
+                            'room_id' => $roomId,
+                            'date' => $date,
+                            'item_id' => $c->id,
+                            'is_for_guest' => 1
+                        ]
+                    )->first();
+
+                    if ($c->options != "") {
+                        $cOptions = json_decode($c->options, true);
+                        foreach ($cOptions as $co) {
+                            $co = intval($co);
+                            if ($optionDetails[$co]) {
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $optionDetails[$co]['option_name'],
+                                    "c_name" => $optionDetails[$co]['option_name_cn'],
+                                    "is_selected" => (
+                                        $orderData && $orderData->item_options != null
+                                        ? ($co == $orderData->item_options ? 1 : 0)
+                                        : 0
+                                    )
+                                );
+                            }
+                        }
+                    }
+
+                    if ($c->preference != "") {
+                        $cPreferences = json_decode($c->preference, true);
+                        foreach ($cPreferences as $cp) {
+                            $cp = intval($cp);
+                            if ($preferenceDetails[$cp]) {
+                                $isSelected = (
+                                    $orderData && $orderData->preference != null
+                                    ? in_array($cp, explode(",", $orderData->preference))
+                                    : false
+                                );
+
+                                $preference[$cp] = array(
+                                    "id" => $cp,
+                                    "name" => $preferenceDetails[$cp]['name'],
+                                    "c_name" => $preferenceDetails[$cp]['name_cn'],
+                                    "is_selected" => $isSelected ? 1 : 0
+                                );
+                            }
+                        }
+                    }
+
+                    array_push(
+                        $catArray[$c->cat_id]["items"],
+                        array(
+                            "type" => "item",
+                            'parent_id' => $c->category?->parent_id ?? 0,
+                            "item_id" => $c->id,
+                            "item_name" => $c->item_name,
+                            "chinese_name" => $c->item_chinese_name,
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "item_image" => !empty($c->item_image)
+                                ? Storage::url($c->item_image) : null,
+                            "qty" => (
+                                $orderData
+                                ? ($orderData->is_for_guest ? $orderData->quantity : 0)
+                                : 0
+                            ),
+                            "comment" => "",
+                            "order_id" => ($orderData ? $orderData->id : 0)
+                        )
+                    );
+                } else {
+                    $sum = $this->orderDetails->sumQuantityByDateAndItem($date, $c->id);
+
+                    if ($c->options != "") {
+                        $cOptions = json_decode($c->options, true);
+                        foreach ($cOptions as $co) {
+                            $co = intval($co);
+                            if ($optionDetails[$co]) {
+                                $itemCount = $this->orderDetails->getAll(
+                                    filters: [
+                                        'date' => $date,
+                                        'item_id' => $c->id,
+                                        'item_options' => $co,
+                                    ]
+                                )->count();
+
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $optionDetails[$co]['option_name'],
+                                    "c_name" => $optionDetails[$co]['option_name_cn'],
+                                    "is_selected" => 0,
+                                    "item_count" => $itemCount
+                                );
+                            }
+                        }
+                    }
+
+                    array_push(
+                        $catArray[$c->cat_id]["items"],
+                        array(
+                            "type" => "item",
+                            'parent_id' => $c->category?->parent_id ?? 0,
+                            "item_id" => $c->id,
+                            "item_name" => $c->item_name,
+                            "chinese_name" => $c->item_chinese_name,
+                            "is_expanded" => (count(array_values($options)) > 0 ? 1 : 0),
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "item_image" => !empty($c->item_image)
+                                ? Storage::url($c->item_image) : null,
+                            "qty" => $sum,
+                            "comment" => "",
+                            "order_id" => 0
+                        )
+                    );
+                }
+            }
+
+            $subCategoryData = $this->itemDetails
+                ->findByIdsAndParentFlag($items, false);
+
+            foreach ($subCategoryData as $sc) {
+                if (!isset($subCatDetails[$sc->cat_id])) {
+                    $subCatDetails[$sc->cat_id] = array(
+                        "cat_id" => $sc->cat_id,
+                        "cat_name" => $sc->category?->cat_name ?? "",
+                        "chinese_name" => $sc->category?->category_chinese_name ?? "",
+                        "parent_id" => $sc->category?->parent_id ?? 0,
+                        "items" => array()
+                    );
+                }
+
+                $parentId = $sc->category?->parent_id ?? 0;
+
+                if (!isset($catArray[$parentId])) {
+                    $parentCategory = $this->categoryDetails->findById($parentId);
+
+                    $catArray[$parentId] = array(
+                        "cat_id" => $parentCategory?->id ?? $parentId,
+                        "cat_name" => $parentCategory?->cat_name ?? "",
+                        "chinese_name" => $parentCategory?->category_chinese_name ?? "",
+                        "items" => array(),
+                        "type" => $parentCategory?->type ?? ""
+                    );
+                }
+
+                $options = array();
+                $preference = array();
+
+                if ($roomId != 0) {
+                    $orderData = $this->orderDetails->getAll(
+                        filters: [
+                            'room_id' => $roomId,
+                            'date' => $date,
+                            'item_id' => $sc->id,
+                            'is_for_guest' => 1
+                        ]
+                    )->first();
+
+                    if ($sc->options != "") {
+                        $scOptions = json_decode($sc->options, true);
+                        foreach ($scOptions as $sco) {
+                            $sco = intval($sco);
+                            if ($optionDetails[$sco]) {
+                                $options[$sco] = array(
+                                    "id" => $sco,
+                                    "name" => $optionDetails[$sco]['option_name'],
+                                    "c_name" => $optionDetails[$sco]['option_name_cn'],
+                                    "is_selected" => (
+                                        $orderData && $orderData->item_options != null
+                                        ? ($sco == $orderData->item_options ? 1 : 0)
+                                        : 0
+                                    )
+                                );
+                            }
+                        }
+                    }
+
+                    if ($sc->preference != "") {
+                        $scPreferences = json_decode($sc->preference, true);
+                        foreach ($scPreferences as $scp) {
+                            $scp = intval($scp);
+                            if ($preferenceDetails[$scp]) {
+                                $isSelected = (
+                                    $orderData && $orderData->preference != null
+                                    ? in_array($scp, explode(",", $orderData->preference))
+                                    : false
+                                );
+
+                                $preference[$scp] = array(
+                                    "id" => $scp,
+                                    "name" => $preferenceDetails[$scp]['name'],
+                                    "c_name" => $preferenceDetails[$scp]['name_cn'],
+                                    "is_selected" => $isSelected ? 1 : 0
+                                );
+                            }
+                        }
+                    }
+
+                    array_push(
+                        $subCatDetails[$sc->cat_id]["items"],
+                        array(
+                            "item_id" => $sc->id,
+                            'parent_id' => $parentId,
+                            "item_name" => $sc->item_name,
+                            "chinese_name" => $sc->item_chinese_name,
+                            "item_image" => !empty($sc->item_image)
+                                ? Storage::url($sc->item_image) : null,
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "qty" => (
+                                $orderData
+                                ? ($orderData->is_for_guest ? $orderData->quantity : 0)
+                                : 0
+                            ),
+                            "comment" => "",
+                            "order_id" => ($orderData ? $orderData->id : 0)
+                        )
+                    );
+                } else {
+                    $sum = $this->orderDetails->sumQuantityByDateAndItem($date, $sc->id);
+
+                    if ($sc->options != "") {
+                        $scOptions = json_decode($sc->options, true);
+                        foreach ($scOptions as $sco) {
+                            $sco = intval($sco);
+                            if ($optionDetails[$sco]) {
+                                $itemCount = $this->orderDetails->getAll(
+                                    filters: [
+                                        'date' => $date,
+                                        'item_id' => $sc->id,
+                                        'item_options' => $sco,
+                                    ]
+                                )->count();
+
+                                $options[$sco] = array(
+                                    "id" => $sco,
+                                    "name" => $optionDetails[$sco]['option_name'],
+                                    "c_name" => $optionDetails[$sco]['option_name_cn'],
+                                    "is_selected" => 0,
+                                    "item_count" => $itemCount
+                                );
+                            }
+                        }
+                    }
+
+                    array_push(
+                        $subCatDetails[$sc->cat_id]["items"],
+                        array(
+                            "item_id" => $sc->id,
+                            'parent_id' => $parentId,
+                            "item_name" => $sc->item_name,
+                            "chinese_name" => $sc->item_chinese_name,
+                            "item_image" => !empty($sc->item_image)
+                                ? Storage::url($sc->item_image) : null,
+                            "is_expanded" => (count(array_values($options)) > 0 ? 1 : 0),
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "qty" => $sum,
+                            "comment" => "",
+                            "order_id" => 0
+                        )
+                    );
+                }
+            }
+
+            foreach ($subCatDetails as $sc) {
+                if (isset($catArray[$sc['parent_id']])) {
+                    array_push(
+                        $catArray[$sc['parent_id']]["items"],
+                        array(
+                            "type" => "sub_cat",
+                            "item_id" => null,
+                            "cat_id" => $sc["cat_id"],
+                            "parent_id" => $sc["parent_id"],
+                            "item_name" => $sc["cat_name"],
+                            "chinese_name" => $sc["chinese_name"],
+                            "options" => [],
+                            "preference" => [],
+                            "item_image" => "",
+                            "qty" => 0,
+                            "comment" => "",
+                            "order_id" => 0
+                        )
+                    );
+
+                    foreach ($sc["items"] as $sci) {
+                        array_push(
+                            $catArray[$sc['parent_id']]["items"],
+                            array_merge($sci, ["type" => "sub_cat_item"])
+                        );
+                    }
+                }
+            }
+        }
+
+        foreach ($catArray as $cat) {
+            $type = intval($cat['type']);
+            unset($cat['type']);
+
+            if ($type == 1) {
+                array_push($breakfast, $cat);
+            } else if ($type == 2) {
+                array_push($lunch, $cat);
+            } else if ($type == 3) {
+                array_push($dinner, $cat);
+            }
+        }
+
+        $trayServiceData = $this->orderDetails->getAll(
+            filters: [
+                'room_id' => $roomId,
+                'date' => $date,
+                'is_for_guest' => 1
+            ]
+        )->first();
+
+        $occupancy = $this->dateWiseOccupancies->getAll(
+            filters: [
+                'room_id' => $roomId,
+                'date' => $date
+            ]
+        )->first();
+
+        return ApiResponse::format(
+            status: '1',
+            message: '',
+            data: [
+                'breakfast' => $breakfast,
+                'lunch' => $lunch,
+                'dinner' => $dinner,
+                'occupancy' => $occupancy?->occupancy ?? 0,
+                'is_brk_tray_service' => $trayServiceData?->is_brk_tray_service ?? 0,
+                'is_lunch_tray_service' => $trayServiceData?->is_lunch_tray_service ?? 0,
+                'is_dinner_tray_service' => $trayServiceData?->is_dinner_tray_service ?? 0
+            ]
+        );
+    }
+
     public function printOrderData(
         int $roomId,
         string $date,
@@ -436,7 +1490,7 @@ class DiningAppService
             ];
         })->all();
 
-        $categoryDetails = $this->categoryDetails->getAllWithType();
+    $categoryDetails = $this->categoryDetails->getAll();
         $categoryTypeMap = [
             1 => 'breakfast',
             2 => 'lunch',
@@ -478,7 +1532,7 @@ class DiningAppService
             
             if (array_key_exists($mealType, $categoryDetails) && $order->itemData) {
                 $itemData = $order->itemData;
-                if (!in_array($itemData->categoryData->type, $categoryDetails[$mealType])) {
+                if (!in_array($itemData->category->type, $categoryDetails[$mealType])) {
                     continue;
                 }
             }
@@ -488,7 +1542,7 @@ class DiningAppService
 
             $room_id = $order->room_id;
 
-            $catData = $order->itemData?->categoryData;
+            $catData = $order->itemData?->category;
             if ($catData) {
                 $type = intval($catData->type);
                 if ($order->item_options != "") {

@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class RoleService
+class RoleService extends BaseService
 {
     public function __construct(
         private RoleRepositoryInterface $roles
@@ -19,23 +19,14 @@ class RoleService
         $role = $this->roles->findById($id);
 
         if (!$role) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'Role not found.',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'Role not found.',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $role
-            ]
-        ];
+        return $this->successResponse($role);
     }
     
     public function list(array $params): array
@@ -51,38 +42,20 @@ class RoleService
             $pageNumber = (int)($params['pagenumber'] ?? 1);
 
             /** @var LengthAwarePaginator $roles */
-            $roles = $this->roles->paginateWithPermissions(
-                $filters, $pageSize, $pageNumber
+            $roles = $this->roles->paginate(
+                $filters,
+                [],
+                $pageSize,
+                $pageNumber
             );
 
-            return [
-                'statusCode' => 200,
-                'payload' => [
-                    'success' => true,
-                    'data' => $roles->items(),
-                    'pagination' => [
-                        'total' => $roles->total(),
-                        'per_page' => $roles->perPage(),
-                        'current_page' => $roles->currentPage(),
-                        'last_page' => $roles->lastPage(),
-                        'from' => $roles->firstItem(),
-                        'to' => $roles->lastItem()
-                    ]
-                ]
-            ];
+            return $this->paginatedResponse($roles);
         }
 
         /** @var Collection $roles */
-        $roles = $this->roleRepository->getAllWithPermissions($filters);
-        
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data' => $roles,
-                'count' => $roles->count()
-            ]
-        ];
+    $roles = $this->roles->getAll($filters);
+
+        return $this->collectionResponse($roles);
     }
 
     public function show(int $id): array
@@ -90,23 +63,14 @@ class RoleService
         $role = $this->roles->findWithPermissionsById($id);
 
         if (!$role) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'Role not found',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'Role not found',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $role
-            ]
-        ];
+        return $this->successResponse($role);
     }
 
     public function store(array $data): array
@@ -123,14 +87,10 @@ class RoleService
             $existing->syncPermissions($permissions);
             $existing->refresh();
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'message' => 'Role restored and updated successfully',
-                    'data'    => $existing
-                ]
-            ];
+            return $this->successResponse(
+                data: $existing,
+                message: 'Role restored and updated successfully'
+            );
         }
 
         $role = $this->roles->create([
@@ -141,14 +101,11 @@ class RoleService
         $role->syncPermissions($permissions);
         $role->refresh();
 
-        return [
-            'statusCode' => 201,
-            'payload'    => [
-                'success' => true,
-                'message' => 'Role created successfully',
-                'data'    => $role
-            ]
-        ];
+        return $this->successResponse(
+            data: $role,
+            message: 'Role created successfully',
+            statusCode: 201
+        );
     }
 
     public function update(Role $role, array $data): array
@@ -161,40 +118,32 @@ class RoleService
         $role->syncPermissions($permissions);
         $role->refresh();
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'Role updated successfully',
-                'data'    => $role
-            ]
-        ];
+        return $this->successResponse(
+            data: $role,
+            message: 'Role updated successfully'
+        );
     }
 
     public function destroy(Role $role): array
     {
         $this->roles->delete($role);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'Role deleted successfully'
-            ]
-        ];
+        return $this->successResponse(
+            message: 'Role deleted successfully',
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     public function bulkDestroy(array $ids): array
     {
         $deletedCount = $this->roles->bulkDeleteByIds($ids);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => "{$deletedCount} roles deleted successfully"
-            ]
-        ];
+        return $this->successResponse(
+            message: "{$deletedCount} roles deleted successfully",
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     public function nameConflictWithDeleted(string $name, int $excludingId): bool

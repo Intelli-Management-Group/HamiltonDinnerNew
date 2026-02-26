@@ -1,0 +1,200 @@
+{
+  "_meta": {
+    "auth": "JWT — pass via: --token=\"Bearer <your_jwt_token>\"",
+    "base_urls": {
+      "redesign": "https://hamiltondinnerapp.redesign.intelligrp.com/api",
+      "staging": "https://hamiltondinnerapp.staging.intelligrp.com/api"
+    },
+    "usage": "php scripts/compare_api.php --base-a=https://hamiltondinnerapp.redesign.intelligrp.com/api --base-b=https://hamiltondinnerapp.staging.intelligrp.com/api --endpoints=scripts/endpoints.json --token=\"Bearer <jwt>\"",
+    "customize": [
+      "Replace SAMPLE_ID (1) with a resource ID that exists in both environments.",
+      "Replace SAMPLE_DATE (2026-02-15) with a date that has order data in both environments.",
+      "Replace SAMPLE_DATE_END (2026-02-28) for range queries."
+    ]
+  },
+  "endpoints": [
+    {
+      "name": "Auth: me",
+      "method": "GET",
+      "path": "/admin/me",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Menus: list (paginated)",
+      "method": "GET",
+      "path": "/admin/menus",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Menus: show",
+      "method": "GET",
+      "path": "/admin/menus/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Categories: list (paginated)",
+      "method": "GET",
+      "path": "/admin/categories",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Categories: show",
+      "method": "GET",
+      "path": "/admin/categories/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Item Options: list (paginated)",
+      "method": "GET",
+      "path": "/admin/item-options",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Item Options: show",
+      "method": "GET",
+      "path": "/admin/item-options/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Item Details: list (paginated)",
+      "method": "GET",
+      "path": "/admin/item-details",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Item Details: show",
+      "method": "GET",
+      "path": "/admin/item-details/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Item Preferences: list (paginated)",
+      "method": "GET",
+      "path": "/admin/item-preferences",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Item Preferences: show",
+      "method": "GET",
+      "path": "/admin/item-preferences/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Rooms: list (paginated)",
+      "method": "GET",
+      "path": "/admin/rooms",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Rooms: show",
+      "method": "GET",
+      "path": "/admin/rooms/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Roles: list (paginated)",
+      "method": "GET",
+      "path": "/admin/roles",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Roles: show",
+      "method": "GET",
+      "path": "/admin/roles/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Permissions: list (paginated)",
+      "method": "GET",
+      "path": "/admin/permissions",
+      "query": { "pagesize": 10, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Users: list (paginated)",
+      "method": "GET",
+      "path": "/admin/users",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Users: show",
+      "method": "GET",
+      "path": "/admin/users/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Settings: list",
+      "method": "GET",
+      "path": "/admin/settings",
+      "expectStatus": 200
+    },
+    {
+      "name": "Settings: show",
+      "method": "GET",
+      "path": "/admin/settings/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Form Types: list (paginated)",
+      "method": "GET",
+      "path": "/admin/form-types",
+      "query": { "pagesize": 5, "pagenumber": 1 },
+      "expectStatus": 200
+    },
+    {
+      "name": "Form Types: show",
+      "method": "GET",
+      "path": "/admin/form-types/1",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Charge Report: single date",
+      "method": "POST",
+      "path": "/admin/temp-get-charges-report",
+      "body": { "start_date": "2026-02-15", "end_date": "2026-02-15" },
+      "expectStatus": 200
+    },
+    {
+      "name": "Charge Report: date range",
+      "method": "POST",
+      "path": "/admin/temp-get-charges-report",
+      "body": { "start_date": "2026-02-15", "end_date": "2026-02-28" },
+      "expectStatus": 200
+    },
+
+    {
+      "name": "Order Report: single date",
+      "method": "GET",
+      "path": "/admin/reports",
+      "query": { "search_date": "2026-02-15" },
+      "expectStatus": 200
+    },
+    {
+      "name": "Order Report: date range",
+      "method": "GET",
+      "path": "/admin/reports",
+      "query": { "start_date": "2026-02-15", "end_date": "2026-02-28" },
+      "expectStatus": 200
+    }
+  ]
+}

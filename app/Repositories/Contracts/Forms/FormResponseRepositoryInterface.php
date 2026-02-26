@@ -2,15 +2,13 @@
 
 namespace App\Repositories\Contracts\Forms;
 
-use App\Models\FormResponse;
+use App\Repositories\Contracts\BaseRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
-    
-interface FormResponseRepositoryInterface
-{
-    public function findById($id): ?FormResponse;
 
+interface FormResponseRepositoryInterface extends BaseRepositoryInterface
+{
     public function queryWithFormType(array $filters = []): Builder;
 
     public function paginateWithFormType(
@@ -20,13 +18,4 @@ interface FormResponseRepositoryInterface
     ): LengthAwarePaginator;
 
     public function getAllWithFormType(array $filters = []): Collection;
-
-    public function create(array $data): FormResponse;
-
-    public function upsertByFilters(array $filters, array $data): FormResponse;
-
-    public function save(FormResponse $formResponse): FormResponse;
-    public function delete(FormResponse $formResponse): bool;
-
-    public function bulkDeleteByIds(array $ids): int;
 }

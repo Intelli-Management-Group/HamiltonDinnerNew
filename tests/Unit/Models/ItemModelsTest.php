@@ -6,6 +6,7 @@ use App\Models\ItemDetail;
 use App\Models\ItemOption;
 use App\Models\ItemPreference;
 use App\Models\MenuDetail;
+use App\Repositories\Eloquent\ItemDetailRepository;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -16,7 +17,7 @@ class ItemModelsTest extends TestCase
     use RefreshDatabase;
 
     /** @test */
-    public function item_detail_scope_category_id_filters_results()
+    public function item_detail_filters_by_category_id_with_repository()
     {
         ItemDetail::create([
             'cat_id' => 1,
@@ -32,7 +33,8 @@ class ItemModelsTest extends TestCase
             'is_allday' => 0,
         ]);
 
-        $items = ItemDetail::categoryId(1)->get();
+        $repository = new ItemDetailRepository(new ItemDetail());
+        $items = $repository->getAll(['cat_id' => 1]);
 
         $this->assertCount(1, $items);
         $this->assertSame('Item A', $items->first()->item_name);
@@ -43,7 +45,7 @@ class ItemModelsTest extends TestCase
     {
         $item = new ItemDetail();
 
-        $this->assertInstanceOf(HasOne::class, $item->categoryData());
+    $this->assertInstanceOf(BelongsTo::class, $item->category());
         $this->assertInstanceOf(BelongsTo::class, $item->options());
         $this->assertInstanceOf(BelongsTo::class, $item->preference());
     }

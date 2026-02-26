@@ -1,0 +1,29 @@
+{
+  "endpoints": [
+    {
+      "name": "Admin order list",
+      "method": "POST",
+      "path": "/api/admin/order-list",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "body": {
+        "date": "2026-02-20"
+      },
+      "expectStatus": 200
+    },
+    {
+      "name": "Guest order list",
+      "method": "POST",
+      "path": "/api/admin/guest-order-list",
+      "headers": {
+        "Accept": "application/json"
+      },
+      "body": {
+        "date": "2026-02-20",
+        "room_id": 1
+      },
+      "expectStatus": 200
+    }
+  ]
+}

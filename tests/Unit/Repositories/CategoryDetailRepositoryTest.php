@@ -60,7 +60,7 @@ class CategoryDetailRepositoryTest extends TestCase
             'parent_id' => 0,
         ]);
 
-        $query = $this->categoryDetails->queryWithType(['type' => 'A']);
+    $query = $this->categoryDetails->query(['type' => 'A']);
         $categories = $query->get();
         $this->assertCount(1, $categories);
         $this->assertEquals('A', $categories->first()->type);
@@ -83,7 +83,7 @@ class CategoryDetailRepositoryTest extends TestCase
             'parent_id' => 0,
         ]);
 
-        $results = $this->categoryDetails->getAllWithType(['type' => 'B']);
+    $results = $this->categoryDetails->getAll(['type' => 'B']);
 
         $this->assertCount(1, $results);
         $this->assertEquals('Breakfast', $results->first()->cat_name);
@@ -107,7 +107,7 @@ class CategoryDetailRepositoryTest extends TestCase
             ])->save();
         }
 
-        $page = $this->categoryDetails->paginateWithType(['type' => 'B'], perPage: 2, pageNumber: 2);
+    $page = $this->categoryDetails->paginate(['type' => 'B'], perPage: 2, pageNumber: 2);
         
         $this->assertEquals(3, $page->total());
         $this->assertCount(1, $page->items());

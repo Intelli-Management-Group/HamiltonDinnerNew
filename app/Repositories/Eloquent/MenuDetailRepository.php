@@ -4,19 +4,16 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\MenuDetail;
 use App\Repositories\Contracts\MenuDetailRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 
-class MenuDetailRepository implements MenuDetailRepositoryInterface
+class MenuDetailRepository extends BaseRepository implements MenuDetailRepositoryInterface
 {
-    public function __construct(
-        private MenuDetail $model
-    ) {}
+    protected const ALLOWED_RELATIONS = [];
 
-    public function findById($id): ?MenuDetail
-    {
-        return $this->model->find($id);
+    public function __construct(
+        MenuDetail $model
+    ) {
+        parent::__construct($model);
     }
 
     /** 
@@ -53,60 +50,19 @@ class MenuDetailRepository implements MenuDetailRepositoryInterface
         return optional($this->findLatest())->date;
     }
 
-
-    public function query(array $filters = []): Builder
-    {
-        return $this->model->latest();
-    }
-
-    public function paginate(
-        array $filters = [],
-        int $perPage = 15,
-        int $pageNumber = 1
-    ): LengthAwarePaginator
-    {
-        return $this->query($filters)
-            ->paginate($perPage, ['*'], 'page', $pageNumber);
-    }
-
-    public function getAll(
-        array $filters = [],
-        array $columns = ['*']
-    ): Collection
-    {
-        return $this->query($filters)->get($columns);
-    }
-
     public function findSoftDeletedByDate(string $date): ?MenuDetail
     {
         return $this->model->withTrashed()
-            ->where('date', $date)
+            ->whereDate('date', $date)
             ->first();
     }
 
-    public function create(array $data): MenuDetail
-    {
-        return $this->model->create($data);
-    }
 
-    public function upsertByFilters(array $filters, array $data): MenuDetail
+    protected function applyFilters(
+        Builder $query,
+        array $filters
+    ): Builder
     {
-        return $this->model->updateOrCreate($filters, $data);
-    }
-
-    public function save(MenuDetail $menuDetail): MenuDetail
-    {
-        $menuDetail->save();
-        return $menuDetail;
-    }
-
-    public function delete(MenuDetail $menuDetail): bool
-    {
-        return $menuDetail->delete();
-    }
-
-    public function bulkDeleteByIds(array $ids): int
-    {
-        return $this->model->whereIn('id', $ids)->delete();
+        return $query->latest();
     }
 }

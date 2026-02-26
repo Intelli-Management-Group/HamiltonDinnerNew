@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class ItemPreferenceService
+class ItemPreferenceService extends BaseService
 {
     public function __construct(
         private ItemPreferenceRepositoryInterface $itemPreferences
@@ -19,23 +19,14 @@ class ItemPreferenceService
         $preference = $this->itemPreferences->findById($id);
 
         if (!$preference) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'ItemPreference not found.',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'ItemPreference not found.',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $preference
-            ]
-        ];
+        return $this->successResponse($preference);
     }
 
     public function list(array $params): array
@@ -52,37 +43,16 @@ class ItemPreferenceService
 
             /** @var LengthAwarePaginator $preferences */
             $preferences = $this->itemPreferences->paginate(
-                $filters, $pageSize, $pageNumber
+                $filters, [], $pageSize, $pageNumber
             );
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'data'    => $preferences->items(),
-                    'pagination' => [
-                        'total' => $preferences->total(),
-                        'per_page' => $preferences->perPage(),
-                        'current_page' => $preferences->currentPage(),
-                        'last_page' => $preferences->lastPage(),
-                        'from' => $preferences->firstItem(),
-                        'to' => $preferences->lastItem(),
-                    ]
-                ]
-            ];
+            return $this->paginatedResponse($preferences);
         }
 
         /** @var Collection $preferences */
         $preferences = $this->itemPreferences->getAll($filters);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $preferences,
-                'count'   => $preferences->count()
-            ]
-        ];
+        return $this->collectionResponse($preferences);
     }
 
     public function store(array $data): array
@@ -90,14 +60,11 @@ class ItemPreferenceService
         /** @var ItemPreference $preference */
         $preference = $this->itemPreferences->create($data);
 
-        return [
-            'statusCode' => 201,
-            'payload'    => [
-                'success' => true,
-                'message' => 'ItemPreference created successfully.',
-                'data'    => $preference
-            ]
-        ];
+        return $this->successResponse(
+            data: $preference,
+            message: 'ItemPreference created successfully.',
+            statusCode: 201
+        );
     }
 
     public function update(ItemPreference $preference, array $data): array
@@ -105,39 +72,31 @@ class ItemPreferenceService
         $preference->fill($data);
         $this->itemPreferences->save($preference);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'ItemPreference updated successfully.',
-                'data'    => $preference
-            ]
-        ];
+        return $this->successResponse(
+            data: $preference,
+            message: 'ItemPreference updated successfully.'
+        );
     }
 
     public function destroy(ItemPreference $preference): array
     {
         $this->itemPreferences->delete($preference);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'ItemPreference deleted successfully.'
-            ]
-        ];
+        return $this->successResponse(
+            message: 'ItemPreference deleted successfully.',
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     public function bulkDestroy(array $ids): array
     {
         $deletedCount = $this->itemPreferences->bulkDeleteByIds($ids);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => "{$deletedCount} ItemPreferences deleted successfully."
-            ]
-        ];
+        return $this->successResponse(
+            message: "{$deletedCount} ItemPreferences deleted successfully.",
+            statusCode: 200,
+            includeData: false
+        );
     }
 }

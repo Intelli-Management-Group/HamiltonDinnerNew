@@ -108,10 +108,12 @@ class ChargeReportRepository implements ChargeReportRepositoryInterface
                     WHERE is_paid_item = '1'
                 ) io                                ON io.id = cast(trim(od.item_options) AS SIGNED INTEGER)
                 
-            	WHERE od.date BETWEEN '$start_date' AND '$end_date'
+            	WHERE od.date BETWEEN ? AND ?
             	GROUP BY 1,2,3,4
             ) sq
-            GROUP BY 1,2,3;"
+            GROUP BY 1,2,3;",
+            [$start_date, $end_date]
         );
     }
+
 }

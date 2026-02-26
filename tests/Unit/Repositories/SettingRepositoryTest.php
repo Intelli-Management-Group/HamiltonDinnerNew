@@ -59,7 +59,7 @@ class SettingRepositoryTest extends TestCase
             'group' => 'mail',
         ]);
 
-        $results = $this->settings->getAllWithParameters([
+        $results = $this->settings->getAll([
             'group' => 'site',
             'type' => 'string',
         ]);

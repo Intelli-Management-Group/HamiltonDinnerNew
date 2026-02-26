@@ -141,38 +141,6 @@ class Setting extends Model
     }
 
     /**
-     * Scope a query to filter settings by group.
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string|null $group
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeGroup($query, $group)
-    {
-        if ($group === null || $group === '') {
-            return $query;
-        }
-
-        return $query->where('group', $group);
-    }
-
-    /**
-     * Scope a query to filter settings by type.
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @param string|null $type
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeType($query, $type)
-    {
-        if ($type === null || $type === '') {
-            return $query;
-        }
-
-        return $query->where('type', $type);
-    }
-
-    /**
      * Scope a query to retrieve settings with a matching key,
      * display name, or group to the search term, if it is provided.
      * Otherwise, return the unmodified query.

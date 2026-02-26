@@ -24,18 +24,18 @@ class ItemDetail extends Model
      
     ];
 
-    function categoryData()
+    public function category()
     {
-        return $this->hasOne('App\Models\CategoryDetail', 'id', 'cat_id');
+        return $this->belongsTo(CategoryDetail::class, 'cat_id');
     }
 
-
-    public function options(){
+    public function options()
+    {
         return $this->belongsTo(ItemOption::class);
     }
     
-    
-    public function preference(){
+    public function preference()
+    {
         return $this->belongsTo(ItemPreference::class);
     }
 
@@ -53,18 +53,4 @@ class ItemDetail extends Model
         }
     }
 
-    /**
-     * Scope a query to retrieve item details by category ID.
-     * 
-     * @param \Illuminate\Database\Eloquent\Builder $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeCategoryId($query, $catId)
-    {
-        if ($catId === null || $catId === '') {
-            return $query;
-        }
-        
-        return $query->where('cat_id', $catId);
-    }
 }

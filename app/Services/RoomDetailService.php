@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class RoomDetailService
+class RoomDetailService extends BaseService
 {
     public function __construct(
         private RoomDetailRepositoryInterface $roomDetails
@@ -19,23 +19,14 @@ class RoomDetailService
         $room = $this->roomDetails->findById($id);
 
         if (!$room) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'RoomDetail not found.',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'RoomDetail not found.',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $room
-            ]
-        ];
+        return $this->successResponse($room);
     }
 
     public function list(array $params): array
@@ -57,21 +48,7 @@ class RoomDetailService
                 pageNumber: $pageNumber
             );
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'data'    => $rooms->items(),
-                    'pagination' => [
-                        'total' => $rooms->total(),
-                        'per_page' => $rooms->perPage(),
-                        'current_page' => $rooms->currentPage(),
-                        'last_page' => $rooms->lastPage(),
-                        'from' => $rooms->firstItem(),
-                        'to' => $rooms->lastItem(),
-                    ]
-                ]
-            ];
+            return $this->paginatedResponse($rooms);
         }
 
         /** @var Collection $rooms */
@@ -79,14 +56,7 @@ class RoomDetailService
             filters: $filters
         );
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $rooms,
-                'count'   => $rooms->count()
-            ]
-        ];
+        return $this->collectionResponse($rooms);
     }
 
     public function store(array $data): array
@@ -94,14 +64,11 @@ class RoomDetailService
         /** @var RoomDetail $room */
         $room = $this->roomDetails->create($data);
 
-        return [
-            'statusCode' => 201,
-            'payload'    => [
-                'success' => true,
-                'message' => 'RoomDetail created successfully.',
-                'data'    => $room
-            ]
-        ];
+        return $this->successResponse(
+            data: $room,
+            message: 'RoomDetail created successfully.',
+            statusCode: 201
+        );
     }
 
     public function update(RoomDetail $room, array $data): array
@@ -109,39 +76,31 @@ class RoomDetailService
         $room->fill($data);
         $this->roomDetails->save($room);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'RoomDetail updated successfully.',
-                'data'    => $room
-            ]
-        ];
+        return $this->successResponse(
+            data: $room,
+            message: 'RoomDetail updated successfully.'
+        );
     }
 
     public function destroy(RoomDetail $room): array
     {
         $this->roomDetails->delete($room);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'RoomDetail deleted successfully.'
-            ]
-        ];
+        return $this->successResponse(
+            message: 'RoomDetail deleted successfully.',
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     public function bulkDestroy(array $ids): array
     {
         $deletedCount = $this->roomDetails->bulkDeleteByIds($ids);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => "{$deletedCount} RoomDetails deleted successfully."
-            ]
-        ];
+        return $this->successResponse(
+            message: "{$deletedCount} RoomDetails deleted successfully.",
+            statusCode: 200,
+            includeData: false
+        );
     }
 }

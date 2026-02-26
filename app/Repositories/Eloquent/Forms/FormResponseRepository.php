@@ -4,27 +4,22 @@ namespace App\Repositories\Eloquent\Forms;
 
 use App\Models\FormResponse;
 use App\Repositories\Contracts\Forms\FormResponseRepositoryInterface;
+use App\Repositories\Eloquent\BaseRepository;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class FormResponseRepository implements FormResponseRepositoryInterface
+class FormResponseRepository extends BaseRepository implements FormResponseRepositoryInterface
 {
     public function __construct(
-        private FormResponse $model
-    ) {}
-
-    public function findById($id): ?FormResponse
-    {
-        return $this->model->find($id);
+        FormResponse $model
+    ) {
+        parent::__construct($model);
     }
 
     public function queryWithFormType(array $filters = []): Builder
     {
-        return $this->model
-            ->withFormType()
-            ->orderBy('created_at', 'desc')
-            ->latest();
+    return $this->query($filters, []);
     }
 
     public function paginateWithFormType(
@@ -42,29 +37,14 @@ class FormResponseRepository implements FormResponseRepositoryInterface
         return $this->queryWithFormType($filters)->get($columns);
     }
 
-    public function create(array $data): FormResponse
+    protected function applyFilters(
+        Builder $query,
+        array $filters
+    ): Builder
     {
-        return $this->model->create($data);
-    }
-
-    public function upsertByFilters(array $filters, array $data): FormResponse
-    {
-        return $this->model->updateOrCreate($filters, $data);
-    }
-
-    public function save(FormResponse $formResponse): FormResponse
-    {
-        $formResponse->save();
-        return $formResponse;
-    }
-
-    public function delete(FormResponse $formResponse): bool
-    {
-        return (bool) $formResponse->delete();
-    }
-
-    public function bulkDeleteByIds(array $ids): int
-    {
-        return $this->model->whereIn('id', $ids)->delete();
+        return $query
+            ->withFormType()
+            ->orderBy('created_at', 'desc')
+            ->latest();
     }
 }

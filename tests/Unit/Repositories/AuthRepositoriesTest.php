@@ -47,7 +47,7 @@ class AuthRepositoriesTest extends TestCase
         $this->roles->create(['name' => 'Admin', 'guard_name' => 'api']);
         $this->roles->create(['name' => 'User', 'guard_name' => 'api']);
 
-        $results = $this->roles->getAllWithPermissions(['search' => 'Admin']);
+    $results = $this->roles->getAll(['search' => 'Admin']);
 
         $this->assertCount(1, $results);
         $this->assertSame('Admin', $results->first()->name);

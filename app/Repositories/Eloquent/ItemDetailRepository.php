@@ -4,19 +4,31 @@ namespace App\Repositories\Eloquent;
 
 use App\Models\ItemDetail;
 use App\Repositories\Contracts\ItemDetailRepositoryInterface;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class ItemDetailRepository implements ItemDetailRepositoryInterface
+class ItemDetailRepository extends BaseRepository implements ItemDetailRepositoryInterface
 {
-    public function __construct(
-        private ItemDetail $model
-    ) {}
+    // Allowed relations and scopes for eager loading
+    protected const ALLOWED_RELATIONS = [
+        'category',
+        'options',
+        'preference',
+    ];
 
-    public function findById($id): ?ItemDetail
+    public function __construct(
+        ItemDetail $model
+    ) {
+        parent::__construct($model);
+    }
+
+    public function findById(
+        int $id,
+        array $filters = [],
+        array $relations = []
+    ): ?ItemDetail
     {
-        return $this->model->find($id);
+        return parent::findById($id, $filters, $relations);
     }
 
     public function findOrderReportSummaries(
@@ -35,51 +47,77 @@ class ItemDetailRepository implements ItemDetailRepositoryInterface
             ->get();
     }
 
-    public function queryWithCategoryId(array $filters = []): Builder
+    public function findByIdsAndParentFlag(
+        array $ids,
+        bool $isParent
+    ): Collection
     {
-        return $this->model
-            ->categoryId($filters['cat_id'] ?? null)
-            ->latest();
+        if (empty($ids)) {
+            return collect();
+        }
+
+        return $this->getAll(
+            filters: [
+                'id' => $ids,
+                'is_parent' => $isParent,
+                'deleted_at' => null,
+                'order_by' => ['cat_id', 'id'],
+                'order_direction' => ['asc', 'asc'],
+            ],
+            relations: ['category'],
+            columns: [
+                'id',
+                'cat_id',
+                'item_name',
+                'item_image',
+                'item_chinese_name',
+                'options',
+                'preference',
+            ]
+        );
     }
 
-    public function paginateWithCategoryId(
-        array $filters = [],
-        int $perPage = 15,
-        int $pageNumber = 1
-    ): LengthAwarePaginator
+    protected function applyFilters(
+        Builder $query,
+        array $filters
+    ): Builder
     {
-        return $this->queryWithCategoryId($filters)
-            ->paginate($perPage, ['*'], 'page', $pageNumber);
-    }
+        if (array_key_exists('cat_id', $filters) 
+            && $filters['cat_id'] !== null 
+            && $filters['cat_id'] !== ''
+        ) {
+            $query->where('cat_id', $filters['cat_id']);
+        }
 
-    public function getAllWithCategoryId(array $filters = []): Collection
-    {
-        return $this->queryWithCategoryId($filters)->get();
-    }
+        if (array_key_exists('id', $filters)) {
+            if (is_array($filters['id'])) {
+                $query->whereIn('id', $filters['id']);
+            } else {
+                $query->where('id', $filters['id']);
+            }
+        }
 
-    public function create(array $data): ItemDetail
-    {
-        return $this->model->create($data);
-    }
+        if (array_key_exists('category_parent_id', $filters)
+            && $filters['category_parent_id'] !== null
+            && $filters['category_parent_id'] !== ''
+        ) {
+            $query->whereHas('category', function (Builder $categoryQuery) use ($filters) {
+                $categoryQuery->where('parent_id', $filters['category_parent_id']);
+            });
+        }
 
-    public function upsertByFilters(array $filters, array $data): ItemDetail
-    {
-        return $this->model->updateOrCreate($filters, $data);
-    }
+        if (array_key_exists('is_parent', $filters)
+            && $filters['is_parent'] !== null
+            && $filters['is_parent'] !== ''
+        ) {
+            $isParent = (bool) $filters['is_parent'];
+            $operator = $isParent ? '=' : '!=';
 
-    public function save(ItemDetail $itemDetail): ItemDetail
-    {
-        $itemDetail->save();
-        return $itemDetail;
-    }
+            $query->whereHas('category', function (Builder $categoryQuery) use ($operator) {
+                $categoryQuery->where('parent_id', $operator, 0);
+            });
+        }
 
-    public function delete(ItemDetail $itemDetail): bool
-    {
-        return (bool) $itemDetail->delete();
-    }
-
-    public function bulkDeleteByIds(array $ids): int
-    {
-        return $this->model->whereIn('id', $ids)->delete();
+        return $query->latest();
     }
 }

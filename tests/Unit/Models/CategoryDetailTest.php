@@ -3,6 +3,7 @@
 namespace Tests\Unit\Models;
 
 use App\Models\CategoryDetail;
+use App\Repositories\Eloquent\CategoryDetailRepository;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,7 +26,7 @@ class CategoryDetailTest extends TestCase
     }
 
     /** @test */
-    public function can_scope_parent_categories()
+    public function can_filter_parent_categories_with_repository()
     {
         $parent = CategoryDetail::create([
             'cat_name' => 'Parent Category',
@@ -40,14 +41,15 @@ class CategoryDetailTest extends TestCase
             'parent_id' => $parent->id,
         ]);
 
-        $parents = CategoryDetail::parent()->get();
+        $repository = new CategoryDetailRepository(new CategoryDetail());
+        $parents = $repository->getAll(['parent_id' => 0]);
 
         $this->assertCount(1, $parents);
         $this->assertEquals('Parent Category', $parents->first()->cat_name);
     }
 
     /** @test */
-    public function can_scope_categories_by_type()
+    public function can_filter_categories_by_type_with_repository()
     {
         CategoryDetail::create([
             'cat_name' => 'Type A Category',
@@ -63,7 +65,8 @@ class CategoryDetailTest extends TestCase
             'parent_id' => 0,
         ]);
 
-        $typeACategories = CategoryDetail::type('A')->get();
+        $repository = new CategoryDetailRepository(new CategoryDetail());
+        $typeACategories = $repository->getAll(['type' => 'A']);
         $this->assertCount(1, $typeACategories);
         $this->assertEquals('Type A Category', $typeACategories->first()->cat_name);
     }

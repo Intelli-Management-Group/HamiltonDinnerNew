@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Repositories;
 
+use App\Models\CategoryDetail;
 use App\Models\ItemDetail;
 use App\Models\ItemOption;
 use App\Models\ItemPreference;
@@ -48,7 +49,7 @@ class ItemRepositoriesTest extends TestCase
             'is_allday' => 0,
         ]);
 
-        $results = $this->itemDetails->getAllWithCategoryId(['cat_id' => 1]);
+    $results = $this->itemDetails->getAll(['cat_id' => 1]);
 
         $this->assertCount(1, $results);
         $this->assertSame('Oatmeal', $results->first()->item_name);
@@ -78,6 +79,88 @@ class ItemRepositoriesTest extends TestCase
     }
 
     /** @test */
+    public function it_filters_items_by_parent_category_flag()
+    {
+        $parentCategory = CategoryDetail::create([
+            'cat_name' => 'Parent',
+            'category_chinese_name' => '父类',
+            'type' => 'B',
+            'parent_id' => 0,
+        ]);
+
+        $childCategory = CategoryDetail::create([
+            'cat_name' => 'Child',
+            'category_chinese_name' => '子类',
+            'type' => 'B',
+            'parent_id' => $parentCategory->id,
+        ]);
+
+        ItemDetail::create([
+            'cat_id' => $parentCategory->id,
+            'item_name' => 'Parent Item',
+            'item_chinese_name' => '父项目',
+            'is_allday' => 0,
+        ]);
+
+        ItemDetail::create([
+            'cat_id' => $childCategory->id,
+            'item_name' => 'Child Item',
+            'item_chinese_name' => '子项目',
+            'is_allday' => 0,
+        ]);
+
+        $parentItems = $this->itemDetails->getAll(['is_parent' => true]);
+        $childItems = $this->itemDetails->getAll(['is_parent' => false]);
+
+        $this->assertCount(1, $parentItems);
+        $this->assertSame('Parent Item', $parentItems->first()->item_name);
+        $this->assertCount(1, $childItems);
+        $this->assertSame('Child Item', $childItems->first()->item_name);
+    }
+
+    /** @test */
+    public function it_finds_items_by_ids_and_parent_flag()
+    {
+        $parentCategory = CategoryDetail::create([
+            'cat_name' => 'Main',
+            'category_chinese_name' => '主类',
+            'type' => 'B',
+            'parent_id' => 0,
+        ]);
+
+        $childCategory = CategoryDetail::create([
+            'cat_name' => 'Sub',
+            'category_chinese_name' => '子类',
+            'type' => 'B',
+            'parent_id' => $parentCategory->id,
+        ]);
+
+        $parentItem = ItemDetail::create([
+            'cat_id' => $parentCategory->id,
+            'item_name' => 'Parent Item',
+            'item_chinese_name' => '父项目',
+            'is_allday' => 0,
+        ]);
+
+        $childItem = ItemDetail::create([
+            'cat_id' => $childCategory->id,
+            'item_name' => 'Child Item',
+            'item_chinese_name' => '子项目',
+            'is_allday' => 0,
+        ]);
+
+        $parentResults = $this->itemDetails
+            ->findByIdsAndParentFlag([$parentItem->id, $childItem->id], true);
+        $childResults = $this->itemDetails
+            ->findByIdsAndParentFlag([$parentItem->id, $childItem->id], false);
+
+        $this->assertCount(1, $parentResults);
+        $this->assertSame($parentItem->id, $parentResults->first()->id);
+        $this->assertCount(1, $childResults);
+        $this->assertSame($childItem->id, $childResults->first()->id);
+    }
+
+    /** @test */
     public function it_filters_item_options_by_category_id()
     {
         ItemOption::create([
@@ -86,7 +169,7 @@ class ItemRepositoriesTest extends TestCase
             'is_paid_item' => 0,
         ]);
 
-        $results = $this->itemOptions->getAllWithCategoryId();
+    $results = $this->itemOptions->getAll();
 
         $this->assertCount(1, $results);
     }

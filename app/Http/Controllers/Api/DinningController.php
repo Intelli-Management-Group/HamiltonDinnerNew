@@ -119,450 +119,8 @@ class DinningController extends Controller
         $room_id = intval($request->input('room_id'));
 
         $date = $request->input('date');
-        $sub_cat_details = array();
-        $cat_array = array();
-        $breakfast = $lunch = $dinner = array();
 
-        $items = array();
-
-        // if menu is not present then return empty menu
-        $menu_data = MenuDetail::selectRaw("items")->whereRaw("date = '$date'")->get();
-
-        foreach ($menu_data as $m) {
-
-            $menu_items = $m->items;
-
-            if (is_string($m->items)) {
-                $menu_items = json_decode($m->items, true);
-            }
-
-            foreach ($menu_items as $mi) {
-                if (count($mi) > 0)
-                    array_push($items, implode(",", $mi));
-            }
-        }
-        $option_details = $preference_details = array();
-        $items = implode(",", $items);
-        if ($items != "") {
-            $options = ItemOption::all();
-            foreach ($options as $o) {
-                $option_details[intval($o->id)] = array(
-                    "option_name" => $o->option_name,
-                    "option_name_cn" => ($o->option_name_cn ?? $o->option_name)
-                );
-            }
-            $preferences = ItemPreference::all();
-            foreach ($preferences as $p) {
-                $preference_details[$p->id] = array(
-                    "name" => $p->pname, 
-                    "name_cn" => ($p->pname_cn ?? $p->pname)
-                );
-            }
-
-            $category_data = CategoryDetail::join(
-                "item_details",
-                "item_details.cat_id", "=", "category_details.id"
-            )->selectRaw(
-                "category_details.*,
-                item_details.id as item_id,
-                item_details.item_name,
-                item_details.item_image,
-                item_details.item_chinese_name,
-                item_details.options,
-                item_details.preference"
-            )->where("category_details.parent_id", 0)
-            ->whereRaw("item_details.id IN ($items)")
-            ->whereRaw("item_details.deleted_at IS NULL")
-            ->orderBy("category_details.id", "asc")
-            ->orderBy("item_details.id", "asc")
-            ->get();
-
-            foreach ($category_data as $c) {
-                if (!isset($cat_array[$c->id])) {
-                    $cat_array[$c->id] = array(
-                        "cat_id" => $c->id,
-                        "cat_name" => $c->cat_name,
-                        "chinese_name" => $c->category_chinese_name, 
-                        "items" => array(),
-                        "type" => $c->type
-                    );
-                }
-                $options = array();
-
-                $preference = array();
-
-                if ($room_id != 0) {
-                    $order_data = OrderDetail::selectRaw(
-                        "id,
-                        quantity,
-                        item_options,
-                        preference,
-                        is_for_guest,
-                        is_brk_tray_service,
-                        is_lunch_tray_service,
-                        is_dinner_tray_service,
-                        is_brk_escort_service,
-                        is_lunch_escort_service,
-                        is_dinner_escort_service,
-                        is_brk_takeout_service,
-                        is_lunch_takeout_service,
-                        is_dinner_takeout_service"
-                    )
-                    ->where("room_id", $room_id)
-                    ->where("date", $date)
-                    ->where("item_id", $c->item_id)
-                    ->where("is_for_guest", 0)
-                    ->first();
-
-                    if ($c->options != "") {
-                        $c_options = json_decode($c->options);
-                        foreach ($c_options as $co) {
-                            $co = intval($co);
-                            if ($option_details[$co]) {
-                                $options[$co] = array(
-                                    "id" => $co,
-                                    "name" => $option_details[$co]['option_name'],
-                                    "c_name" => $option_details[$co]['option_name_cn'],
-                                    "is_selected" => intval($co == $order_data?->item_options)
-                                );
-                            }
-                        }
-                    }
-
-                    if ($c->preference != "") {
-                        $c_preferences = json_decode($c->preference);
-                        foreach ($c_preferences as $cp) {
-                            $cp = intval($cp);
-                            if ($preference_details[$cp]) {
-                                $preference[$cp] = array(
-                                    "id" => $cp,
-                                    "name" => $preference_details[$cp]['name'],
-                                    "c_name" => $preference_details[$cp]['name_cn'],
-                                    "is_selected" => intval(in_array($cp, explode(",", $order_data?->preference ?? '')))
-                                );
-                            }
-                        }
-                    }
-                    
-                    array_push(
-                        $cat_array[$c->id]["items"], 
-                        array(
-                            "type" => "item",
-                            'parent_id' => $c->parent_id,
-                            "item_id" => $c->item_id,
-                            "item_name" => $c->item_name,
-                            "chinese_name" => $c->item_chinese_name,
-                            "options" => array_values($options),
-                            "preference" => array_values($preference),
-                            "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL,
-                            "qty" => $order_data?->is_for_guest == 0 ? $order_data->quantity : 0,
-                            "comment" => "",
-                            "order_id" => $order_data?->id ?? 0
-                        )
-                    );
-                } else {
-                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")
-                        ->where("date", $date)
-                        ->where("item_id", $c->item_id)
-                        ->groupBy("item_id")
-                        ->first();
-
-                    if ($c->options != "") {
-                        $c_options = json_decode($c->options);
-                        foreach ($c_options as $co) {
-                            $co = intval($co);
-                            if ($option_details[$co]) {
-                                $options[$co] = array(
-                                    "id" => $co,
-                                    "name" => $option_details[$co]['option_name'],
-                                    "c_name" => $option_details[$co]['option_name_cn'],
-                                    "is_selected" => 0,
-                                    "item_count" => OrderDetail::where("date", $date)
-                                        ->where("item_id", $c->item_id)
-                                        ->where("item_options", $co)
-                                        ->count()
-                                    );
-                            }
-                        }
-                    }
-
-                    array_push(
-                        $cat_array[$c->id]["items"],
-                        array("type" => "item",
-                        'parent_id' => $c->parent_id,
-                        "item_id" => $c->item_id,
-                        "item_name" => $c->item_name,
-                        "chinese_name" => $c->item_chinese_name,
-                        "is_expanded" => (int) (count(array_values($options)) > 0),
-                        "options" => array_values($options),
-                        "preference" => array_values($preference),
-                        "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL,
-                        "qty" => intval($order_data?->quantity),
-                        "comment" => "", 
-                        "order_id" => 0)
-                    );
-                }
-            }
-
-            $sub_category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")
-                ->selectRaw("
-                    category_details.*,
-                    item_details.id as item_id,
-                    item_details.item_name,
-                    item_details.item_image,
-                    item_details.item_chinese_name,
-                    item_details.options,
-                    item_details.preference"
-                )->where("category_details.parent_id", "!=", 0)
-                ->whereRaw("item_details.id IN ($items)")
-                ->whereRaw("item_details.deleted_at IS NULL")
-                ->orderBy("category_details.id", "asc")
-                ->orderBy("item_details.id", "asc")
-                ->get();
-
-            foreach ($sub_category_data as $sc) {
-                if (!isset($sub_cat_details[$sc->id])) {
-                    $sub_cat_details[$sc->id] = array(
-                        "cat_id" => $sc->id,
-                        "cat_name" => $sc->cat_name,
-                        "chinese_name" => $sc->category_chinese_name,
-                        "parent_id" => $sc->parent_id,
-                        "items" => array()
-                    );
-                }
-                if (!isset($cat_array[$sc->parent_id])) {
-                    if ($sc->parentData) {
-                        $cat_array[$sc->parent_id] = array(
-                            "cat_id" => $sc->parentData->id,
-                            "cat_name" => $sc->parentData->cat_name,
-                            "chinese_name" => $sc->parentData->category_chinese_name,
-                            "items" => array(),
-                            "type" => $c->type
-                        );
-                    }
-                }
-                $options = array();
-
-                $preference = array();
-
-                if ($room_id != 0) {
-                    $order_data = OrderDetail::selectRaw(
-                        "id,
-                        quantity,
-                        item_options,
-                        preference,
-                        is_for_guest,
-                        is_brk_tray_service,
-                        is_lunch_tray_service,
-                        is_dinner_tray_service,
-                        is_brk_escort_service,
-                        is_lunch_escort_service,
-                        is_dinner_escort_service,
-                        is_brk_takeout_service,
-                        is_lunch_takeout_service,
-                        is_dinner_takeout_service"
-                    )
-                    ->where("room_id", $room_id)
-                    ->where("date", $date)
-                    ->where("item_id", $sc->item_id)
-                    ->where("is_for_guest", 0)
-                    ->first();
-
-                    if ($sc->options != "") {
-                        $c_options = json_decode($sc->options);
-                        foreach ($c_options as $co) {
-                            $co = intval($co);
-                            if ($option_details[$co]) {
-                                $options[$co] = array(
-                                    "id" => $co,
-                                    "name" => $option_details[$co]['option_name'],
-                                    "c_name" => $option_details[$co]['option_name_cn'],
-                                    "is_selected" => intval($co == $order_data?->item_options)
-                                );
-                            }
-                        }
-                    }
-
-                    if ($sc->preference != "") {
-                        $c_preferences = json_decode($sc->preference);
-                        foreach ($c_preferences as $cp) {
-                            $cp = intval($cp);
-                            if ($preference_details[$cp]) {
-                                $preference[$cp] = array(
-                                    "id" => $cp,
-                                    "name" => $preference_details[$cp]['name'],
-                                    "c_name" => $preference_details[$cp]['name_cn'],
-                                    "is_selected" => intval(in_array($cp, explode(",", $order_data?->preference ?? '')))
-                                );
-                            }
-                        }
-                    }
-
-                    array_push(
-                        $sub_cat_details[$sc->id]["items"],
-                        array(
-                            "item_id" => $sc->item_id,
-                            'parent_id' => $sc->parent_id,
-                            "item_name" => $sc->item_name,
-                            "chinese_name" => $sc->item_chinese_name,
-                            "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL,
-                            "options" => array_values($options),
-                            "preference" => array_values($preference),
-                            "qty" => $order_data?->is_for_guest == 0 ? $order_data->quantity : 0,
-                            "comment" => "",
-                            "order_id" => $order_data?->id ?? 0
-                        )
-                    );
-                } else {
-                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")
-                        ->where("date", $date)
-                        ->where("item_id", $sc->item_id)
-                        ->groupBy("item_id")
-                        ->first();
-
-                    if ($sc->options != "") {
-                        $c_options = json_decode($sc->options);
-                        foreach ($c_options as $co) {
-                            $co = intval($co);
-                            if ($option_details[$co]) {
-                                $options[$co] = array(
-                                    "id" => $co,
-                                    "name" => $option_details[$co]['option_name'],
-                                    "c_name" => $option_details[$co]['option_name_cn'],
-                                    "is_selected" => 0,
-                                    "item_count" => OrderDetail::where("date", $date)
-                                        ->where("item_id", $sc->item_id)
-                                        ->where("item_options", $co)
-                                        ->count()
-                                );
-                            }
-                        }
-                    }
-
-                    array_push(
-                        $sub_cat_details[$sc->id]["items"], 
-                        array(
-                            "item_id" => $sc->item_id,
-                            'parent_id' => $sc->parent_id,
-                            "item_name" => $sc->item_name,
-                            "chinese_name" => $sc->item_chinese_name,
-                            "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL,
-                            "is_expanded" => (int) (count(array_values($options)) > 0),
-                            "options" => array_values($options),
-                            "preference" => array_values($preference),
-                            "qty" => intval($order_data?->quantity),
-                            "comment" => "",
-                            "order_id" => $order_data?->id ?? 0
-                        )
-                    );
-                }
-            }
-            foreach ($sub_cat_details as $sc) {
-                if (isset($cat_array[$sc['parent_id']])) {
-                    array_push(
-                        $cat_array[$sc['parent_id']]["items"],
-                        array(
-                            "type" => "sub_cat",
-                            "item_id" => NULL,
-                            "cat_id" => $sc["cat_id"],
-                            "parent_id" => $sc["parent_id"],
-                            "item_name" => $sc["cat_name"],
-                            "chinese_name" => $sc["chinese_name"],
-                            "options" => [],
-                            "preference" => [],
-                            "item_image" => "",
-                            "qty" => 0,
-                            "comment" => "",
-                            "order_id" => 0
-                        )
-                    );
-                    foreach ($sc["items"] as $sci) {
-                        $sc_item = array(
-                            "type" => "sub_cat_item",
-                            "item_id" => $sci["item_id"],
-                            'parent_id' =>  $sci["parent_id"],
-                            "item_name" => $sci["item_name"],
-                            "chinese_name" => $sci["chinese_name"],
-                            "item_image" => $sci["item_image"],
-                            "options" => $sci["options"],
-                            "preference" => $sci["preference"],
-                            "qty" => $sci["qty"],
-                            "comment" => $sci["comment"],
-                            "order_id" => $sci["order_id"]
-                        );
-
-                        if (isset($sci["is_expanded"])) {
-                            $sc_item["is_expanded"] = $sci["is_expanded"];
-                        }
-
-                        array_push($cat_array[$sc['parent_id']]["items"], $sc_item);
-                    }
-                    //, "items" => array_values($sc["items"]
-                }
-            }
-        }
-        foreach ($cat_array as $c) {
-            $type = intval($c['type']);
-            unset($c['type']);
-            if ($type == 1) {
-                array_push($breakfast, $c);
-            } else if ($type == 2) {
-                array_push($lunch, $c);
-            } else if ($type == 3) {
-                array_push($dinner, $c);
-            }
-        }
-
-        $last_date = "";
-        $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
-        
-        if ($menu_data) {
-            $last_date = $menu_data->date;
-        }
-
-        $instruction = "";
-        $spi_data = RoomDetail::select("special_instrucations")->where("id", $room_id)->first();
-
-        $tray_service_data = OrderDetail::selectRaw(
-            "is_brk_tray_service,
-            is_lunch_tray_service,
-            is_dinner_tray_service,
-            is_brk_escort_service,
-            is_lunch_escort_service,
-            is_dinner_escort_service,
-            is_brk_takeout_service,
-            is_lunch_takeout_service,
-            is_dinner_takeout_service"
-        )
-        ->where("room_id", $room_id)
-        ->where("date", $date)
-        ->where("is_for_guest", 0)
-        ->orderBy("id", "DESC")
-        ->first();
-
-        if ($spi_data)
-            $instruction = $spi_data->special_instrucations;
-
-        return $this->sendResultJSON(
-            '1',
-            '',
-            array(
-                'breakfast' => $breakfast,
-                'lunch' => $lunch,
-                'dinner' => $dinner,
-                'last_menu_date' => $last_date,
-                'special_instruction' => $instruction,
-                'is_brk_tray_service' => $tray_service_data?->is_brk_tray_service ?? 0,
-                'is_lunch_tray_service' => $tray_service_data?->is_lunch_tray_service ?? 0,
-                'is_dinner_tray_service' => $tray_service_data?->is_dinner_tray_service ?? 0,
-                'is_brk_escort_service' => $tray_service_data?->is_brk_escort_service ?? 0,
-                'is_lunch_escort_service' => $tray_service_data?->is_lunch_escort_service ?? 0,
-                'is_dinner_escort_service' => $tray_service_data?->is_dinner_escort_service ?? 0,
-                'is_brk_takeout_service' => $tray_service_data?->is_brk_takeout_service ?? 0,
-                'is_lunch_takeout_service' => $tray_service_data?->is_lunch_takeout_service ?? 0,
-                'is_dinner_takeout_service' => $tray_service_data?->is_dinner_takeout_service ?? 0
-            )
-        );
+        return $this->diningAppService->getOrderList($room_id, $date);
     }
 
     public function getItemList(Request $request)
@@ -627,117 +185,9 @@ class DinningController extends Controller
 
         $room_id = $request->input('room_id');
         $date = $request->input('current_date');
+        $ordersToChange = $request->input('orders_to_change');
 
-        if (!empty($room_id) && !empty($date)) {
-
-            $room = RoomDetail::where("id", $room_id)->first();
-
-            if (!$room) {
-                return $this->sendResultJSON("2", "Room not found");
-            }
-        } else {
-            return $this->sendResultJSON("2", "Room id or date is missing");
-        }
-
-        $fullRequestData = json_decode($request->input('orders_to_change'), true);
-
-        $item_array = $order_array = array();
-
-        if ($room_id != "" && $date != "") {
-
-            foreach ($fullRequestData as $request) {
-
-                $internalDate = $request['date'];
-
-                $is_brk_tray_service = !empty($request['is_brk_tray_service']) ? $request['is_brk_tray_service'] : 0;
-                $is_lunch_tray_service = !empty($request['is_lunch_tray_service']) ? $request['is_lunch_tray_service'] : 0;
-                $is_dinner_tray_service = !empty($request['is_dinner_tray_service']) ? $request['is_dinner_tray_service'] : 0;
-
-                $is_brk_escort_service = !empty($request['is_brk_escort_service']) ? $request['is_brk_escort_service'] : 0;
-                $is_lunch_escort_service = !empty($request['is_lunch_escort_service']) ? $request['is_lunch_escort_service'] : 0;
-                $is_dinner_escort_service = !empty($request['is_dinner_escort_service']) ? $request['is_dinner_escort_service'] : 0;
-
-                $is_brk_takeout_service = !empty($request['is_brk_takeout_service']) ? $request['is_brk_takeout_service'] : 0;
-                $is_lunch_takeout_service = !empty($request['is_lunch_takeout_service']) ? $request['is_lunch_takeout_service'] : 0;
-                $is_dinner_takeout_service = !empty($request['is_dinner_takeout_service']) ? $request['is_dinner_takeout_service'] : 0;
-
-                OrderDetail::where("date", $internalDate)
-                    ->where("room_id", $room_id)
-                    ->update([
-                        'is_brk_tray_service' => $is_brk_tray_service,
-                        'is_lunch_tray_service' => $is_lunch_tray_service,
-                        'is_dinner_tray_service' => $is_dinner_tray_service,
-                        'is_brk_escort_service' => $is_brk_escort_service,
-                        'is_lunch_escort_service' => $is_lunch_escort_service,
-                        'is_dinner_escort_service' => $is_dinner_escort_service,
-                        'is_brk_takeout_service' => $is_brk_takeout_service,
-                        'is_lunch_takeout_service' => $is_lunch_takeout_service,
-                        'is_dinner_takeout_service' => $is_dinner_takeout_service
-                    ]);
-
-                if ($request['items'] && $request['items'] != "") {
-
-                    $new_data = ($request['items']);
-
-                    foreach (count($new_data) > 0 ? $new_data : array() as $n) {
-
-                        $n['order_id'] = intval($n['order_id']);
-                        $n['qty'] = intval($n['qty']);
-
-                        if ($n['order_id'] == 0) {
-                            if ($n['qty'] != 0) {
-
-                                $order = new OrderDetail();
-
-                                $order->room_id = $room_id;
-                                $order->date = $internalDate;
-                                $order->item_id = $n['item_id'];
-                                $order->item_options = $n['item_options'];
-                                $order->preference = $n['preference'];
-                                $order->quantity = $n['qty'];
-                                $order->comment = "";
-                                $order->status = 0;
-
-
-                                $order->is_brk_tray_service = $is_brk_tray_service;
-                                $order->is_lunch_tray_service = $is_lunch_tray_service;
-                                $order->is_dinner_tray_service = $is_dinner_tray_service;
-
-                                $order->is_brk_escort_service = $is_brk_escort_service;
-                                $order->is_lunch_escort_service = $is_lunch_escort_service;
-                                $order->is_dinner_escort_service = $is_dinner_escort_service;
-
-                                $order->is_brk_takeout_service = $is_brk_takeout_service;
-                                $order->is_lunch_takeout_service = $is_lunch_takeout_service;
-                                $order->is_dinner_takeout_service = $is_dinner_takeout_service;
-
-                                $order->save();
-
-                                if ($internalDate == $date) {
-
-                                    array_push($item_array, $n['item_id']);
-                                    array_push($order_array, $order->id);
-                                }
-                            }
-                        } else {
-                            if ($n['qty'] == 0) {
-
-                                OrderDetail::where("id", $n['order_id'])->delete();
-
-                                if ($internalDate == $date) {
-                                    array_push($item_array, $n['item_id']);
-                                    array_push($order_array, 0);
-                                }
-                            } else {
-                                OrderDetail::where("id", $n['order_id'])->update(['quantity' => $n['qty'], 'item_options' => $n['item_options'], 'preference' => $n['preference'], 'comment' => ""]);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        return $this->sendResultJSON('1', 'success', array('item_id' => $item_array, 'order_id' => $order_array));
+        return $this->diningAppService->updateOrderBulk($room_id, $date, $ordersToChange);
     }
 
     public function copyofUpdateOrder(Request $request)
@@ -829,94 +279,14 @@ class DinningController extends Controller
     public function getUserData()
     {
         if (!session("user_details")) {
-            return $this->sendResultJSON("11", "Unauthorised");
-        }
-        $user = session("user_details");
-        $roleName = Role::select('name')->where('id', $user->role_id)->get();
-
-        $role = $roleName[0]['name'];
-
-        $last_date = "";
-        $menu_data = MenuDetail::select("date")->orderBy("date", "desc")->first();
-
-        $rooms = RoomDetail::where("is_active", 1)->get();
-        $rooms_array = array();
-        foreach ($rooms as $r) {
-            array_push(
-                $rooms_array, 
-                array(
-                    "id" => $r->id,
-                    "name" => $r->room_name,
-                    "occupancy" => $r->occupancy,
-                    "resident_name" => $r->resident_name
-                )
+            return ApiResponse::format(
+                status: '11',
+                message: 'Unauthorised'
             );
         }
-
-        if ($menu_data) {
-            $last_date = Carbon::parse($menu_data->date)->format('Y-m-d');
-        }
-
-        $settings = DB::table('settings')->get();
-
-        $settingsArray = [];
-
-        foreach ($settings as $setting) {
-            $settingsArray[$setting->key] = $setting->value;
-        }
-
-        if ($role == "user") {
-
-            return $this->sendResultJSON('1', '', array(
-                'occupancy' => $user->occupancy,
-                'language' => intval($user->language),
-                'last_menu_date' => $last_date,
-                'role' => $role,
-                'breakfast_guideline' => $settingsArray['site.app_breakfast_msg'],
-                'breakfast_guideline_cn' => $settingsArray['site.app_breakfast_msg_cn'] != "" ? $settingsArray['site.app_breakfast_msg_cn'] : $settingsArray['site.app_breakfast_msg'],
-                'lunch_guideline' => $settingsArray['site.app_lunch_msg'],
-                'lunch_guideline_cn' => $settingsArray['site.app_lunch_msg_cn'] != "" ? $settingsArray['site.app_lunch_msg_cn'] : $settingsArray['site.app_lunch_msg'],
-                'dinner_guideline' => $settingsArray['site.app_dinner_msg'],
-                'dinner_guideline_cn' => $settingsArray['site.app_dinner_msg_cn'] != "" ? $settingsArray['site.app_dinner_msg_cn'] : $settingsArray['site.app_dinner_msg'],
-                'rooms' => $rooms_array));
-        } else {
-            $formTypes = FormType::all();
-
-            $userQuery = "select u.id , r.name as roleName,u.name as userName , u.email from users u left join roles r on u.role_id = r.id where u.role_id IN (3,4,5,6,7) AND u.deleted_at IS NULL";
-
-            $userResults = DB::select($userQuery);
-
-            $userData = [];
-
-            foreach ($userResults as $userResult) {
-
-                $userData[] = [
-                    'id' => $userResult->id,
-                    'role_name' => $userResult->roleName,
-                    'name' => $userResult->userName,
-                    'email' => $userResult->email,
-                ];
-            }
-
-            return $this->sendResultJSON('1', '', 
-                array(
-                    'occupancy' => 0,
-                    'language' => 0,
-                    'last_menu_date' => $last_date,
-                    'role' => $role,
-                    'breakfast_guideline' => $settingsArray['site.app_breakfast_msg'],
-                    'breakfast_guideline_cn' => $settingsArray['site.app_breakfast_msg_cn'] != "" ? $settingsArray['site.app_breakfast_msg_cn'] : $settingsArray['site.app_breakfast_msg'],
-                    'lunch_guideline' => $settingsArray['site.app_lunch_msg'],
-                    'lunch_guideline_cn' => $settingsArray['site.app_lunch_msg_cn'] != "" ? $settingsArray['site.app_lunch_msg_cn'] : $settingsArray['site.app_lunch_msg'],
-                    'dinner_guideline' => $settingsArray['site.app_dinner_msg'],
-                    'dinner_guideline_cn' => $settingsArray['site.app_dinner_msg_cn'] != "" ? $settingsArray['site.app_dinner_msg_cn'] : $settingsArray['site.app_dinner_msg'],
-                    'form_types' => $formTypes,
-                    'rooms' => $rooms_array,
-                    'user_list' => $userData,
-                    'user_id' => $user->id,
-                    'show_incident' => $settingsArray['show_incident'],
-                    'show_dining' => $settingsArray['show_dining']));
-        }
+        $user = session("user_details");
+        
+        return $this->diningAppService->getUserData($user);
     }
 
     public function getRoomData(Request $request)
@@ -968,8 +338,8 @@ class DinningController extends Controller
             foreach (count($order_data) > 0 ? $order_data : array() as $o) {
                 $preference_array = array();
                 $option_details = "";
-                if (isset($o->itemData) && isset($o->itemData->categoryData)) {
-                    $cat_data = $o->itemData->categoryData;
+                if (isset($o->itemData) && isset($o->itemData->category)) {
+                    $cat_data = $o->itemData->category;
                     $type = intval($cat_data->type);
                     if ($o->item_options != "") {
                         $option_data = ItemOption::select("option_name")->where("id", $o->item_options)->first();
@@ -989,9 +359,9 @@ class DinningController extends Controller
                         }
                     }
 
-                    $o->cat_id = intval($o->itemData->categoryData->id);
+                    $o->cat_id = intval($o->itemData->category->id);
                     $data = array("category" => (intval($cat_data->parent_id) == 0 ? $cat_data->cat_name : ($cat_data->catParentId ? $cat_data->catParentId->cat_name : "")), "sub_cat" => (intval($cat_data->parent_id) == 0 ? "" : $cat_data->cat_name), "item_name" => $o->itemData->item_name, "quantity" => intval($o->quantity), "options" => $option_details, "preference" => $preference_array);
-                    if (!in_array(intval($o->itemData->categoryData->id), [2, 7, 10, 13])) { // LUNCH SOUP , LUNCH DESSERT, DINNER DESSERT , 13 is deleted
+                    if (!in_array(intval($o->itemData->category->id), [2, 7, 10, 13])) { // LUNCH SOUP , LUNCH DESSERT, DINNER DESSERT , 13 is deleted
 
                         if ($type == 1) {
                             array_push($breakfast, $data);
@@ -1874,14 +1244,22 @@ class DinningController extends Controller
         return Storage::url('public/FormResponses/' . $uniqueFileName);
     }
 
-    public function getGuestOrderList(Request $request) // same as getorderlist
+    public function getGuestOrderList(Request $request)
     {
         if (!session("user_details")) {
             return $this->sendResultJSON("11", "Unauthorised");
         }
 
         $room_id = intval($request->input('room_id'));
+        $date = $request->input('date');
 
+        return $this->diningAppService->getGuestOrderList($room_id, $date);
+    }
+
+    /** @deprecated Replaced by DiningAppService::getGuestOrderList — kept for reference until verified in production. */
+    private function _legacyGetGuestOrderList(Request $request)
+    {
+        $room_id = intval($request->input('room_id'));
         $date = $request->input('date');
         $sub_cat_details = array();
         $cat_array = array();
@@ -1910,33 +1288,73 @@ class DinningController extends Controller
         if ($items != "") {
             $options = ItemOption::all();
             foreach (count($options) > 0 ? $options : array() as $o) {
-                $option_details[intval($o->id)] = array("option_name" => $o->option_name, "option_name_cn" => ($o->option_name_cn != null ? $o->option_name_cn : $o->option_name));
+                $option_details[intval($o->id)] = array(
+                    "option_name" => $o->option_name, 
+                    "option_name_cn" => ($o->option_name_cn != null ? $o->option_name_cn : $o->option_name)
+                );
             }
             $preferences = ItemPreference::all();
             foreach (count($preferences) > 0 ? $preferences : array() as $p) {
-                $preference_details[$p->id] = array("name" => $p->pname, "name_cn" => ($p->pname_cn != null ? $p->pname_cn : $p->pname));
+                $preference_details[$p->id] = array(
+                    "name" => $p->pname, 
+                    "name_cn" => ($p->pname_cn != null ? $p->pname_cn : $p->pname)
+                );
             }
 
 
-            $category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")->selectRaw("category_details.*,item_details.id as item_id,item_details.item_name,item_details.item_image,item_details.item_chinese_name,item_details.options,item_details.preference")->where("category_details.parent_id", 0)->whereRaw("item_details.id IN (" . $items . ")")->whereRaw("item_details.deleted_at IS NULL")->orderBy("category_details.id", "asc")->orderBy("item_details.id", "asc")->get();
+            $category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")
+                ->selectRaw("
+                    category_details.*,
+                    item_details.id as item_id,
+                    item_details.item_name,
+                    item_details.item_image,
+                    item_details.item_chinese_name,
+                    item_details.options,
+                    item_details.preference"
+                )->where("category_details.parent_id", 0)
+                ->whereRaw("item_details.id IN (" . $items . ")")
+                ->whereRaw("item_details.deleted_at IS NULL")
+                ->orderBy("category_details.id", "asc")
+                ->orderBy("item_details.id", "asc")
+                ->get();
 
             foreach (count($category_data) > 0 ? $category_data : array() as $c) {
                 if (!isset($cat_array[$c->id])) {
-                    $cat_array[$c->id] = array("cat_id" => $c->id, "cat_name" => $c->cat_name, "chinese_name" => $c->category_chinese_name, "items" => array(), "type" => $c->type);
+                    $cat_array[$c->id] = array(
+                        "cat_id" => $c->id,
+                        "cat_name" => $c->cat_name,
+                        "chinese_name" => $c->category_chinese_name, 
+                        "items" => array(), 
+                        "type" => $c->type
+                    );
                 }
                 $options = array();
 
                 $preference = array();
 
                 if ($room_id != 0) {
-                    $order_data = OrderDetail::selectRaw("id,quantity,item_options,preference,is_for_guest")->where("room_id", $room_id)->where("date", $date)->where("item_id", $c->item_id)->where("is_for_guest", 1)->first();
+                    $order_data = OrderDetail::selectRaw("id,quantity,item_options,preference,is_for_guest")
+                        ->where("room_id", $room_id)
+                        ->where("date", $date)
+                        ->where("item_id", $c->item_id)
+                        ->where("is_for_guest", 1)
+                        ->first();
 
                     if ($c->options != "") {
                         $c_options = json_decode($c->options);
                         foreach (count($c_options) > 0 ? $c_options : array() as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => ($order_data && $order_data->item_options != null ? ($co == $order_data->item_options ? 1 : 0) : 0));
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $option_details[$co]['option_name'],
+                                    "c_name" => $option_details[$co]['option_name_cn'],
+                                    "is_selected" => (
+                                        $order_data && $order_data->item_options != null
+                                        ? ($co == $order_data->item_options ? 1 : 0)
+                                        : 0
+                                    )
+                                );
                             }
                         }
                     }
@@ -1946,35 +1364,111 @@ class DinningController extends Controller
                         foreach (count($c_preferences) > 0 ? $c_preferences : array() as $cp) {
                             $cp = intval($cp);
                             if ($preference_details[$cp]) {
-                                $preference[$cp] = array("id" => $cp, "name" => $preference_details[$cp]['name'], "c_name" => $preference_details[$cp]['name_cn'], "is_selected" => ($order_data && $order_data->preference != null ? (in_array($cp, explode(",", $order_data->preference)) ? 1 : 0) : 0));
+                                $preference[$cp] = array(
+                                    "id" => $cp,
+                                    "name" => $preference_details[$cp]['name'],
+                                    "c_name" => $preference_details[$cp]['name_cn'],
+                                    "is_selected" => (
+                                        $order_data && $order_data->preference != null
+                                        ? (in_array($cp, explode(",", $order_data->preference)) ? 1 : 0)
+                                        : 0
+                                    )
+                                );
                             }
                         }
                     }
-                    array_push($cat_array[$c->id]["items"], array("type" => "item",'parent_id' => $c->parent_id, "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push(
+                        $cat_array[$c->id]["items"],
+                        array(
+                            "type" => "item",
+                            'parent_id' => $c->parent_id, 
+                            "item_id" => $c->item_id, 
+                            "item_name" => $c->item_name, 
+                            "chinese_name" => $c->item_chinese_name, 
+                            "options" => array_values($options), 
+                            "preference" => array_values($preference), 
+                            "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, 
+                            "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), 
+                            "comment" => "", 
+                            "order_id" => ($order_data ? $order_data->id : 0)
+                        )
+                    );
                 } else {
-                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $c->item_id)->groupBy("item_id")->first();
+                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")
+                        ->where("date", $date)
+                        ->where("item_id", $c->item_id)
+                        ->groupBy("item_id")
+                        ->first();
 
                     if ($c->options != "") {
                         $c_options = json_decode($c->options);
                         foreach (count($c_options) > 0 ? $c_options : array() as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => 0, "item_count" => OrderDetail::where("date", $date)->where("item_id", $c->item_id)->where("item_options", $co)->count());
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $option_details[$co]['option_name'], 
+                                    "c_name" => $option_details[$co]['option_name_cn'], 
+                                    "is_selected" => 0, 
+                                    "item_count" => OrderDetail::where("date", $date)->where("item_id", $c->item_id)->where("item_options", $co)->count()
+                                );
                             }
                         }
                     }
 
-                    array_push($cat_array[$c->id]["items"], array("type" => "item",'parent_id' => $c->parent_id, "item_id" => $c->item_id, "item_name" => $c->item_name, "chinese_name" => $c->item_chinese_name, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL, "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => 0));
+                    array_push(
+                        $cat_array[$c->id]["items"],
+                        array(
+                            "type" => "item",
+                            'parent_id' => $c->parent_id,
+                            "item_id" => $c->item_id,
+                            "item_name" => $c->item_name,
+                            "chinese_name" => $c->item_chinese_name,
+                            "is_expanded" => count(array_values($options)) > 0 ? 1 : 0,
+                            "options" => array_values($options),
+                            "preference" => array_values($preference),
+                            "item_image" => !empty($c->item_image) ? Storage::url($c->item_image) : NULL,
+                            "qty" => ($order_data ? intval($order_data->quantity) : 0),
+                            "comment" => "",
+                            "order_id" => 0
+                        )
+                    );
                 }
             }
-            $sub_category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")->selectRaw("category_details.*,item_details.id as item_id,item_details.item_name,item_details.item_image,item_details.item_chinese_name,item_details.options,item_details.preference")->where("category_details.parent_id", "!=", 0)->whereRaw("item_details.id IN (" . $items . ")")->whereRaw("item_details.deleted_at IS NULL")->orderBy("category_details.id", "asc")->orderBy("item_details.id", "asc")->get();
+            $sub_category_data = CategoryDetail::join("item_details", "item_details.cat_id", "=", "category_details.id")
+                ->selectRaw("
+                    category_details.*,
+                    item_details.id as item_id,
+                    item_details.item_name,
+                    item_details.item_image,
+                    item_details.item_chinese_name,
+                    item_details.options,
+                    item_details.preference"
+                )->where("category_details.parent_id", "!=", 0)
+                ->whereRaw("item_details.id IN (" . $items . ")")
+                ->whereRaw("item_details.deleted_at IS NULL")
+                ->orderBy("category_details.id", "asc")
+                ->orderBy("item_details.id", "asc")
+                ->get();
             foreach (count($sub_category_data) > 0 ? $sub_category_data : array() as $sc) {
                 if (!isset($sub_cat_details[$sc->id])) {
-                    $sub_cat_details[$sc->id] = array("cat_id" => $sc->id, "cat_name" => $sc->cat_name, "chinese_name" => $sc->category_chinese_name, "parent_id" => $sc->parent_id, "items" => array());
+                    $sub_cat_details[$sc->id] = array(
+                        "cat_id" => $sc->id,
+                        "cat_name" => $sc->cat_name,
+                        "chinese_name" => $sc->category_chinese_name,
+                        "parent_id" => $sc->parent_id,
+                        "items" => array()
+                    );
                 }
                 if (!isset($cat_array[$sc->parent_id])) {
                     if ($sc->parentData) {
-                        $cat_array[$sc->parent_id] = array("cat_id" => $sc->parentData->id, "cat_name" => $sc->parentData->cat_name, "chinese_name" => $sc->parentData->category_chinese_name, "items" => array(), "type" => $c->type);
+                        $cat_array[$sc->parent_id] = array(
+                            "cat_id" => $sc->parentData->id,
+                            "cat_name" => $sc->parentData->cat_name,
+                            "chinese_name" => $sc->parentData->category_chinese_name,
+                            "items" => array(),
+                            "type" => $c->type
+                        );
                     }
                 }
                 $options = array();
@@ -1982,14 +1476,34 @@ class DinningController extends Controller
                 $preference = array();
 
                 if ($room_id != 0) {
-                    $order_data = OrderDetail::selectRaw("id,quantity,item_options,preference,is_for_guest")->where("room_id", $room_id)->where("date", $date)->where("item_id", $sc->item_id)->where("is_for_guest", 1)->first();
+                    $order_data = OrderDetail::selectRaw("
+                            id,
+                            quantity,
+                            item_options,
+                            preference,
+                            is_for_guest"
+                        )
+                        ->where("room_id", $room_id)
+                        ->where("date", $date)
+                        ->where("item_id", $sc->item_id)
+                        ->where("is_for_guest", 1)
+                        ->first();
 
                     if ($sc->options != "") {
                         $c_options = json_decode($sc->options);
                         foreach (count($c_options) > 0 ? $c_options : array() as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => ($order_data && $order_data->item_options != null ? ($co == $order_data->item_options ? 1 : 0) : 0));
+                                $options[$co] = array(
+                                    "id" => $co,
+                                    "name" => $option_details[$co]['option_name'],
+                                    "c_name" => $option_details[$co]['option_name_cn'],
+                                    "is_selected" => (
+                                        $order_data && $order_data->item_options != null 
+                                        ? ($co == $order_data->item_options ? 1 : 0) 
+                                        : 0
+                                    )
+                                );
                             }
                         }
                     }
@@ -1999,33 +1513,111 @@ class DinningController extends Controller
                         foreach (count($c_preferences) > 0 ? $c_preferences : array() as $cp) {
                             $cp = intval($cp);
                             if ($preference_details[$cp]) {
-                                $preference[$cp] = array("id" => $cp, "name" => $preference_details[$cp]['name'], "c_name" => $preference_details[$cp]['name_cn'], "is_selected" => ($order_data && $order_data->preference != null ? (in_array($cp, explode(",", $order_data->preference)) ? 1 : 0) : 0));
+                                $preference[$cp] = array(
+                                    "id" => $cp,
+                                    "name" => $preference_details[$cp]['name'],
+                                    "c_name" => $preference_details[$cp]['name_cn'],
+                                    "is_selected" => (
+                                        $order_data && $order_data->preference != null 
+                                        ? (in_array($cp, explode(",", $order_data->preference)) ? 1 : 0) 
+                                        : 0
+                                    )
+                                );
                             }
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id,'parent_id' => $c->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push(
+                        $sub_cat_details[$sc->id]["items"],
+                        array(
+                            "item_id" => $sc->item_id,
+                            'parent_id' => $c->parent_id, 
+                            "item_name" => $sc->item_name, 
+                            "chinese_name" => $sc->item_chinese_name, 
+                            "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, 
+                            "options" => array_values($options), 
+                            "preference" => array_values($preference), 
+                            "qty" => ($order_data ? ($order_data->is_for_guest ? $order_data->quantity : 0) : 0), 
+                            "comment" => "", 
+                            "order_id" => ($order_data ? $order_data->id : 0)
+                        )
+                    );
                 } else {
-                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")->where("date", $date)->where("item_id", $sc->item_id)->groupBy("item_id")->first();
+                    $order_data = OrderDetail::selectRaw("sum(quantity) as quantity")
+                        ->where("date", $date)
+                        ->where("item_id", $sc->item_id)
+                        ->groupBy("item_id")
+                        ->first();
 
                     if ($sc->options != "") {
                         $c_options = json_decode($sc->options);
                         foreach (count($c_options) > 0 ? $c_options : array() as $co) {
                             $co = intval($co);
                             if ($option_details[$co]) {
-                                $options[$co] = array("id" => $co, "name" => $option_details[$co]['option_name'], "c_name" => $option_details[$co]['option_name_cn'], "is_selected" => 0, "item_count" => OrderDetail::where("date", $date)->where("item_id", $sc->item_id)->where("item_options", $co)->count());
+                                $options[$co] = array(
+                                    "id" => $co, 
+                                    "name" => $option_details[$co]['option_name'], 
+                                    "c_name" => $option_details[$co]['option_name_cn'], 
+                                    "is_selected" => 0, 
+                                    "item_count" => OrderDetail::where("date", $date)
+                                        ->where("item_id", $sc->item_id)
+                                        ->where("item_options", $co)
+                                        ->count()
+                                    );
                             }
                         }
                     }
 
-                    array_push($sub_cat_details[$sc->id]["items"], array("item_id" => $sc->item_id,'parent_id' => $c->parent_id, "item_name" => $sc->item_name, "chinese_name" => $sc->item_chinese_name, "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, "options" => array_values($options), "preference" => array_values($preference), "qty" => ($order_data ? intval($order_data->quantity) : 0), "comment" => "", "order_id" => ($order_data ? $order_data->id : 0)));
+                    array_push(
+                        $sub_cat_details[$sc->id]["items"],
+                        array("item_id" => $sc->item_id,
+                            'parent_id' => $c->parent_id, 
+                            "item_name" => $sc->item_name, 
+                            "chinese_name" => $sc->item_chinese_name, 
+                            "item_image" => !empty($sc->item_image) ? Storage::url($sc->item_image) : NULL, 
+                            "is_expanded" => count(array_values($options)) > 0 ? 1 : 0, 
+                            "options" => array_values($options), 
+                            "preference" => array_values($preference), 
+                            "qty" => ($order_data ? intval($order_data->quantity) : 0), 
+                            "comment" => "", 
+                            "order_id" => ($order_data ? $order_data->id : 0)
+                        )
+                    );
                 }
             }
             foreach (count($sub_cat_details) > 0 ? $sub_cat_details : array() as $sc) {
                 if (isset($cat_array[$sc['parent_id']])) {
-                    array_push($cat_array[$sc['parent_id']]["items"], array("type" => "sub_cat","item_id" => NULL, "cat_id" => $sc["cat_id"],"parent_id" => $sc["parent_id"], "item_name" => $sc["cat_name"], "chinese_name" => $sc["chinese_name"], "options" => [], "preference" => [], "item_image" => "", "qty" => 0, "comment" => "", "order_id" => 0));
+                    array_push(
+                        $cat_array[$sc['parent_id']]["items"], 
+                        array(
+                            "type" => "sub_cat",
+                            "item_id" => NULL, 
+                            "cat_id" => $sc["cat_id"],
+                            "parent_id" => $sc["parent_id"], 
+                            "item_name" => $sc["cat_name"], 
+                            "chinese_name" => $sc["chinese_name"], 
+                            "options" => [], 
+                            "preference" => [], 
+                            "item_image" => "", 
+                            "qty" => 0, 
+                            "comment" => "", 
+                            "order_id" => 0
+                        )
+                    );
                     foreach (count($sc["items"]) > 0 ? $sc["items"] : array() as $sci) {
-                        $sc_item = array("type" => "sub_cat_item", "item_id" => $sci["item_id"],'parent_id' => $sci["parent_id"], "item_name" => $sci["item_name"], "chinese_name" => $sci["chinese_name"], "item_image" => $sci["item_image"], "options" => $sci["options"], "preference" => $sci["preference"], "qty" => $sci["qty"], "comment" => $sci["comment"], "order_id" => $sci["order_id"]);
+                        $sc_item = array(
+                            "type" => "sub_cat_item",
+                            "item_id" => $sci["item_id"],
+                            'parent_id' => $sci["parent_id"],
+                            "item_name" => $sci["item_name"], 
+                            "chinese_name" => $sci["chinese_name"], 
+                            "item_image" => $sci["item_image"], 
+                            "options" => $sci["options"], 
+                            "preference" => $sci["preference"], 
+                            "qty" => $sci["qty"], 
+                            "comment" => $sci["comment"], 
+                            "order_id" => $sci["order_id"]
+                        );
                         if (isset($sci["is_expanded"])) {
                             $sc_item["is_expanded"] = $sci["is_expanded"];
                         }
@@ -2047,12 +1639,30 @@ class DinningController extends Controller
             }
         }
 
-        $tray_service_data = OrderDetail::selectRaw("is_brk_tray_service,is_lunch_tray_service,is_dinner_tray_service,is_brk_escort_service,is_lunch_escort_service,is_dinner_escort_service")->where("room_id", $room_id)->where("date", $date)->where("is_for_guest", 1)->first();
+        $tray_service_data = OrderDetail::selectRaw("
+                is_brk_tray_service,
+                is_lunch_tray_service,
+                is_dinner_tray_service,
+                is_brk_escort_service,
+                is_lunch_escort_service,
+                is_dinner_escort_service"
+            )->where("room_id", $room_id)
+            ->where("date", $date)
+            ->where("is_for_guest", 1)
+            ->first();
 
 
         $occupancy = DateWiseOccupancy::select('occupancy')->where('room_id',  $room_id)->where('date', $date)->first();
 
-        return $this->sendResultJSON('1', '', array('breakfast' => $breakfast, 'lunch' => $lunch, 'dinner' => $dinner, 'occupancy' => $occupancy ? $occupancy->occupancy : 0, 'is_brk_tray_service' => $tray_service_data ? $tray_service_data->is_brk_tray_service : 0, 'is_lunch_tray_service' => $tray_service_data ? $tray_service_data->is_lunch_tray_service : 0, 'is_dinner_tray_service' => $tray_service_data ? $tray_service_data->is_dinner_tray_service : 0));
+        return $this->sendResultJSON('1', '', array(
+            'breakfast' => $breakfast,
+            'lunch' => $lunch,
+            'dinner' => $dinner,
+            'occupancy' => $occupancy ? $occupancy->occupancy : 0,
+            'is_brk_tray_service' => $tray_service_data ? $tray_service_data->is_brk_tray_service : 0,
+            'is_lunch_tray_service' => $tray_service_data ? $tray_service_data->is_lunch_tray_service : 0,
+            'is_dinner_tray_service' => $tray_service_data ? $tray_service_data->is_dinner_tray_service : 0
+        ));
     }
 
     // public function generateThumbnail(Request $request){
@@ -4344,12 +3954,12 @@ class DinningController extends Controller
 
     public function getMoveInSummaryValues()
     {
-        return $this->$formsAppService->getMoveInSummaryValues();
+        return $this->formsAppService->getMoveInSummaryValues();
     }
 
     public function getRoomDetails($room_id)
     {
-        return $this->$diningAppService->getRoomDetails($room_id);
+        return $this->diningAppService->getRoomDetails($room_id);
     }
 
     public function updateRoomDetails(Request $request, $room_id)

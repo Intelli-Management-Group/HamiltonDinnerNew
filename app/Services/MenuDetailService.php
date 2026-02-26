@@ -8,7 +8,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 
-class MenuDetailService
+class MenuDetailService extends BaseService
 {
     public function __construct(
         private MenuDetailRepositoryInterface $menuDetails
@@ -19,23 +19,14 @@ class MenuDetailService
         $menu = $this->menuDetails->findById($id);
 
         if (!$menu) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'MenuDetail not found.',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'MenuDetail not found.',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $menu
-            ]
-        ];
+        return $this->successResponse($menu);
     }
 
     public function list(array $params): array
@@ -52,37 +43,16 @@ class MenuDetailService
 
             /** @var LengthAwarePaginator $menus */
             $menus = $this->menuDetails->paginate(
-                $filters, $pageSize, $pageNumber
+                $filters, [], $pageSize, $pageNumber
             );
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'data'    => $menus->items(),
-                    'pagination' => [
-                        'total' => $menus->total(),
-                        'per_page' => $menus->perPage(),
-                        'current_page' => $menus->currentPage(),
-                        'last_page' => $menus->lastPage(),
-                        'from' => $menus->firstItem(),
-                        'to' => $menus->lastItem(),
-                    ]
-                ]
-            ];
+            return $this->paginatedResponse($menus);
         }
 
         /** @var Collection $menus */
         $menus = $this->menuDetails->getAll($filters);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $menus,
-                'count'   => $menus->count()
-            ]
-        ];
+        return $this->collectionResponse($menus);
     }
 
     public function store(array $data): array
@@ -99,27 +69,20 @@ class MenuDetailService
 
             $existing->refresh();
 
-            return [
-                'statusCode' => 200,
-                'payload'    => [
-                    'success' => true,
-                    'message' => 'MenuDetail restored and updated successfully.',
-                    'data'    => $existing
-                ]
-            ];
+            return $this->successResponse(
+                data: $existing,
+                message: 'MenuDetail restored and updated successfully.'
+            );
         }
 
         /** @var MenuDetail $menu */
         $menu = $this->menuDetails->create($data);
 
-        return [
-            'statusCode' => 201,
-            'payload'    => [
-                'success' => true,
-                'message' => 'MenuDetail created successfully.',
-                'data'    => $menu
-            ]
-        ];
+        return $this->successResponse(
+            data: $menu,
+            message: 'MenuDetail created successfully.',
+            statusCode: 201
+        );
     }
 
     public function update(MenuDetail $menu, array $data): array
@@ -127,39 +90,31 @@ class MenuDetailService
         $menu->fill($data);
         $this->menuDetails->save($menu);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'MenuDetail updated successfully.',
-                'data'    => $menu
-            ]
-        ];
+        return $this->successResponse(
+            data: $menu,
+            message: 'MenuDetail updated successfully.'
+        );
     }
 
     public function destroy(MenuDetail $menu): array
     {
         $this->menuDetails->delete($menu);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'MenuDetail deleted successfully.'
-            ]
-        ];
+        return $this->successResponse(
+            message: 'MenuDetail deleted successfully.',
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     public function bulkDestroy(array $ids): array
     {
         $deletedCount = $this->menuDetails->bulkDeleteByIds($ids);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => "{$deletedCount} MenuDetails deleted successfully."
-            ]
-        ];
+        return $this->successResponse(
+            message: "{$deletedCount} MenuDetails deleted successfully.",
+            statusCode: 200,
+            includeData: false
+        );
     }
 }

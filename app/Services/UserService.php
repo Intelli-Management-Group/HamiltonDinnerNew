@@ -10,7 +10,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Hash;
 
-class UserService
+class UserService extends BaseService
 {
     public function __construct(
         private UserRepositoryInterface $users,
@@ -22,23 +22,14 @@ class UserService
         $user = $this->users->findById($id);
 
         if (!$user) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'User not found.',
-                    'data' => null
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'User not found.',
+                statusCode: 404,
+                data: null
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $user
-            ]
-        ];
+        return $this->successResponse($user);
     }
 
     public function list(array $params): array
@@ -55,66 +46,38 @@ class UserService
 
             /** @var LengthAwarePaginator $users */
             $users = $this->users->paginate(
-                filters: $filters, 
-                relations: ['permissions'],
-                pageSize: $pageSize,
-                pageNumber: $pageNumber
+                $filters,
+                ['permissionList'],
+                $pageSize,
+                $pageNumber
             );
 
-            return [
-                'statusCode' => 200,
-                'payload' => [
-                    'success' => true,
-                    'data' => $users->items(),
-                    'pagination' => [
-                        'total' => $users->total(),
-                        'per_page' => $users->perPage(),
-                        'current_page' => $users->currentPage(),
-                        'last_page' => $users->lastPage(),
-                        'from' => $users->firstItem(),
-                        'to' => $users->lastItem()
-                    ]
-                ]
-            ];
+            return $this->paginatedResponse($users);
         }
 
         /** @var Collection $users */
         $users = $this->users->getAll(
             filters: $filters,
-            relations: ['permissions']
+            relations: ['permissionList']
         );
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data' => $users,
-                'count' => $users->count()
-            ]
-        ];
+        return $this->collectionResponse($users);
     }
 
     public function show(int $id): array
     {
-        $user = $this->users->findById($id);
+        $user = $this->users->findById($id, relations: ['permissionList']);
 
         if (!$user) {
-            return [
-                'statusCode' => 404,
-                'payload'    => [
-                    'success' => false,
-                    'message' => 'User not found.'
-                ]
-            ];
+            return $this->errorResponse(
+                message: 'User not found.',
+                statusCode: 404,
+                data: null,
+                includeData: false
+            );
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'data'    => $user
-            ]
-        ];
+        return $this->successResponse($user);
     }
 
     public function store(array $data): array
@@ -144,14 +107,11 @@ class UserService
             $role = $this->$roles->findById($data['role_id']);
             $existing->syncRoles([$role]);
 
-            return [
-                'statusCode' => 201,
-                'payload'    => [
-                    'success' => true,
-                    'message' => 'User restored and updated successfully',
-                    'data'    => $existing
-                ]
-            ];
+            return $this->successResponse(
+                data: $existing,
+                message: 'User restored and updated successfully',
+                statusCode: 201
+            );
         }
         
         // Otherwise, create a new user
@@ -170,14 +130,11 @@ class UserService
         $role = $this->roles->findById($data['role_id']);
         $user->assignRole($role);
 
-        return [
-            'statusCode' => 201,
-            'payload'    => [
-                'success' => true,
-                'message' => 'User created successfully',
-                'data'    => $user
-            ]
-        ];
+        return $this->successResponse(
+            data: $user,
+            message: 'User created successfully',
+            statusCode: 201
+        );
     }
 
     public function update(User $user, array $data): array
@@ -211,39 +168,31 @@ class UserService
             $user->assignRole($role);
         }
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'User updated successfully',
-                'data'    => $user->fresh(['roles'])
-            ]
-        ];
+        return $this->successResponse(
+            data: $user->fresh(['roles']),
+            message: 'User updated successfully'
+        );
     }
 
     public function destroy(User $user): array
     {
         $this->users->delete($user);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => 'User deleted successfully'
-            ]
-        ];
+        return $this->successResponse(
+            message: 'User deleted successfully',
+            statusCode: 200,
+            includeData: false
+        );
     }
 
     public function bulkDestroy(array $ids): array
     {
         $count = $this->users->bulkDeleteByIds($ids);
 
-        return [
-            'statusCode' => 200,
-            'payload'    => [
-                'success' => true,
-                'message' => "$count users deleted successfully"
-            ]
-        ];
+        return $this->successResponse(
+            message: "$count users deleted successfully",
+            statusCode: 200,
+            includeData: false
+        );
     }
 }
