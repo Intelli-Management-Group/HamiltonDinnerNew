@@ -12,8 +12,6 @@ class ItemDetailRepository extends BaseRepository implements ItemDetailRepositor
     // Allowed relations and scopes for eager loading
     protected const ALLOWED_RELATIONS = [
         'category',
-        'options',
-        'preference',
     ];
 
     public function __construct(

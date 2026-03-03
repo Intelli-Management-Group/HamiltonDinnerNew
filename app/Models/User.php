@@ -87,17 +87,20 @@ class User extends Authenticatable implements JWTSubject
         );
     }
 
-    /** 
+    /**
      * Define one-to-one relationship with Role.
-     * 
-     * Usage: 
-     * $user->role (to get the role associated with the user)
-     * Eager Loading:
-     * User::with('role')->get();
-     * 
+     *
+     * Named roleModel (not role) to avoid shadowing the `role` string column on the users
+     * table. Eloquent's getAttribute checks $this->attributes first, so a relationship
+     * named `role()` would be unreachable via $user->role when that column exists.
+     *
+     * Usage:
+     * $user->roleModel          (access the loaded relation)
+     * User::with('roleModel')   (eager loading)
+     *
      * @return \Illuminate\Database\Eloquent\Relations\HasOne
      * */
-    public function role(){
+    public function roleModel(){
         return $this->hasOne(Role::class, 'id', 'role_id');
     }
 

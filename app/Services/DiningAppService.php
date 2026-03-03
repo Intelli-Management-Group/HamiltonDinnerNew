@@ -130,7 +130,7 @@ class DiningAppService
                 'user_name' => $room_no,
             ],
             relations: [
-                'role'
+                'roleModel'
             ]
         )->first();
 
@@ -170,13 +170,13 @@ class DiningAppService
                 'role_id' => [3,4,5,6,7]
             ],
             relations: [
-                'role'
+                'roleModel'
             ],
         );
 
         $userList = $userResults->map(fn ($user) => [
             'id' => $user->id,
-            'role_name' => $user->role?->name,
+            'role_name' => $user->roleModel?->name,
             'name' => $user->name,
             'email' => $user->email,
         ])->values()->all();
@@ -282,7 +282,7 @@ class DiningAppService
 
             $userList = $userResults->map(fn ($user) => [
                 'id' => $user->id,
-                'role_name' => $user->role?->name,
+                'role_name' => $user->roleModel?->name,
                 'name' => $user->name,
                 'email' => $user->email,
             ])->values()->all();

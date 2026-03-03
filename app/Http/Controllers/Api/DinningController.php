@@ -2344,7 +2344,7 @@ class DinningController extends Controller
                 return response()->json(['error' => 'Unauthorized'], 401);
             }
 
-            $newUser = User::with('permissionList', 'role')->where('id', $user->id)->get()->toArray();
+            $newUser = User::with('permissionList', 'roleModel')->where('id', $user->id)->get()->toArray();
 
             if (empty($newUser)) {
                 // return $this->sendResultJSON("11", "Unauthorised");
@@ -2375,7 +2375,7 @@ class DinningController extends Controller
                 $allPermissions[$item] = 0;
             }
 
-            $newUser = User::with('permissionList', 'role')->where('id', $user->id)->get()->toArray();
+            $newUser = User::with('permissionList', 'roleModel')->where('id', $user->id)->get()->toArray();
 
             $data = [];
 
@@ -2383,7 +2383,7 @@ class DinningController extends Controller
 
                 $data['user_id'] = $result['id'];
                 $data['user_name'] = $result['name'];
-                $data['role'] = !empty($result['role']) ? $result['role']['name'] : null;
+                $data['role'] = !empty($result['role_model']) ? $result['role_model']['name'] : null;
 
                 foreach ($result['permission_list'] as $permission) {
 

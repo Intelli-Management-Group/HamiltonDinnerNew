@@ -60,7 +60,7 @@ class RoleService extends BaseService
 
     public function show(int $id): array
     {
-        $role = $this->roles->findWithPermissionsById($id);
+        $role = $this->roles->findById($id, relations: ['permissionList']);
 
         if (!$role) {
             return $this->errorResponse(

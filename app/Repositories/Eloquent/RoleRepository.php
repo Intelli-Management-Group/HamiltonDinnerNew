@@ -8,15 +8,12 @@ use Illuminate\Database\Eloquent\Builder;
 
 class RoleRepository extends BaseRepository implements RoleRepositoryInterface
 {
+    protected const ALLOWED_RELATIONS = ['permissionList'];
+
     public function __construct(
         Role $model
     ) {
         parent::__construct($model);
-    }
-
-    public function findWithPermissionsById($id): ?Role
-    {
-        return $this->model->withPermissions()->find($id);
     }
 
     public function findSoftDeletedByName(string $name): ?Role

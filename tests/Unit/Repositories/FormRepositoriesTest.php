@@ -64,7 +64,7 @@ class FormRepositoriesTest extends TestCase
             'created_by' => 1,
         ]);
 
-        $results = $this->responses->getAllWithFormType();
+        $results = $this->responses->getAll(relations: ['formType']);
 
         $this->assertCount(1, $results);
         $this->assertTrue($results->first()->relationLoaded('formType'));

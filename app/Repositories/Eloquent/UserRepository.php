@@ -10,7 +10,7 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
 {
     // Allowed relations and scopes for eager loading
     protected const ALLOWED_RELATIONS = [
-        'role',
+        'roleModel',
         'permissionList',
     ];
 

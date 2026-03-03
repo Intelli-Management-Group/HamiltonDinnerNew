@@ -78,7 +78,7 @@ class AuthModelsTest extends TestCase
         $user = new User();
 
         $this->assertInstanceOf(HasManyThrough::class, $user->permissionList());
-        $this->assertInstanceOf(HasOne::class, $user->role());
+        $this->assertInstanceOf(HasOne::class, $user->roleModel());
     }
 
     /** @test */

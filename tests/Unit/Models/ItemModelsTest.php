@@ -46,8 +46,6 @@ class ItemModelsTest extends TestCase
         $item = new ItemDetail();
 
     $this->assertInstanceOf(BelongsTo::class, $item->category());
-        $this->assertInstanceOf(BelongsTo::class, $item->options());
-        $this->assertInstanceOf(BelongsTo::class, $item->preference());
     }
 
     /** @test */

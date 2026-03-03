@@ -45,8 +45,9 @@ class FormsAppService
                 $filters['form_type_id'] = $formTypeId;
             }
 
-            $list = $this->formResponses->getAllWithFormType(
+            $list = $this->formResponses->getAll(
                 filters: $filters,
+                relations: ['formType'],
             );
 
             return ApiResponse::format(
@@ -85,14 +86,14 @@ class FormsAppService
 
                 $followUpUser = $this->users->findById(
                     $form->follow_up_assigned_to,
-                    relations: ['role']
+                    relations: ['roleModel']
                 );
 
                 $data = [
                     'id' => $followUpUser->id,
                     'name' => $followUpUser->name,
                     'email' => $followUpUser->email,
-                    'role_name' => $followUpUser->role?->name
+                    'role_name' => $followUpUser->roleModel?->name
                 ];
 
                 $attachments = $this->formMediaAttachments
