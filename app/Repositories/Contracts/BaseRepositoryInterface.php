@@ -35,6 +35,8 @@ interface BaseRepositoryInterface
 
     public function create(array $data): Model;
 
+    public function update(int $id, array $data): ?Model;
+
     public function upsertByFilters(array $filters, array $data): Model;
 
     public function save(Model $model): Model;

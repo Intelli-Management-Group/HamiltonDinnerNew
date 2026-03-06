@@ -64,6 +64,10 @@ class MenuDetailRepository extends BaseRepository implements MenuDetailRepositor
         array $filters
     ): Builder
     {
+        if (!empty($filters['date'])) {
+            $query->whereDate('date', $filters['date']);
+        }
+
         return $query->latest();
     }
 }

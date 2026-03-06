@@ -8,10 +8,11 @@ use App\Services\PermissionService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class PermissionServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_returns_paginated_permissions_when_requested()
     {
         $paginator = new LengthAwarePaginator(

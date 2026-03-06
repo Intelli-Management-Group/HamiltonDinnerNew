@@ -8,10 +8,11 @@ use App\Services\ItemPreferenceService;
 use Illuminate\Database\Eloquent\Collection;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class ItemPreferenceServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_preference()
     {
         $mockRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);
@@ -23,7 +24,7 @@ class ItemPreferenceServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_lists_preferences_without_pagination()
     {
         $mockRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);

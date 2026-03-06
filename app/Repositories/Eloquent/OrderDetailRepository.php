@@ -77,6 +77,10 @@ class OrderDetailRepository extends BaseRepository implements OrderDetailReposit
             $query->where('is_for_guest', (int) $filters['is_for_guest']);
         }
 
+        if (isset($filters['item_options'])) {
+            $query->where('item_options', $filters['item_options']);
+        }
+
         if (isset($filters['order_by'])) {
             $query->orderBy($filters['order_by'], $filters['order_direction'] ?? 'asc');
         }

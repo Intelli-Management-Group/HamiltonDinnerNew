@@ -8,6 +8,7 @@ use App\Services\MenuDetailService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class MenuDetailServiceTest extends TestCase
 {
@@ -15,7 +16,7 @@ class MenuDetailServiceTest extends TestCase
     // model lifecycle methods (restore, refresh) that must run against the DB.
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_menu()
     {
         $mockRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -27,7 +28,7 @@ class MenuDetailServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_restores_soft_deleted_menu_by_date()
     {
         $menu = MenuDetail::create([

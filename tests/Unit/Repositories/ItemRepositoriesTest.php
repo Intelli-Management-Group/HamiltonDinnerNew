@@ -13,6 +13,7 @@ use App\Repositories\Eloquent\ItemPreferenceRepository;
 use App\Repositories\Eloquent\MenuDetailRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class ItemRepositoriesTest extends TestCase
 {
@@ -32,7 +33,7 @@ class ItemRepositoriesTest extends TestCase
         $this->menuDetails = new MenuDetailRepository(new MenuDetail());
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_item_details_by_category_id()
     {
         ItemDetail::create([
@@ -55,7 +56,7 @@ class ItemRepositoriesTest extends TestCase
         $this->assertSame('Oatmeal', $results->first()->item_name);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_order_report_summaries_in_category_order()
     {
         $first = ItemDetail::create([
@@ -78,7 +79,7 @@ class ItemRepositoriesTest extends TestCase
         $this->assertSame(1, $results->first()->cat_id);
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_items_by_parent_category_flag()
     {
         $parentCategory = CategoryDetail::create([
@@ -118,7 +119,7 @@ class ItemRepositoriesTest extends TestCase
         $this->assertSame('Child Item', $childItems->first()->item_name);
     }
 
-    /** @test */
+    #[Test]
     public function it_finds_items_by_ids_and_parent_flag()
     {
         $parentCategory = CategoryDetail::create([
@@ -160,7 +161,7 @@ class ItemRepositoriesTest extends TestCase
         $this->assertSame($childItem->id, $childResults->first()->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_item_options_by_category_id()
     {
         ItemOption::create([
@@ -174,7 +175,7 @@ class ItemRepositoriesTest extends TestCase
         $this->assertCount(1, $results);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_and_lists_item_preferences()
     {
         $this->itemPreferences->create([
@@ -187,7 +188,7 @@ class ItemRepositoriesTest extends TestCase
         $this->assertCount(1, $results);
     }
 
-    /** @test */
+    #[Test]
     public function it_finds_latest_menu_detail_date()
     {
         $this->menuDetails->create([

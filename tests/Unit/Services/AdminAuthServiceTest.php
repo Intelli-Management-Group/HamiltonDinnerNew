@@ -9,6 +9,7 @@ use App\Services\Auth\AdminAuthService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class AdminAuthServiceTest extends TestCase
 {
@@ -16,7 +17,7 @@ class AdminAuthServiceTest extends TestCase
     // table, which only exists once migrations have run.
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_returns_error_payload_for_invalid_login()
     {
         // Repos are not reached when auth()->attempt() fails; they only need to exist.
@@ -34,7 +35,7 @@ class AdminAuthServiceTest extends TestCase
         $this->assertSame('Email or Password is incorrect', $result['payload']['error']);
     }
 
-    /** @test */
+    #[Test]
     public function it_registers_admin_user()
     {
         $fakeUser = new User();

@@ -8,10 +8,11 @@ use App\Services\CategoryDetailService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class CategoryDetailServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_category()
     {
         $mockRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
@@ -23,7 +24,7 @@ class CategoryDetailServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_paginated_categories_when_requested()
     {
         $paginator = new LengthAwarePaginator(
@@ -43,7 +44,7 @@ class CategoryDetailServiceTest extends TestCase
         $this->assertSame(2, $result['payload']['pagination']['total']);
     }
 
-    /** @test */
+    #[Test]
     public function it_bulk_deletes_categories()
     {
         $mockRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);

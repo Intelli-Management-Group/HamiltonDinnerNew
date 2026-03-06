@@ -8,10 +8,11 @@ use App\Services\ItemOptionService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class ItemOptionServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_option()
     {
         $mockRepo = Mockery::mock(ItemOptionRepositoryInterface::class);
@@ -23,7 +24,7 @@ class ItemOptionServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_paginated_options_when_requested()
     {
         $paginator = new LengthAwarePaginator(

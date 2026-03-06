@@ -12,12 +12,13 @@ use App\Repositories\Eloquent\SettingRepository;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class RoomOrderModelsTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function room_detail_filters_by_active_with_repository()
     {
         RoomDetail::create([
@@ -37,7 +38,7 @@ class RoomOrderModelsTest extends TestCase
         $this->assertSame('101', $results->first()->room_name);
     }
 
-    /** @test */
+    #[Test]
     public function order_detail_relations_are_configured()
     {
         $order = new OrderDetail();
@@ -46,7 +47,7 @@ class RoomOrderModelsTest extends TestCase
         $this->assertInstanceOf(HasOne::class, $order->itemData());
     }
 
-    /** @test */
+    #[Test]
     public function date_wise_occupancy_can_be_created()
     {
         $record = DateWiseOccupancy::create([
@@ -58,7 +59,7 @@ class RoomOrderModelsTest extends TestCase
         $this->assertDatabaseHas('date_wise_occupancies', ['id' => $record->id]);
     }
 
-    /** @test */
+    #[Test]
     public function setting_json_value_is_encoded_and_decoded()
     {
         $setting = new Setting([
@@ -79,7 +80,7 @@ class RoomOrderModelsTest extends TestCase
         $this->assertSame(['hello' => 'world'], $setting->value);
     }
 
-    /** @test */
+    #[Test]
     public function setting_filters_by_group_with_repository()
     {
         Setting::create([
@@ -107,7 +108,7 @@ class RoomOrderModelsTest extends TestCase
         $this->assertSame('site.app_name', $results->first()->key);
     }
 
-    /** @test */
+    #[Test]
     public function move_in_summary_values_guards_id()
     {
         $model = new MoveInSummaryValues();

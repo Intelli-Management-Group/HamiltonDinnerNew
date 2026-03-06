@@ -10,22 +10,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class BackendModelsTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function backend_permission_can_be_instantiated()
     {
         $this->assertInstanceOf(BackendPermission::class, new BackendPermission());
     }
 
-    /** @test */
+    #[Test]
     public function role_has_permissions_can_be_instantiated()
     {
         $this->assertInstanceOf(RoleHasPermissions::class, new RoleHasPermissions());
     }
 
-    /** @test */
+    #[Test]
     public function backend_role_relations_are_configured()
     {
         $role = new BackendRole();
@@ -34,7 +35,7 @@ class BackendModelsTest extends TestCase
         $this->assertInstanceOf(HasManyThrough::class, $role->permissions());
     }
 
-    /** @test */
+    #[Test]
     public function backend_user_relations_are_configured()
     {
         $user = new BackendUser();

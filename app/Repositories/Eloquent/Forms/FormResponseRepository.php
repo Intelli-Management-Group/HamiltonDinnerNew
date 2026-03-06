@@ -22,6 +22,10 @@ class FormResponseRepository extends BaseRepository implements FormResponseRepos
         array $filters
     ): Builder
     {
+        if (!empty($filters['form_type_id'])) {
+            $query->where('form_type_id', $filters['form_type_id']);
+        }
+
         return $query
             ->orderBy('created_at', 'desc')
             ->latest();

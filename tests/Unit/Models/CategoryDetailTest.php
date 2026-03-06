@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class CategoryDetailTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function sets_parent_id_to_zero_when_null()
     {
         $category = CategoryDetail::create([
@@ -25,7 +26,7 @@ class CategoryDetailTest extends TestCase
         $this->assertEquals(0, $category->parent_id);
     }
 
-    /** @test */
+    #[Test]
     public function can_filter_parent_categories_with_repository()
     {
         $parent = CategoryDetail::create([
@@ -48,7 +49,7 @@ class CategoryDetailTest extends TestCase
         $this->assertEquals('Parent Category', $parents->first()->cat_name);
     }
 
-    /** @test */
+    #[Test]
     public function can_filter_categories_by_type_with_repository()
     {
         CategoryDetail::create([
@@ -71,7 +72,7 @@ class CategoryDetailTest extends TestCase
         $this->assertEquals('Type A Category', $typeACategories->first()->cat_name);
     }
 
-    /** @test */
+    #[Test]
     public function category_detail_relations_are_configured()
     {
         $category = new CategoryDetail();

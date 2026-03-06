@@ -10,12 +10,13 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class AuthModelsTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function role_search_scope_filters_by_name()
     {
         Role::create(['name' => 'Admin', 'guard_name' => 'api']);
@@ -27,7 +28,7 @@ class AuthModelsTest extends TestCase
         $this->assertSame('Admin', $results->first()->name);
     }
 
-    /** @test */
+    #[Test]
     public function role_relations_are_configured()
     {
         $role = new Role();
@@ -35,7 +36,7 @@ class AuthModelsTest extends TestCase
         $this->assertInstanceOf(BelongsToMany::class, $role->permissionList());
     }
 
-    /** @test */
+    #[Test]
     public function permission_search_scope_filters_by_name_and_display_name()
     {
         Permission::create([
@@ -56,7 +57,7 @@ class AuthModelsTest extends TestCase
         $this->assertSame('manage-rooms', $results->first()->name);
     }
 
-    /** @test */
+    #[Test]
     public function permission_relations_are_configured()
     {
         $permission = new Permission();
@@ -64,7 +65,7 @@ class AuthModelsTest extends TestCase
         $this->assertInstanceOf(BelongsToMany::class, $permission->rolesList());
     }
 
-    /** @test */
+    #[Test]
     public function user_returns_default_avatar_when_empty()
     {
         $user = new User();
@@ -72,7 +73,7 @@ class AuthModelsTest extends TestCase
         $this->assertStringContainsString('/images/user.webp', $user->avatar);
     }
 
-    /** @test */
+    #[Test]
     public function user_relations_are_configured()
     {
         $user = new User();
@@ -81,7 +82,7 @@ class AuthModelsTest extends TestCase
         $this->assertInstanceOf(HasOne::class, $user->roleModel());
     }
 
-    /** @test */
+    #[Test]
     public function user_search_scope_filters_by_name_email_or_username()
     {
         User::create([

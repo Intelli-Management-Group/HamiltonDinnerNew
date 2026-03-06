@@ -8,10 +8,11 @@ use App\Services\RoomDetailService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class RoomDetailServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_room()
     {
         $mockRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
@@ -23,7 +24,7 @@ class RoomDetailServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_paginated_rooms_with_active_filter()
     {
         // 1 active room out of 1 total (the filter is applied inside the repo, which is mocked)

@@ -11,12 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class ItemModelsTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function item_detail_filters_by_category_id_with_repository()
     {
         ItemDetail::create([
@@ -40,7 +41,7 @@ class ItemModelsTest extends TestCase
         $this->assertSame('Item A', $items->first()->item_name);
     }
 
-    /** @test */
+    #[Test]
     public function item_detail_relations_are_configured()
     {
         $item = new ItemDetail();
@@ -48,7 +49,7 @@ class ItemModelsTest extends TestCase
     $this->assertInstanceOf(BelongsTo::class, $item->category());
     }
 
-    /** @test */
+    #[Test]
     public function item_option_casts_is_paid_item_to_boolean()
     {
         $option = ItemOption::create([
@@ -61,7 +62,7 @@ class ItemModelsTest extends TestCase
         $this->assertTrue($option->is_paid_item);
     }
 
-    /** @test */
+    #[Test]
     public function item_option_relations_are_configured()
     {
         $option = new ItemOption();
@@ -71,7 +72,7 @@ class ItemModelsTest extends TestCase
         $this->assertInstanceOf(BelongsTo::class, $option->preference());
     }
 
-    /** @test */
+    #[Test]
     public function menu_detail_casts_items_to_array()
     {
         $menu = MenuDetail::create([
@@ -84,7 +85,7 @@ class ItemModelsTest extends TestCase
         $this->assertSame(['1', '2', '3'], $menu->items);
     }
 
-    /** @test */
+    #[Test]
     public function item_preference_can_be_created()
     {
         $preference = ItemPreference::create([

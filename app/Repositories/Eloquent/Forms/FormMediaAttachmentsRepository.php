@@ -20,6 +20,14 @@ class FormMediaAttachmentsRepository extends BaseRepository implements FormMedia
         array $filters
     ): Builder
     {
+        if (isset($filters['form_response_id'])) {
+            $query->where('form_response_id', $filters['form_response_id']);
+        }
+
+        if (isset($filters['type'])) {
+            $query->where('type', $filters['type']);
+        }
+
         return $query->latest();
     }
 }

@@ -14,12 +14,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class FormModelsTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function form_media_attachments_accessors_build_paths()
     {
         Storage::fake('public');
@@ -40,7 +41,7 @@ class FormModelsTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function temp_form_media_attachments_accessors_build_paths()
     {
         Storage::fake('public');
@@ -61,7 +62,7 @@ class FormModelsTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function form_response_accessors_return_links_and_json()
     {
         Storage::fake('public');
@@ -81,7 +82,7 @@ class FormModelsTest extends TestCase
         $this->assertSame(['hello' => 'world'], $response->jsonData);
     }
 
-    /** @test */
+    #[Test]
     public function form_response_relations_are_configured()
     {
         $response = new FormResponse();
@@ -90,7 +91,7 @@ class FormModelsTest extends TestCase
         $this->assertInstanceOf(HasMany::class, $response->attachments());
     }
 
-    /** @test */
+    #[Test]
     public function temp_form_response_formats_timestamps()
     {
         $response = new TempFormResponse();
@@ -103,7 +104,7 @@ class FormModelsTest extends TestCase
         $this->assertSame('2026-02-12 01:00:00', $response->updated_at);
     }
 
-    /** @test */
+    #[Test]
     public function form_type_uses_soft_deletes()
     {
         $this->assertContains(
@@ -112,7 +113,7 @@ class FormModelsTest extends TestCase
         );
     }
 
-    /** @test */
+    #[Test]
     public function temp_form_type_fillable_includes_expected_fields()
     {
         $tempFormType = new TempFormType();

@@ -8,10 +8,11 @@ use App\Services\SettingService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class SettingServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_setting_key()
     {
         $mockRepo = Mockery::mock(SettingRepositoryInterface::class);
@@ -23,7 +24,7 @@ class SettingServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_paginated_settings_when_requested()
     {
         $paginator = new LengthAwarePaginator(

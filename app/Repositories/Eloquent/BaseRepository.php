@@ -67,6 +67,17 @@ abstract class BaseRepository implements BaseRepositoryInterface
         return $this->model->create($data);
     }
 
+    public function update(int $id, array $data): ?Model
+    {
+        $model = $this->findById($id);
+        if (!$model) {
+            return null;
+        }
+        $model->fill($data);
+        $model->save();
+        return $model;
+    }
+
     public function upsertByFilters(array $filters, array $data): Model
     {
         return $this->model->updateOrCreate($filters, $data);

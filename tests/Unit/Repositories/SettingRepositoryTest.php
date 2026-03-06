@@ -6,6 +6,7 @@ use App\Models\Setting;
 use App\Repositories\Eloquent\SettingRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class SettingRepositoryTest extends TestCase
 {
@@ -19,7 +20,7 @@ class SettingRepositoryTest extends TestCase
         $this->settings = new SettingRepository(new Setting());
     }
 
-    /** @test */
+    #[Test]
     public function it_finds_setting_by_key_and_lists_key_values()
     {
         $this->settings->create([
@@ -38,7 +39,7 @@ class SettingRepositoryTest extends TestCase
         $this->assertSame('Hamilton', $all['site.name']);
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_settings_by_group_and_type()
     {
         $this->settings->create([

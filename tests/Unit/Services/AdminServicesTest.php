@@ -35,12 +35,13 @@ use App\Services\SettingService;
 use App\Services\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class AdminServicesTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_creates_and_finds_category_with_service()
     {
         $service = new CategoryDetailService(
@@ -63,7 +64,7 @@ class AdminServicesTest extends TestCase
         $this->assertSame('Breakfast', $found['payload']['data']->cat_name);
     }
 
-    /** @test */
+    #[Test]
     public function it_lists_items_with_item_detail_service()
     {
         $category = CategoryDetail::create([
@@ -90,7 +91,7 @@ class AdminServicesTest extends TestCase
         $this->assertCount(1, $results['payload']['data']);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_item_option_with_service()
     {
         $service = new ItemOptionService(
@@ -112,7 +113,7 @@ class AdminServicesTest extends TestCase
         $this->assertSame('Extra Sauce', $found['payload']['data']->option_name);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_item_preference_with_service()
     {
         $service = new ItemPreferenceService(
@@ -132,7 +133,7 @@ class AdminServicesTest extends TestCase
         $this->assertCount(1, $results['payload']['data']);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_menu_with_service()
     {
         $service = new MenuDetailService(
@@ -154,7 +155,7 @@ class AdminServicesTest extends TestCase
         $this->assertSame($menuId, $found['payload']['data']->id);
     }
 
-    /** @test */
+    #[Test]
     public function it_lists_permissions_with_service()
     {
         Permission::create([
@@ -173,7 +174,7 @@ class AdminServicesTest extends TestCase
         $this->assertCount(1, $results['payload']['data']);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_role_with_service()
     {
         $permission = Permission::create([
@@ -195,7 +196,7 @@ class AdminServicesTest extends TestCase
         $this->assertTrue($created['payload']['data']->hasPermissionTo($permission->name));
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_room_with_service()
     {
         $service = new RoomDetailService(
@@ -215,7 +216,7 @@ class AdminServicesTest extends TestCase
         $this->assertCount(1, $results['payload']['data']);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_setting_with_service()
     {
         $service = new SettingService(
@@ -239,7 +240,7 @@ class AdminServicesTest extends TestCase
         $this->assertCount(1, $results['payload']['data']);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_user_with_service()
     {
         $role = Role::create([
@@ -269,7 +270,7 @@ class AdminServicesTest extends TestCase
         $this->assertCount(1, $results['payload']['data']);
     }
 
-    /** @test */
+    #[Test]
     public function it_registers_admin_user_with_auth_service()
     {
         $service = new AdminAuthService(

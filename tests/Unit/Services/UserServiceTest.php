@@ -12,6 +12,7 @@ use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Hash;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class UserServiceTest extends TestCase
 {
@@ -19,7 +20,7 @@ class UserServiceTest extends TestCase
     // Eloquent model methods (assignRole, fresh) that must run against the DB.
     use RefreshDatabase;
 
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_user()
     {
         $mockUsers = Mockery::mock(UserRepositoryInterface::class);
@@ -32,7 +33,7 @@ class UserServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_paginated_users_when_requested()
     {
         $paginator = new LengthAwarePaginator(
@@ -53,7 +54,7 @@ class UserServiceTest extends TestCase
         $this->assertSame(2, $result['payload']['pagination']['total']);
     }
 
-    /** @test */
+    #[Test]
     public function it_hashes_password_when_updating_user()
     {
         $role = Role::create(['name' => 'Admin', 'guard_name' => 'api']);

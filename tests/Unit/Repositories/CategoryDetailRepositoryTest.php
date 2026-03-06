@@ -7,6 +7,7 @@ use App\Repositories\Eloquent\CategoryDetailRepository;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class CategoryDetailRepositoryTest extends TestCase
 {
@@ -20,7 +21,7 @@ class CategoryDetailRepositoryTest extends TestCase
         $this->categoryDetails = new CategoryDetailRepository(new CategoryDetail());
     }
 
-    /** @test */
+    #[Test]
     public function can_find_category_by_id()
     {
         $category = CategoryDetail::create([
@@ -36,14 +37,14 @@ class CategoryDetailRepositoryTest extends TestCase
         $this->assertEquals($category->id, $foundCategory->id);
     }
     
-    /** @test */
+    #[Test]
     public function returns_null_when_category_not_found()
     {
         $foundCategory = $this->categoryDetails->findById(999);
         $this->assertNull($foundCategory);
     }
 
-    /** @test */
+    #[Test]
     public function can_query_categories_by_type()
     {
         CategoryDetail::create([
@@ -66,7 +67,7 @@ class CategoryDetailRepositoryTest extends TestCase
         $this->assertEquals('A', $categories->first()->type);
     }
 
-    /** @test */
+    #[Test]
     public function filters_categories_by_type()
     {
         CategoryDetail::create([
@@ -89,7 +90,7 @@ class CategoryDetailRepositoryTest extends TestCase
         $this->assertEquals('Breakfast', $results->first()->cat_name);
     }
 
-    /** @test */
+    #[Test]
     public function paginates_filtered_categories()
     {
         foreach (range(1, 3) as $i) {
@@ -114,7 +115,7 @@ class CategoryDetailRepositoryTest extends TestCase
         $this->assertEquals('Category 1', $page->items()[0]->cat_name); // latest() ordering
     }
 
-    /** @test */
+    #[Test]
     public function creates_and_deletes_categories()
     {
         $category = $this->categoryDetails->create([

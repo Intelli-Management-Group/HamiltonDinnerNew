@@ -8,6 +8,7 @@ use App\Repositories\Eloquent\BaseRepository;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class BaseRepositoryTest extends TestCase
 {
@@ -21,7 +22,7 @@ class BaseRepositoryTest extends TestCase
         $this->repository = new TestBaseRepository(new ItemDetail());
     }
 
-    /** @test */
+    #[Test]
     public function it_applies_allowed_relations_only()
     {
         $category = CategoryDetail::create([
@@ -45,7 +46,7 @@ class BaseRepositoryTest extends TestCase
         $this->assertFalse($found->relationLoaded('not_allowed'));
     }
 
-    /** @test */
+    #[Test]
     public function it_orders_results_when_order_by_is_provided()
     {
         ItemDetail::create([
@@ -71,7 +72,7 @@ class BaseRepositoryTest extends TestCase
         $this->assertSame('Banana', $results->first()->item_name);
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_soft_deleted_records_when_deleted_at_is_specified()
     {
         $active = ItemDetail::create([

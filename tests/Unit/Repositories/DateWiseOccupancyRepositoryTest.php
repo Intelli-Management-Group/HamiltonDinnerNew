@@ -6,6 +6,7 @@ use App\Models\DateWiseOccupancy;
 use App\Repositories\Eloquent\DateWiseOccupancyRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class DateWiseOccupancyRepositoryTest extends TestCase
 {
@@ -19,7 +20,7 @@ class DateWiseOccupancyRepositoryTest extends TestCase
         $this->repository = new DateWiseOccupancyRepository(new DateWiseOccupancy());
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_and_finds_records()
     {
         $record = $this->repository->create([
@@ -34,7 +35,7 @@ class DateWiseOccupancyRepositoryTest extends TestCase
         $this->assertSame(2, $found->occupancy);
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_by_date_and_room_id()
     {
         $date = now()->toDateString();
@@ -60,7 +61,7 @@ class DateWiseOccupancyRepositoryTest extends TestCase
         $this->assertSame(1, $results->first()->occupancy);
     }
 
-    /** @test */
+    #[Test]
     public function it_upserts_records_by_filters()
     {
         $date = now()->toDateString();

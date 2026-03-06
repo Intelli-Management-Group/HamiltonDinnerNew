@@ -8,6 +8,7 @@ use App\Repositories\Eloquent\OrderDetailRepository;
 use App\Repositories\Eloquent\RoomDetailRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class OrderRoomRepositoryTest extends TestCase
 {
@@ -23,7 +24,7 @@ class OrderRoomRepositoryTest extends TestCase
         $this->rooms = new RoomDetailRepository(new RoomDetail());
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_orders_by_room_and_guest_status()
     {
         $date = now()->toDateString();
@@ -55,7 +56,7 @@ class OrderRoomRepositoryTest extends TestCase
         $this->assertSame(2, $results->first()->room_id);
     }
 
-    /** @test */
+    #[Test]
     public function it_updates_orders_by_filters()
     {
         $date = now()->toDateString();
@@ -81,7 +82,7 @@ class OrderRoomRepositoryTest extends TestCase
         $this->assertSame(5, $updated->quantity);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_order_report_summaries()
     {
         $date = now()->toDateString();
@@ -101,7 +102,7 @@ class OrderRoomRepositoryTest extends TestCase
         $this->assertSame(30, $results->first()->item_id);
     }
 
-    /** @test */
+    #[Test]
     public function it_sums_quantities_by_date_and_item()
     {
         $date = now()->toDateString();
@@ -138,7 +139,33 @@ class OrderRoomRepositoryTest extends TestCase
         $this->assertSame(5, $sum);
     }
 
-    /** @test */
+    #[Test]
+    public function it_filters_orders_by_item_options()
+    {
+        $date = now()->toDateString();
+
+        OrderDetail::forceCreate([
+            'room_id' => 1, 'date' => $date, 'item_id' => 50,
+            'quantity' => 1, 'status' => 0, 'is_for_guest' => 0,
+            'item_options' => 3,
+        ]);
+        OrderDetail::forceCreate([
+            'room_id' => 2, 'date' => $date, 'item_id' => 50,
+            'quantity' => 1, 'status' => 0, 'is_for_guest' => 0,
+            'item_options' => 7,
+        ]);
+
+        $results = $this->orders->getAll([
+            'date' => $date,
+            'item_id' => 50,
+            'item_options' => 3,
+        ]);
+
+        $this->assertCount(1, $results);
+        $this->assertEquals(3, $results->first()->item_options);
+    }
+
+    #[Test]
     public function it_filters_rooms_by_name_and_active_flag()
     {
         RoomDetail::create([

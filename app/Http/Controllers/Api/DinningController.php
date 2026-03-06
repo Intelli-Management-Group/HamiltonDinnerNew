@@ -3910,7 +3910,7 @@ class DinningController extends Controller
 
         $formId = $request->get('form_id');
         $files = $_FILES;
-        return $this->formResponseService
+        return $this->formsAppService
             ->addAttachmentsToExistingForm($formId, $files);
     }
 
@@ -3933,9 +3933,9 @@ class DinningController extends Controller
 
         $attachmentId = $request->get('attachment_id');
         $formId = $request->get('form_id');
-        
-        return $this->formResponseService
-            ->deleteFormAttachment($formId, $attachmentId);
+
+        return $this->formsAppService
+            ->deleteFormAttachment($attachmentId, $formId);
     }
 
     public function printOrderDataTemp(Request $request)

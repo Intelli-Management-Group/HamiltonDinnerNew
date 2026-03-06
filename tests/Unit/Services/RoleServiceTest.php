@@ -6,10 +6,11 @@ use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Services\RoleService;
 use Mockery;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class RoleServiceTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_returns_not_found_for_missing_role()
     {
         $mockRepo = Mockery::mock(RoleRepositoryInterface::class);
@@ -21,7 +22,7 @@ class RoleServiceTest extends TestCase
         $this->assertFalse($result['payload']['success']);
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_name_conflict_with_deleted_role()
     {
         $mockRepo = Mockery::mock(RoleRepositoryInterface::class);
