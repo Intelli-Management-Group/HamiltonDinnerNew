@@ -988,7 +988,7 @@ class DiningAppService
 
             // LAYER 2: Process per-item order changes
             if ($orders_to_change) {
-                $newData = json_decode($orders_to_change, true);
+                $newData = json_decode($orders_to_change);
 
                 foreach ($newData as $n) {
                     $n->order_id = intval($n->order_id);
