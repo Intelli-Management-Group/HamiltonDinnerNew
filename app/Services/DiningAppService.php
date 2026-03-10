@@ -1691,6 +1691,7 @@ class DiningAppService
             ->all();
 
         $combinedItemsData = [];
+        $finalData = [];
         $itemsByMealType = [
             'breakfast' => [],
             'lunch' => [],
@@ -1710,7 +1711,7 @@ class DiningAppService
             
             if (array_key_exists($mealType, $categoryDetails) && $order->itemData) {
                 $itemData = $order->itemData;
-                if (!in_array($itemData->category->type, $categoryDetails[$mealType])) {
+                if (!in_array($itemData->category->id, $categoryDetails[$mealType])) {
                     continue;
                 }
             }
@@ -1788,9 +1789,7 @@ class DiningAppService
             }
 
             $lastOrder = $this->orderDetails->getAll(
-                filters: $lastOrderFilters,
-                order_by: 'id',
-                order_direction: 'desc'
+                filters: array_merge($lastOrderFilters, ['order_by' => 'id', 'order_direction' => 'desc'])
             )->first();
 
             $items = $itemsByMealType[$mealType] ?? [];

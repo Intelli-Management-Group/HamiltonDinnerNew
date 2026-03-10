@@ -3046,7 +3046,9 @@ class DinningController extends Controller
             if (is_string($menu_items)) {
                 $menu_items = json_decode($menu_items, true);
             }
-            
+
+            $menu_items = is_array($menu_items) ? $menu_items : [];
+
             $all_rooms = RoomDetail::where("is_active", 1)->get();
             $is_first = true;
 
@@ -3059,7 +3061,7 @@ class DinningController extends Controller
 
                 $wereGuestAvailable = $isOccupiedByGuest && $isOccupiedByGuest->occupancy;
 
-                if ($menu_items["breakfast"]) {
+                if ($menu_items["breakfast"] ?? null) {
                     $this->updateMealArrays(
                         $menu_items["breakfast"],
                         $breakfast,
@@ -3072,7 +3074,7 @@ class DinningController extends Controller
                     );
                 }
 
-                if ($menu_items["lunch"]) {
+                if ($menu_items["lunch"] ?? null) {
                     $this->updateMealArrays(
                         $menu_items["lunch"],
                         $lunch,
@@ -3085,7 +3087,7 @@ class DinningController extends Controller
                     );
                 }
 
-                if ($menu_items["dinner"]) {
+                if ($menu_items["dinner"] ?? null) {
                     $this->updateMealArrays(
                         $menu_items["dinner"],
                         $dinner,

@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\CategoryDetail;
 use App\Models\ItemDetail;
+use App\Models\OrderDetail;
 use App\Repositories\Contracts\CategoryDetailRepositoryInterface;
 use App\Repositories\Contracts\DateWiseOccupancyRepositoryInterface;
 use App\Repositories\Contracts\Forms\FormTypeRepositoryInterface;
@@ -58,6 +59,125 @@ class DiningAppServiceTest extends TestCase
             $deps['users'],
         );
     }
+
+    // -----------------------------------------------------------------------
+    // printOrderData
+    // -----------------------------------------------------------------------
+
+    #[Test]
+    public function print_order_data_returns_empty_payload_when_no_orders_exist(): void
+    {
+        // Regression: $finalData was never initialised before the foreach loop,
+        // causing "Undefined variable $finalData" (HTTP 500) when the order list
+        // is empty for the requested date.
+        $prefRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);
+        $prefRepo->shouldReceive('getAll')->andReturn(new Collection());
+
+        $dinnerCat = new CategoryDetail();
+        $dinnerCat->id = 5;
+        $dinnerCat->type = 3;
+        $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
+        $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+
+        $room = Mockery::mock();
+        $room->id = 72;
+        $room->room_name = '311';
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room]));
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('getAll')->andReturn(new Collection());
+
+        $service = $this->makeService([
+            'itemPreferences' => $prefRepo,
+            'categoryDetails' => $catRepo,
+            'roomDetails'     => $roomRepo,
+            'orderDetails'    => $orderRepo,
+        ]);
+
+        $response = $service->printOrderData(311, '2026-03-10', 'dinner');
+        $data = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertEmpty($data['Data']);
+    }
+
+    #[Test]
+    public function print_order_data_includes_order_matching_requested_meal_type(): void
+    {
+        // Regression: the meal-type filter compared $itemData->category->type (the
+        // integer type enum, e.g. 3) against an array of category IDs (e.g. [5]).
+        // in_array(3, [5]) === false caused all items to be skipped, which also
+        // triggered the $finalData undefined-variable 500 above.
+        // Fix: filter now uses ->category->id so in_array(5, [5]) === true.
+
+        $prefRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);
+        $prefRepo->shouldReceive('getAll')->andReturn(new Collection());
+
+        // Dinner category: id=5, type=3. Before the fix, in_array(3, [5]) was false.
+        $dinnerCat = new CategoryDetail();
+        $dinnerCat->id = 5;
+        $dinnerCat->cat_name = 'Dinner Entree';
+        $dinnerCat->type = 3;
+        $dinnerCat->parent_id = 0;
+
+        $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
+        $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+
+        $item = new ItemDetail();
+        $item->item_name = 'Roast Chicken';
+        $item->setRelation('category', $dinnerCat);
+
+        $order = Mockery::mock();
+        $order->room_id = 72;
+        $order->is_for_guest = 0;
+        $order->item_options = '';
+        $order->preference = '';
+        $order->quantity = 1;
+        $order->id = 100;
+        $order->is_brk_tray_service = 0;
+        $order->is_lunch_tray_service = 0;
+        $order->is_dinner_tray_service = 0;
+        $order->is_brk_escort_service = 0;
+        $order->is_lunch_escort_service = 0;
+        $order->is_dinner_escort_service = 0;
+        $order->is_brk_takeout_service = 0;
+        $order->is_lunch_takeout_service = 0;
+        $order->is_dinner_takeout_service = 0;
+        $order->itemData = $item;
+
+        $room = Mockery::mock();
+        $room->id = 72;
+        $room->room_name = '311';
+        $room->special_instrucations = '';
+        $room->food_texture = '';
+        $room->resident_name = 'John Doe';
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room]));
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('getAll')->andReturn(new Collection([$order]));
+
+        $service = $this->makeService([
+            'itemPreferences' => $prefRepo,
+            'categoryDetails' => $catRepo,
+            'roomDetails'     => $roomRepo,
+            'orderDetails'    => $orderRepo,
+        ]);
+
+        $response = $service->printOrderData(311, '2026-03-10', 'dinner');
+        $data = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertCount(1, $data['Data']);
+        $this->assertSame('311', $data['Data'][0]['room_name']);
+        $this->assertCount(1, $data['Data'][0]['Items']);
+        $this->assertSame('Roast Chicken', $data['Data'][0]['Items'][0]['item_name']);
+    }
+
+    // -----------------------------------------------------------------------
+    // getGuestOrderList
+    // -----------------------------------------------------------------------
 
     #[Test]
     public function guest_order_list_returns_empty_meal_arrays_when_no_menu_for_date(): void
