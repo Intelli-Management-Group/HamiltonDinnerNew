@@ -24,7 +24,9 @@ class ApiResponse
 
         return response()->json(
             $return_data,
-            $statusCode
+            $statusCode,
+            [],
+            JSON_UNESCAPED_SLASHES
         );
     }
 }

@@ -81,7 +81,7 @@ class FormsAppService
 
             if (!$form) {
                 return ApiResponse::format(
-                    status: '0',
+                    status: '1',
                     message: 'No Form Details Found',
                     data: [
                         'form_data' => null,
@@ -92,7 +92,11 @@ class FormsAppService
             }
 
             $attachments = $this->formMediaAttachments
-                ->getAll(filters: ['form_response_id' => $formId])
+                ->getAll(filters: [
+                    'form_response_id' => $formId,
+                    'order_by'         => 'id',
+                    'order_direction'  => 'desc',
+                ])
                 ->toArray();
 
             $followUpUser = null;
@@ -113,7 +117,7 @@ class FormsAppService
                 status: '1',
                 message: 'Fetched Form Data Successfully',
                 data: [
-                    'form_data'      => $form,
+                    'form_data'      => $form->form_response,
                     'attachments'    => $attachments,
                     'follow_up_user' => $followUpUser,
                 ]
@@ -381,7 +385,7 @@ class FormsAppService
             $mediaLinks = [];
             $filesToDelete = [];
 
-            foreach ($files as $key => $file) {
+            foreach ($uploads as $key => $file) {
                 $thumbnailFileName = null;
 
                 if (substr($key, 0, -1) != 'thumbnail') {
@@ -401,8 +405,8 @@ class FormsAppService
                         $filesToDelete[] = 'public/FormResponses/media/' . $mediaFileName;
                     }
 
-                    if (array_key_exists("thumbnail" . substr($key, -1), $files) && $fileExtension[0] == 'video') {
-                        $thumbnail = $files["thumbnail" . substr($key, -1)];
+                    if (array_key_exists("thumbnail" . substr($key, -1), $uploads) && $fileExtension[0] == 'video') {
+                        $thumbnail = $uploads["thumbnail" . substr($key, -1)];
 
                         $thumbnailExtension = explode("/", $thumbnail['type']);
                         $thumbnailFileName = uniqid() . time() . '.' . end($thumbnailExtension);
@@ -557,7 +561,7 @@ class FormsAppService
                     status: '1',
                     message: 'Successfully Submitted',
                     data: [
-                        'newLink' => $newLink,
+                        'new_form_link' => $newLink,
                         'isFollowUpIncomplete' => $form->is_follow_up_incomplete
                     ]
                 );
@@ -575,7 +579,7 @@ class FormsAppService
                     status: '1',
                     message: 'Successfully Submitted',
                     data: [
-                        'newLink' => $newLink,
+                        'new_form_link' => $newLink,
                         'isFollowUpIncomplete' => $form->is_follow_up_incomplete
                     ]
                 );
@@ -644,7 +648,7 @@ class FormsAppService
                     status: '1',
                     message: 'Successfully Submitted',
                     data: [
-                        'newLink' => Storage::url('public/FormResponses/' . $uniqueFileName),
+                        'new_form_link' => Storage::url('public/FormResponses/' . $uniqueFileName),
                         'isFollowUpIncomplete' => $form->is_follow_up_incomplete
                     ]
                 );
@@ -728,7 +732,7 @@ class FormsAppService
                 status: '1',
                 message: 'Attachments Added Successfully',
                 data: [
-                    'newLink' => $newLink,
+                    'new_form_link' => $newLink,
                     'attachments' => $attachments,
                 ]
             );
@@ -768,7 +772,7 @@ class FormsAppService
                 status: '1',
                 message: 'Attachment Deleted Successfully',
                 data: [
-                    'newLink' => $newLink,
+                    'new_form_link' => $newLink,
                     'attachments' => $attachments
                 ]
             );
