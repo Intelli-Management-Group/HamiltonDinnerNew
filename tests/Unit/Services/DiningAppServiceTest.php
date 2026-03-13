@@ -4,7 +4,9 @@ namespace Tests\Unit\Services;
 
 use App\Models\CategoryDetail;
 use App\Models\ItemDetail;
+use App\Models\ItemPreference;
 use App\Models\OrderDetail;
+use App\Models\RoomDetail;
 use App\Repositories\Contracts\CategoryDetailRepositoryInterface;
 use App\Repositories\Contracts\DateWiseOccupancyRepositoryInterface;
 use App\Repositories\Contracts\Forms\FormTypeRepositoryInterface;
@@ -146,14 +148,20 @@ class DiningAppServiceTest extends TestCase
         $order->is_dinner_takeout_service = 0;
         $order->itemData = $item;
 
-        $room = Mockery::mock();
-        $room->id = 72;
-        $room->room_name = '311';
-        $room->special_instrucations = '';
-        $room->food_texture = '';
-        $room->resident_name = 'John Doe';
+        $roomForCollection = Mockery::mock();
+        $roomForCollection->id = 72;
+        $roomForCollection->room_name = '311';
+
+        $spiData = new RoomDetail();
+        $spiData->id = 72;
+        $spiData->room_name = '311';
+        $spiData->special_instrucations = '';
+        $spiData->food_texture = '';
+        $spiData->resident_name = 'John Doe';
+
         $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
-        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room]));
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$roomForCollection]));
+        $roomRepo->shouldReceive('findById')->with(72)->andReturn($spiData);
 
         $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
         $orderRepo->shouldReceive('getAll')->andReturn(new Collection([$order]));
@@ -396,5 +404,178 @@ class DiningAppServiceTest extends TestCase
         $this->assertSame(1, $data['is_brk_tray_service']);
         $this->assertSame(0, $data['is_lunch_tray_service']);
         $this->assertSame(0, $data['is_dinner_tray_service']);
+    }
+
+    // -----------------------------------------------------------------------
+    // printOrderData — room data regression (findById fix)
+    // -----------------------------------------------------------------------
+
+    #[Test]
+    public function print_order_data_room_fields_come_from_the_orders_room_not_a_random_one(): void
+    {
+        // Regression: spiData was fetched via getAll(filters: ['id' => room_id]), but
+        // RoomDetailRepository::applyFilters has no 'id' handler, so the filter was
+        // silently ignored and getAll() returned all rooms ordered by created_at DESC.
+        // The fix uses findById() so the correct room's data is always returned.
+
+        $prefRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);
+        $prefRepo->shouldReceive('getAll')->andReturn(new Collection());
+
+        $lunchCat = new CategoryDetail();
+        $lunchCat->id = 3;
+        $lunchCat->cat_name = 'Lunch Entree';
+        $lunchCat->type = 2;
+        $lunchCat->parent_id = 0;
+
+        $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
+        $catRepo->shouldReceive('getAll')->andReturn(new Collection([$lunchCat]));
+
+        // The order belongs to room 72 (room "311").
+        $correctRoomForCollection = Mockery::mock();
+        $correctRoomForCollection->id = 72;
+        $correctRoomForCollection->room_name = '311';
+
+        $correctRoom = new RoomDetail();
+        $correctRoom->id = 72;
+        $correctRoom->room_name = '311';
+        $correctRoom->special_instrucations = 'No salt';
+        $correctRoom->food_texture = 'Soft';
+        $correctRoom->resident_name = 'Jane Doe';
+
+        $item = new ItemDetail();
+        $item->item_name = 'Pasta';
+        $item->setRelation('category', $lunchCat);
+
+        $order = Mockery::mock();
+        $order->room_id = 72;
+        $order->is_for_guest = 0;
+        $order->item_options = '';
+        $order->preference = '';
+        $order->quantity = 1;
+        $order->id = 200;
+        $order->is_brk_tray_service = 0;
+        $order->is_lunch_tray_service = 1;
+        $order->is_dinner_tray_service = 0;
+        $order->is_brk_escort_service = 0;
+        $order->is_lunch_escort_service = 0;
+        $order->is_dinner_escort_service = 0;
+        $order->is_brk_takeout_service = 0;
+        $order->is_lunch_takeout_service = 0;
+        $order->is_dinner_takeout_service = 0;
+        $order->itemData = $item;
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        // getAll is used to resolve the room_name → id mapping (initial filter step).
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$correctRoomForCollection]));
+        // findById must return the correct room, not the wrong one.
+        $roomRepo->shouldReceive('findById')->with(72)->andReturn($correctRoom);
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('getAll')->andReturn(new Collection([$order]));
+
+        $service = $this->makeService([
+            'itemPreferences' => $prefRepo,
+            'categoryDetails' => $catRepo,
+            'roomDetails'     => $roomRepo,
+            'orderDetails'    => $orderRepo,
+        ]);
+
+        $response = $service->printOrderData(311, '2026-03-10', 'lunch');
+        $data = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertCount(1, $data['Data']);
+        $entry = $data['Data'][0];
+        $this->assertSame('311', $entry['room_name']);
+        $this->assertSame('No salt', $entry['special_instruction']);
+        $this->assertSame('Soft', $entry['food_texture']);
+        $this->assertSame('Jane Doe', $entry['resident_name']);
+    }
+
+    // -----------------------------------------------------------------------
+    // printOrderData — preference strings regression
+    // -----------------------------------------------------------------------
+
+    #[Test]
+    public function print_order_data_preferences_are_plain_strings_not_objects(): void
+    {
+        // Regression: $preferences_en mapped IDs to ['name' => ..., 'name_cn' => ...]
+        // and the array was pushed whole into $preferenceArray, so the response
+        // contained objects instead of the plain name strings the front-end expects.
+        // Fix: only push $preferences_en[$id]['name'].
+
+        $pref = new ItemPreference();
+        $pref->id = 1;
+        $pref->pname = 'Less oil';
+        $pref->pname_cn = '少油';
+
+        $prefRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);
+        $prefRepo->shouldReceive('getAll')->andReturn(new Collection([$pref]));
+
+        $lunchCat = new CategoryDetail();
+        $lunchCat->id = 3;
+        $lunchCat->cat_name = 'Lunch Entree';
+        $lunchCat->type = 2;
+        $lunchCat->parent_id = 0;
+
+        $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
+        $catRepo->shouldReceive('getAll')->andReturn(new Collection([$lunchCat]));
+
+        $item = new ItemDetail();
+        $item->item_name = 'Fried Rice';
+        $item->setRelation('category', $lunchCat);
+
+        $order = Mockery::mock();
+        $order->room_id = 72;
+        $order->is_for_guest = 0;
+        $order->item_options = '';
+        $order->preference = '1'; // preference ID 1 = "Less oil"
+        $order->quantity = 2;
+        $order->id = 300;
+        $order->is_brk_tray_service = 0;
+        $order->is_lunch_tray_service = 0;
+        $order->is_dinner_tray_service = 0;
+        $order->is_brk_escort_service = 0;
+        $order->is_lunch_escort_service = 0;
+        $order->is_dinner_escort_service = 0;
+        $order->is_brk_takeout_service = 0;
+        $order->is_lunch_takeout_service = 0;
+        $order->is_dinner_takeout_service = 0;
+        $order->itemData = $item;
+
+        $roomForCollection = Mockery::mock();
+        $roomForCollection->id = 72;
+        $roomForCollection->room_name = '311';
+
+        $spiData = new RoomDetail();
+        $spiData->id = 72;
+        $spiData->room_name = '311';
+        $spiData->special_instrucations = '';
+        $spiData->food_texture = '';
+        $spiData->resident_name = 'Jane Doe';
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$roomForCollection]));
+        $roomRepo->shouldReceive('findById')->with(72)->andReturn($spiData);
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('getAll')->andReturn(new Collection([$order]));
+
+        $service = $this->makeService([
+            'itemPreferences' => $prefRepo,
+            'categoryDetails' => $catRepo,
+            'roomDetails'     => $roomRepo,
+            'orderDetails'    => $orderRepo,
+        ]);
+
+        $response = $service->printOrderData(311, '2026-03-10', 'lunch');
+        $data = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertCount(1, $data['Data']);
+        $preferences = $data['Data'][0]['Items'][0]['preference'];
+        $this->assertCount(1, $preferences);
+        // Must be a plain string, not an array/object like ['name' => 'Less oil', 'name_cn' => '少油']
+        $this->assertSame('Less oil', $preferences[0]);
     }
 }

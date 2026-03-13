@@ -1733,7 +1733,7 @@ class DiningAppService
                     $preferenceIds = explode(',', $order->preference);
                     foreach ($preferenceIds as $preferenceId) {
                         if (isset($preferences_en[$preferenceId])) {
-                            $preferenceArray[] = $preferences_en[$preferenceId];
+                            $preferenceArray[] = $preferences_en[$preferenceId]['name'];
                         }
                     }
                 }
@@ -1766,15 +1766,7 @@ class DiningAppService
                 }
             }
 
-            $spiData = $this->roomDetails->getAll(
-                filters: ['id' => $order->room_id],
-                columns: [
-                    "special_instrucations",
-                    "food_texture",
-                    "resident_name",
-                    "room_name"
-                ]
-             )->first();
+            $spiData = $this->roomDetails->findById($order->room_id);
 
             $instruction = $spiData?->special_instrucations ?? "";
             $food_texture = $spiData?->food_texture ?? "";
