@@ -2,18 +2,16 @@
 
 namespace Tests\Feature;
 
-// use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class ExampleTest extends TestCase
 {
-    /**
-     * A basic test example.
-     */
-    public function test_the_application_returns_a_successful_response(): void
+    public function test_the_api_login_endpoint_exists(): void
     {
-        $response = $this->get('/');
+        $response = $this->postJson('/api/login', []);
 
-        $response->assertStatus(200);
+        // The app always returns HTTP 200; errors are signalled via ResponseCode in the body.
+        // An empty request gets ResponseCode "2" (user not found) — confirms the route is reachable.
+        $response->assertStatus(200)->assertJsonPath('ResponseCode', '2');
     }
 }

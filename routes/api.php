@@ -44,8 +44,6 @@ Route::group(['prefix' => 'admin'], function () {
 // routes related to adminpanel , ios form app and dynamic form app website 
 // auth , roles, permissions are same for all these three
 
-
-
 Route::group(['middleware' => 'APIToken'], function () {
 
     // Route::get('rooms-list', [DinningController::class, 'getRoomList']);
@@ -208,8 +206,8 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
         Route::delete('/bulk-delete', [RoleController::class, 'bulkDestroy']);
         Route::delete('/{id}', [RoleController::class, 'destroy']);
 
+        // tree and sync are unused currently
         Route::get('tree', [RoleController::class, 'getUserTree']);
-
         Route::post('sync', [RoleController::class, 'syncPermission']);
     });
 
@@ -237,7 +235,7 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
         Route::get('/', [SettingController::class, 'index']);
         Route::post('/', [SettingController::class, 'store']);
         Route::get('/{id}', [SettingController::class, 'show']);
-        Route::put('/', [SettingController::class, 'update']);
+        Route::put('/', [SettingController::class, 'bulkUpsert']);
         Route::put('/{id}', [SettingController::class, 'update']);
         Route::delete('/{id}', [SettingController::class, 'destroy']);
         Route::post('/bulk-delete', [SettingController::class, 'bulkDestroy']);

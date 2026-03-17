@@ -234,7 +234,7 @@ class MenuController extends VoyagerBaseController
                     foreach (count($data) > 0 ? $data : array() as $d) {
                         if(!isset($items_data[$d->cat_id])){
                             $items_data[$d->cat_id] = array();
-                            $category[$d->cat_id] = $d->categoryData ? $d->categoryData->cat_name : "";
+                            $category[$d->cat_id] = $d->category ? $d->category->cat_name : "";
                         }
                         array_push($items_data[$d->cat_id], "<li>".$d->item_name."</li>");
                         //array_push($items_data, "<li>".$d->item_name."</li>");
