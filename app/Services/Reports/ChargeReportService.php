@@ -268,4 +268,32 @@ class ChargeReportService
         ];
         return $finalData;
     }
+
+    public function getOrderReport(?string $date, ?int $roomName): array
+    {
+        $results = $this->chargeReportRepository->runOrderSummaryReport($date, $roomName);
+
+        $data = [];
+        foreach ($results as $result) {
+            $data[] = [
+                'room_number'              => $result->room_name,
+                'resident_name'            => $result->resident_name,
+                'order_date'               => $result->date,
+                'is_for_guest'             => $result->is_for_guest,
+                'is_brk_tray_service'      => $result->is_brk_tray_service,
+                'is_lunch_tray_service'    => $result->is_lunch_tray_service,
+                'is_dinner_tray_service'   => $result->is_dinner_tray_service,
+                'is_brk_escort_service'    => $result->is_brk_escort_service,
+                'is_lunch_escort_service'  => $result->is_lunch_escort_service,
+                'is_dinner_escort_service' => $result->is_dinner_escort_service,
+                'is_extra_item'            => empty($result->item_options) ? 0 : 1,
+                'room_id'                  => $result->room_id,
+                'item_name'                => empty($result->item_options) ? '' : $result->item_name,
+                'item_options'             => empty($result->item_options) ? '' : $result->option_name,
+                'item_quantity'            => empty($result->is_for_guest) ? 0 : $result->quantity,
+            ];
+        }
+
+        return ['Data' => $data];
+    }
 }
