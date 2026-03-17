@@ -1825,4 +1825,246 @@ class DiningAppService
             data: ['Data' => $payload]
         );
     }
+
+    // -----------------------------------------------------------------------
+    // Category-wise report data
+    // -----------------------------------------------------------------------
+
+    private const CAT_ID = [
+        1  => 'BA',
+        2  => 'LS',
+        7  => 'LD',
+        13 => 'DD',
+    ];
+    private const ALTERNATIVE    = [4, 8, 11];
+    private const AB_ALTERNATIVE = [5, 3];
+
+    private function getItemDetailsByIdsOrdered(array $ids)
+    {
+        return $this->itemDetails->findOrderReportSummaries($ids);
+    }
+
+    private function updateQuantityData(
+        array  &$meal_array,
+        array  &$item_array,
+        string $date,
+        int    $item_id,
+        int    $room_id,
+        bool   $is_for_guest
+    ): void {
+        $order_data = $this->orderDetails->getAll(
+            filters: [
+                'date'         => $date,
+                'room_id'      => $room_id,
+                'item_id'      => $item_id,
+                'is_for_guest' => $is_for_guest,
+            ],
+            columns: ['quantity']
+        )->first();
+
+        if ($order_data) {
+            $meal_array[$item_id]['total_count'] += intval($order_data->quantity);
+            array_push($item_array, intval($order_data->quantity));
+        } else {
+            array_push($item_array, 0);
+        }
+    }
+
+    private function updateMealArrays(
+        array  &$menu_items_array,
+        array  &$meal_array,
+        array  &$meal_rooms_array,
+        string $date,
+        $room,
+        string $meal,
+        bool   $is_first,
+        bool   $wereGuestAvailable
+    ): void {
+        $meal_first_char = strtoupper(substr($meal, 0, 1));
+        $all_items       = $this->getItemDetailsByIdsOrdered($menu_items_array);
+
+        $ab_count  = 'A';
+        $count     = 1;
+        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+        $items      = [];
+        $guestItems = [];
+
+        if (!isset($meal_rooms_array[$room->id])) {
+            $meal_rooms_array[$room->id] = [
+                'room_no'  => $room->room_name,
+                'quantity' => [],
+            ];
+        }
+
+        foreach ($all_items as $a) {
+            if (array_key_exists($a->cat_id, self::CAT_ID)) {
+                $cat_id_map[$a->cat_id][$a->id] = true;
+            }
+
+            $title = (
+                in_array($a->cat_id, self::ALTERNATIVE) ?
+                $meal_first_char . $count : (
+                    $meal_first_char !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE) ?
+                    $meal_first_char . $ab_count : self::CAT_ID[$a->cat_id] . (
+                        count($cat_id_map[$a->cat_id]) > 1 ?
+                        count($cat_id_map[$a->cat_id]) : ''
+                    )
+                )
+            );
+
+            if (!isset($meal_array[$a->id])) {
+                $meal_array[$a->id] = [];
+            }
+
+            if ($is_first) {
+                $meal_array[$a->id] = [
+                    'item_name'      => $title,
+                    'real_item_name' => $a->item_name,
+                    'total_count'    => 0,
+                ];
+            }
+
+            $this->updateQuantityData($meal_array, $items, $date, $a->id, $room->id, false);
+
+            if ($wereGuestAvailable) {
+                $this->updateQuantityData($meal_array, $guestItems, $date, $a->id, $room->id, true);
+            } else {
+                array_push($guestItems, 0);
+            }
+
+            if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
+            if (in_array($a->cat_id, self::AB_ALTERNATIVE)) $ab_count = 'B';
+        }
+
+        $meal_rooms_array[$room->id]['quantity'] = $items;
+
+        if ($wereGuestAvailable) {
+            $guestRoomName = $room->room_name . ' G';
+            $meal_rooms_array[$guestRoomName] = [
+                'room_no'  => $guestRoomName,
+                'quantity' => $guestItems,
+            ];
+        }
+    }
+
+    public function getCategoryWiseData(string $date): array
+    {
+        $menu_details = $this->menuDetails->findByDate($date);
+
+        $breakfast = $lunch = $dinner = [];
+        $breakfast_rooms_array = $lunch_rooms_array = $dinner_rooms_array = [];
+        $rooms_array = [];
+
+        if ($menu_details) {
+            $menu_items = $menu_details->items;
+            if (is_string($menu_items)) {
+                $menu_items = json_decode($menu_items, true);
+            }
+            $menu_items = is_array($menu_items) ? $menu_items : [];
+
+            $all_rooms = $this->roomDetails->getAll(filters: ['is_active' => 1]);
+            $is_first  = true;
+
+            foreach ($all_rooms as $r) {
+                $isOccupiedByGuest = $this->dateWiseOccupancies->getAll(
+                    filters: ['room_id' => $r->id, 'date' => $date],
+                    columns: ['occupancy']
+                )->first();
+
+                $wereGuestAvailable = $isOccupiedByGuest && $isOccupiedByGuest->occupancy;
+
+                if ($menu_items['breakfast'] ?? null) {
+                    $this->updateMealArrays(
+                        $menu_items['breakfast'],
+                        $breakfast,
+                        $breakfast_rooms_array,
+                        $date, $r, 'breakfast', $is_first, $wereGuestAvailable
+                    );
+                }
+
+                if ($menu_items['lunch'] ?? null) {
+                    $this->updateMealArrays(
+                        $menu_items['lunch'],
+                        $lunch,
+                        $lunch_rooms_array,
+                        $date, $r, 'lunch', $is_first, $wereGuestAvailable
+                    );
+                }
+
+                if ($menu_items['dinner'] ?? null) {
+                    $this->updateMealArrays(
+                        $menu_items['dinner'],
+                        $dinner,
+                        $dinner_rooms_array,
+                        $date, $r, 'dinner', $is_first, $wereGuestAvailable
+                    );
+                }
+
+                $is_first = false;
+
+                array_push($rooms_array, [
+                    'room_id'             => $r->id,
+                    'room_name'           => $r->room_name,
+                    'has_special_ins'     => ($r->special_instrucations != null ? 1 : 0),
+                    'has_breakfast_order' => (
+                        count($breakfast_rooms_array) ? (
+                            array_sum($breakfast_rooms_array[$r->id]['quantity']) > 0 ? 1 : 0
+                        ) : 0
+                    ),
+                    'has_lunch_order' => (
+                        count($lunch_rooms_array) ? (
+                            array_sum($lunch_rooms_array[$r->id]['quantity']) > 0 ? 1 : 0
+                        ) : 0
+                    ),
+                    'has_dinner_order' => (
+                        count($dinner_rooms_array) ? (
+                            array_sum($dinner_rooms_array[$r->id]['quantity']) > 0 ? 1 : 0
+                        ) : 0
+                    ),
+                    'is_for_guest' => 0,
+                ]);
+
+                if ($wereGuestAvailable) {
+                    $roomName = $r->room_name . ' G';
+                    array_push($rooms_array, [
+                        'room_id'             => $r->id,
+                        'room_name'           => $roomName,
+                        'has_special_ins'     => 0,
+                        'has_breakfast_order' => (
+                            count($breakfast_rooms_array) ? (
+                                array_sum($breakfast_rooms_array[$roomName]['quantity']) > 0 ? 1 : 0
+                            ) : 0
+                        ),
+                        'has_lunch_order' => (
+                            count($lunch_rooms_array) ? (
+                                array_sum($lunch_rooms_array[$roomName]['quantity']) > 0 ? 1 : 0
+                            ) : 0
+                        ),
+                        'has_dinner_order' => (
+                            count($dinner_rooms_array) ? (
+                                array_sum($dinner_rooms_array[$roomName]['quantity']) > 0 ? 1 : 0
+                            ) : 0
+                        ),
+                        'is_for_guest' => 1,
+                    ]);
+                }
+            }
+        }
+
+        $last_date = $this->menuDetails->findLatestDate() ?? '';
+
+        $message = $menu_details ? '' : 'Menu Details not Found!!';
+
+        return [
+            'message'              => $message,
+            'breakfast_item_list'  => array_values($breakfast),
+            'lunch_item_list'      => array_values($lunch),
+            'dinner_item_list'     => array_values($dinner),
+            'report_breakfast_list' => array_values($breakfast_rooms_array),
+            'report_lunch_list'    => array_values($lunch_rooms_array),
+            'report_dinner_list'   => array_values($dinner_rooms_array),
+            'rooms_list'           => $rooms_array,
+            'last_menu_date'       => $last_date,
+        ];
+    }
 }
