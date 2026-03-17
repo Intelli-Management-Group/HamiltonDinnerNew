@@ -2,12 +2,17 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Models\CategoryDetail;
+use App\Http\Controllers\Controller;
+use App\Services\CategoryDetailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class CategoryDetailController extends Controller
 {
+    public function __construct(
+        private CategoryDetailService $categoryDetailService
+    ) {}
+
     /**
      * Display a listing of the category details.
      *
@@ -16,40 +21,9 @@ class CategoryDetailController extends Controller
      */
     public function index(Request $request)
     {
-        $query = CategoryDetail::when($request->has('type'), function($query) use ($request) {
-            return $query->where('type', $request->type);
-        })
-        ->latest();
-    
+        $result = $this->categoryDetailService->list($request->all());
 
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15);
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $categories = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $categories->items(),
-                'pagination' => [
-                    'total' => $categories->total(),
-                    'per_page' => $categories->perPage(),
-                    'current_page' => $categories->currentPage(),
-                    'last_page' => $categories->lastPage(),
-                    'from' => $categories->firstItem(),
-                    'to' => $categories->lastItem()
-                ]
-            ], 200);
-        } else {
-      
-            $categories = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $categories,
-                'count' => $categories->count()
-            ], 200);
-        }
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -74,13 +48,9 @@ class CategoryDetailController extends Controller
             ], 422);
         }
 
-        $category = CategoryDetail::create($request->all());
+        $result = $this->categoryDetailService->store($request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Category created successfully',
-            'data' => $category
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -91,19 +61,9 @@ class CategoryDetailController extends Controller
      */
     public function show($id)
     {
-        $category = CategoryDetail::find($id);
-        
-        if (!$category) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Category not found'
-            ], 404);
-        }
+        $result = $this->categoryDetailService->findCategoryById($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $category
-        ],200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -115,14 +75,14 @@ class CategoryDetailController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $category = CategoryDetail::find($id);
+        $findResult = $this->categoryDetailService->findCategoryById((int) $id);
         
-        if (!$category) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Category not found'
-            ], 404);
+        if (!$findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
+
+        /** @var CategoryDetail $category */
+        $category = $findResult['payload']['data'];
 
         $validator = Validator::make($request->all(), [
             'cat_name' => 'required|string|max:127',
@@ -138,13 +98,9 @@ class CategoryDetailController extends Controller
             ], 422);
         }
 
-        $category->update($request->all());
+        $result = $this->categoryDetailService->update($category, $request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Category updated successfully',
-            'data' => $category
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -155,26 +111,22 @@ class CategoryDetailController extends Controller
      */
     public function destroy($id)
     {
-        $category = CategoryDetail::find($id);
+        $findResult = $this->categoryDetailService->findCategoryById((int) $id);
 
-        if (!$category) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Category not found'
-            ], 404);
+        if (!$findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
 
-        $category->delete();
+        /** @var CategoryDetail $category */
+        $category = $findResult['payload']['data'];
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Category deleted successfully'
-        ],200);
+        $result = $this->categoryDetailService->destroy($category);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     public function bulkDestroy(Request $request)
     {
-
         $validator = Validator::make($request->all(), [
             'ids' => 'required|array',
             'ids.*' => 'integer|exists:category_details,id'
@@ -187,11 +139,8 @@ class CategoryDetailController extends Controller
             ], 422);
         }
 
-        $count = CategoryDetail::whereIn('id', $request->ids)->delete();
+        $result = $this->categoryDetailService->bulkDestroy($request->input('ids'));
 
-        return response()->json([
-            'success' => true,
-            'message' => $count . ' categories deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }
