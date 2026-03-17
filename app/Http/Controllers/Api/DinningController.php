@@ -45,6 +45,7 @@ use App\Services\MenuDetailService;
 use App\Services\RoomDetailService;
 use App\Services\DiningAppService;
 use App\Services\Forms\FormsAppService;
+use App\Services\ItemDetailService;
 use App\Services\Reports\ChargeReportService;
 
 // Support
@@ -59,6 +60,7 @@ class DinningController extends Controller
         private RoomDetailService $roomDetailService,
         private DiningAppService $diningAppService,
         private FormsAppService $formsAppService,
+        private ItemDetailService $itemDetailService,
         private ChargeReportService $chargeReportService
     )
     {
@@ -2557,54 +2559,15 @@ class DinningController extends Controller
 
     public function reportData(Request $request)
     {
-        // get rooms list from this
         try {
+            $date     = $request->get('date') ?: null;
+            $roomName = ($v = (int)$request->get('room_name')) ? $v : null;
 
-            $queryDate = $request->get('date');
-            $roomName = (int)$request->get('room_name');
-            $chargedFor = $request->get('charged_for');
+            $data = $this->chargeReportService->getOrderReport($date, $roomName);
 
-            $query = "select od.* , rd.*,id.* , io1.* from order_details od left join room_details rd on rd.id = od.room_id left join item_options io1 on io1.id = od.item_options left join item_details id on od.item_id = id.id where od.deleted_at IS NULL ";
-
-            if (!empty($queryDate)) {
-                $query .= " AND od.date = '$queryDate'";
-            }
-
-            if (!empty($roomName) && is_int($roomName)) {
-                $query .= " AND rd.room_name = $roomName ";
-            }
-
-            $query .= " AND (io1.is_paid_item = 1 OR od.is_for_guest = 1 OR od.is_brk_tray_service = 1 OR od.is_lunch_tray_service = 1 OR od.is_dinner_tray_service = 1 OR od.is_brk_escort_service = 1 OR od.is_lunch_escort_service = 1 OR od.is_dinner_escort_service = 1) GROUP BY od.date,od.room_id,od.is_for_guest ORDER BY od.id DESC";
-            $results = DB::select($query);
-
-            $data = [];
-
-            foreach ($results as $result) {
-
-                $data[] = [
-                    'room_number' => $result->room_name,
-                    'resident_name' => $result->resident_name,
-                    'order_date' => $result->date,
-                    'is_for_guest' => $result->is_for_guest,
-                    'is_brk_tray_service' => $result->is_brk_tray_service,
-                    'is_lunch_tray_service' => $result->is_lunch_tray_service,
-                    'is_dinner_tray_service' => $result->is_dinner_tray_service,
-                    'is_brk_escort_service' => $result->is_brk_escort_service,
-                    'is_lunch_escort_service' => $result->is_lunch_escort_service,
-                    'is_dinner_escort_service' => $result->is_dinner_escort_service,
-                    'order_date' => $result->date,
-                    'is_extra_item' => empty($result->item_options) ? 0 : 1,
-                    'room_id' => $result->room_id,
-                    'item_name' => empty($result->item_options) ? "" : $result->item_name,
-                    'item_options' => empty($result->item_options) ? "" : $result->option_name,
-                    'item_quantity' => empty($result->is_for_guest) ? 0 : $result->quantity
-                ];
-            }
-
-            return $this->sendResultJSON("1", "success", ["Data" => $data]);
+            return $this->sendResultJSON('1', 'success', $data);
         } catch (\Exception $e) {
-
-            return response()->json(['ResponseCode' => "11", 'ResponseText' => $e->getMessage()], 200);
+            return response()->json(['ResponseCode' => '11', 'ResponseText' => $e->getMessage()], 200);
         }
     }
 
@@ -3028,174 +2991,10 @@ class DinningController extends Controller
 
     public function getCategoryWiseDataDemo(Request $request)
     {
-        // quantity and items from this
         $date = $request->input('date');
+        $data = $this->diningAppService->getCategoryWiseData($date);
 
-        $menu_details = MenuDetail::where("date", $date)->first(); // merge the is_allday data with this also
-
-        // init arrays
-        $breakfast = $lunch = $dinner = array();
-
-        $breakfast_rooms_array = $lunch_rooms_array = $dinner_rooms_array = array();
-        $rooms_array = array();
-
-        if ($menu_details) {
-
-            $menu_items = $menu_details->items;
-
-            if (is_string($menu_items)) {
-                $menu_items = json_decode($menu_items, true);
-            }
-
-            $menu_items = is_array($menu_items) ? $menu_items : [];
-
-            $all_rooms = RoomDetail::where("is_active", 1)->get();
-            $is_first = true;
-
-            foreach ($all_rooms as $r) {
-
-                $isOccupiedByGuest = DateWiseOccupancy::select('occupancy')
-                    ->where('room_id',  $r->id)
-                    ->where('date', $date)
-                    ->first();
-
-                $wereGuestAvailable = $isOccupiedByGuest && $isOccupiedByGuest->occupancy;
-
-                if ($menu_items["breakfast"] ?? null) {
-                    $this->updateMealArrays(
-                        $menu_items["breakfast"],
-                        $breakfast,
-                        $breakfast_rooms_array,
-                        $date,
-                        $r,
-                        "breakfast",
-                        $is_first,
-                        $wereGuestAvailable
-                    );
-                }
-
-                if ($menu_items["lunch"] ?? null) {
-                    $this->updateMealArrays(
-                        $menu_items["lunch"],
-                        $lunch,
-                        $lunch_rooms_array,
-                        $date,
-                        $r,
-                        "lunch",
-                        $is_first,
-                        $wereGuestAvailable
-                    );
-                }
-
-                if ($menu_items["dinner"] ?? null) {
-                    $this->updateMealArrays(
-                        $menu_items["dinner"],
-                        $dinner,
-                        $dinner_rooms_array,
-                        $date,
-                        $r,
-                        "dinner",
-                        $is_first,
-                        $wereGuestAvailable
-                    );
-                }
-
-                $is_first = false;
-
-                array_push(
-                    $rooms_array, array(
-                        "room_id" => $r->id,
-                        "room_name" => $r->room_name,
-                        "has_special_ins" => (
-                            $r->special_instrucations != null ? 1 : 0
-                        ),
-                        "has_breakfast_order" => (
-                            count($breakfast_rooms_array) ? (
-                                array_sum($breakfast_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0
-                            ) : 0
-                        ),
-                        "has_lunch_order" => (
-                            count($lunch_rooms_array) ? (
-                                array_sum($lunch_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0
-                            ) : 0
-                        ),
-                        "has_dinner_order" => (
-                            count($dinner_rooms_array) ? (
-                                array_sum($dinner_rooms_array[$r->id]["quantity"]) > 0 ? 1 : 0
-                            ) : 0
-                        ),
-                        "is_for_guest" => 0
-                    )
-                );
-
-                if ($wereGuestAvailable) {
-                    $roomName = $r->room_name . " G";
-                    array_push(
-                        $rooms_array, array(
-                            "room_id" => $r->id,
-                            "room_name" => $roomName,
-                            "has_special_ins" => 0,
-                            "has_breakfast_order" => (
-                                count($breakfast_rooms_array) ? (
-                                    array_sum($breakfast_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0
-                                ) : 0
-                            ),
-                            "has_lunch_order" => (
-                                count($lunch_rooms_array) ? (
-                                    array_sum($lunch_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0
-                                ) : 0
-                            ),
-                            "has_dinner_order" => (
-                                count($dinner_rooms_array) ? (
-                                    array_sum($dinner_rooms_array[$roomName]["quantity"]) > 0 ? 1 : 0
-                                ) : 0
-                            ),
-                            "is_for_guest" => 1
-                        )
-                    );
-                }
-            }
-        }
-
-        $last_date = "";
-        $menu_data = MenuDetail::select("date")
-            ->orderBy("date", "desc")
-            ->first();
-        if ($menu_data) {
-            $last_date = $menu_data->date;
-        }
-
-        if (!$menu_details) {
-            return $this->sendResultJSON(
-                '1',
-                'Menu Details not Found!!',
-                array(
-                    'breakfast_item_list' => array_values($breakfast),
-                    'lunch_item_list' => array_values($lunch),
-                    'dinner_item_list' => array_values($dinner),
-                    'report_breakfast_list' => array_values($breakfast_rooms_array),
-                    'report_lunch_list' => array_values($lunch_rooms_array),
-                    'report_dinner_list' => array_values($dinner_rooms_array),
-                    'rooms_list' => $rooms_array,
-                    "last_menu_date" => $last_date
-                )
-            );
-        }
-
-        return $this->sendResultJSON(
-            '1',
-            '',
-            array(
-                'breakfast_item_list' => array_values($breakfast),
-                'lunch_item_list' => array_values($lunch),
-                'dinner_item_list' => array_values($dinner),
-                'report_breakfast_list' => array_values($breakfast_rooms_array),
-                'report_lunch_list' => array_values($lunch_rooms_array),
-                'report_dinner_list' => array_values($dinner_rooms_array),
-                'rooms_list' => $rooms_array,
-                "last_menu_date" => $last_date
-            )
-        );
+        return $this->sendResultJSON('1', $data['message'], array_diff_key($data, ['message' => '']));
     }
 
     // --- END CATEGORY-WISE REPORT FUNCTIONS ---
@@ -3969,46 +3768,15 @@ class DinningController extends Controller
         return $this->diningAppService->updateRoomDetails($room_id, $request->all());
     }
 
-    public function getCategorySpecificItems(Request $request){
+    public function getCategorySpecificItems(Request $request)
+    {
+        try {
+            $categoryId = (int) $request->input('categoryId');
+            $data = $this->itemDetailService->getItemsByCategory($categoryId);
 
-        $categoryId = $request->input('categoryId');
-
-        try{
-
-            $items = ItemDetail::select('item_details.*', 'category_details.parent_id')
-                ->leftJoin('category_details', 'item_details.cat_id', '=', 'category_details.id')
-                ->where('item_details.deleted_at', NULL)
-                ->where('category_details.deleted_at', NULL)
-                ->where('item_details.cat_id', $categoryId)
-                ->get();
-
-            $results = [];
-
-            foreach ($items as $item){
-
-                $results[] = [
-                    'type' => empty($item->parent_id) ? 'item' : 'sub_cat_item',
-                    'parent_id' => $item->parent_id,
-
-                    'item_name' => $item->item_name,
-                    'item_id' => $item->id,
-                    'preference' => $item->preference,
-                    'options' => $item->options,
-                    'chinese_name' => $item->item_chinese_name,
-                    'item_image' => $item->image,
-
-                    'comment' => '',
-                    'qty' => 0,
-                    'order_id' => 0
-                ];
-
-            }
-
-            return $this->sendResultJSON("1", "Items Found", array('Data' => $results));
-        }
-
-        catch (\Exception $e) {
-            return $this->sendResultJSON("0", "Error in fetching items: " . $e->getMessage());
+            return $this->sendResultJSON('1', 'Items Found', $data);
+        } catch (\Exception $e) {
+            return $this->sendResultJSON('0', 'Error in fetching items: ' . $e->getMessage());
         }
     }
 
