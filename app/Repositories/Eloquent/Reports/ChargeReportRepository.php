@@ -116,4 +116,39 @@ class ChargeReportRepository implements ChargeReportRepositoryInterface
         );
     }
 
+    public function runOrderSummaryReport(?string $date, ?int $roomName): array
+    {
+        $sql = "SELECT od.*, rd.*, id.*, io1.*
+                FROM order_details od
+                LEFT JOIN room_details rd ON rd.id = od.room_id
+                LEFT JOIN item_options io1 ON io1.id = od.item_options
+                LEFT JOIN item_details id ON od.item_id = id.id
+                WHERE od.deleted_at IS NULL";
+
+        $bindings = [];
+
+        if (!empty($date)) {
+            $sql .= " AND od.date = ?";
+            $bindings[] = $date;
+        }
+
+        if (!empty($roomName)) {
+            $sql .= " AND rd.room_name = ?";
+            $bindings[] = $roomName;
+        }
+
+        $sql .= " AND (io1.is_paid_item = 1
+                    OR od.is_for_guest = 1
+                    OR od.is_brk_tray_service = 1
+                    OR od.is_lunch_tray_service = 1
+                    OR od.is_dinner_tray_service = 1
+                    OR od.is_brk_escort_service = 1
+                    OR od.is_lunch_escort_service = 1
+                    OR od.is_dinner_escort_service = 1)
+                GROUP BY od.date, od.room_id, od.is_for_guest
+                ORDER BY od.id DESC";
+
+        return DB::select($sql, $bindings);
+    }
+
 }

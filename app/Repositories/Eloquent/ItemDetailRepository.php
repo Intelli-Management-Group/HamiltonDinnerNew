@@ -118,4 +118,15 @@ class ItemDetailRepository extends BaseRepository implements ItemDetailRepositor
 
         return $query->latest();
     }
+
+    public function findByCategoryWithParentId(int $categoryId): Collection
+    {
+        return $this->model
+            ->select('item_details.*', 'category_details.parent_id')
+            ->leftJoin('category_details', 'item_details.cat_id', '=', 'category_details.id')
+            ->whereNull('item_details.deleted_at')
+            ->whereNull('category_details.deleted_at')
+            ->where('item_details.cat_id', $categoryId)
+            ->get();
+    }
 }

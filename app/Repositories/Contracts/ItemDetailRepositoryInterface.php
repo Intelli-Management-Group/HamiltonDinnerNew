@@ -15,4 +15,6 @@ interface ItemDetailRepositoryInterface extends BaseRepositoryInterface
         array $ids,
         bool $isParent
     ): Collection;
+
+    public function findByCategoryWithParentId(int $categoryId): Collection;
 }
