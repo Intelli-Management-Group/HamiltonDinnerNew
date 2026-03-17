@@ -99,4 +99,25 @@ class ItemDetailService extends BaseService
             includeData: false
         );
     }
+
+    public function getItemsByCategory(int $categoryId): array
+    {
+        $items = $this->itemDetails->findByCategoryWithParentId($categoryId);
+
+        $results = $items->map(fn ($item) => [
+            'type'         => empty($item->parent_id) ? 'item' : 'sub_cat_item',
+            'parent_id'    => $item->parent_id,
+            'item_name'    => $item->item_name,
+            'item_id'      => $item->id,
+            'preference'   => $item->preference,
+            'options'      => $item->options,
+            'chinese_name' => $item->item_chinese_name,
+            'item_image'   => $item->image,
+            'comment'      => '',
+            'qty'          => 0,
+            'order_id'     => 0,
+        ])->values()->all();
+
+        return ['Data' => $results];
+    }
 }
