@@ -6,9 +6,15 @@ use Illuminate\Http\Request;
 use App\Models\Permission;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Services\PermissionService;
 
 class PermissionController extends Controller
 {
+
+    public function __construct(
+        private PermissionService $permissionService
+    ) {}
+    
     /**
      * Display a listing of permissions.
      *
@@ -16,39 +22,8 @@ class PermissionController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Permission::with('rolesList')->when($request->has('search'), function($query) use ($request) {
-                return $query->where('name', 'LIKE', '%' . $request->search . '%')
-                      ->orWhere('display_name', 'LIKE', '%' . $request->search . '%');
-            })
-            ->latest();
-        
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15);
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $permissions = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $permissions->items(),
-                'pagination' => [
-                    'total' => $permissions->total(),
-                    'per_page' => $permissions->perPage(),
-                    'current_page' => $permissions->currentPage(),
-                    'last_page' => $permissions->lastPage(),
-                    'from' => $permissions->firstItem(),
-                    'to' => $permissions->lastItem()
-                ]
-            ], 200);
-        } else {
-            $permissions = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $permissions,
-                'count' => $permissions->count()
-            ], 200);
-        }
+        $result = $this->permissionService->list($request->all());
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     // /**

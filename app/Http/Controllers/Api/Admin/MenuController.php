@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Controller;
 use App\Models\MenuDetail;
+use App\Services\MenuDetailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class MenuController extends Controller
 {
+    public function __construct(
+        private MenuDetailService $menuDetailService
+    ) {}
+
     /**
      * Display a listing of menu details.
      *
@@ -15,38 +21,9 @@ class MenuController extends Controller
      */
     public function index(Request $request)
     {
-           
-        $query = MenuDetail::latest();
-    
-        // Check if pagination parameters are specified
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15); 
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $menus = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $menus->items(),
-                'pagination' => [
-                    'total' => $menus->total(),
-                    'per_page' => $menus->perPage(),
-                    'current_page' => $menus->currentPage(),
-                    'last_page' => $menus->lastPage(),
-                    'from' => $menus->firstItem(),
-                    'to' => $menus->lastItem()
-                ]
-            ], 200);
-        } else {
-            // Return all data without pagination
-            $menus = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $menus,
-                'count' => $menus->count()
-            ], 200);
-        }
+        $result = $this->menuDetailService->list($request->all());
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -70,35 +47,9 @@ class MenuController extends Controller
             ], 422);
         }
 
-        // Check for soft-deleted menu on same date
-        $existing = MenuDetail::withTrashed()
-            ->where('date', $request->date)
-            ->first();
+        $result = $this->menuDetailService->store($request->all());
 
-        // Restore the soft-deleted menu
-        if ($existing && $existing->trashed()) {
-            $existing->restore();
-
-            $existing->update([
-                'items' => $request->items,
-                'is_allday' => $request->is_allday,
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Menu detail restored and updated successfully',
-                'data' => $existing
-            ], 200);
-        }
-
-        // Create new menu detail
-        $menu = MenuDetail::create($request->all());
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Menu detail created successfully',
-            'data' => $menu
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -109,19 +60,9 @@ class MenuController extends Controller
      */
     public function show($id)
     {
-        $menu = MenuDetail::find($id);
-        
-        if (!$menu) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Menu detail not found'
-            ], 404);
-        }
+        $result = $this->menuDetailService->findMenuById($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $menu
-        ]);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -133,17 +74,17 @@ class MenuController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $menu = MenuDetail::find($id);
-        
-        if (!$menu) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Menu detail not found'
-            ], 404);
+        $findResult = $this->menuDetailService->findMenuById($id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
 
+        /** @var MenuDetail $menu */
+        $menu = $findResult['payload']['data'];
+
         $validator = Validator::make($request->all(), [
-            'date' => 'required|date|unique:menu_details,date,'.$id,
+            'date' => 'required|date|unique:menu_details,date,'.$id,  // TODO: look into concatenated $id
             'items' => 'nullable|array',
             'is_allday' => 'nullable|boolean'
         ]);
@@ -155,13 +96,9 @@ class MenuController extends Controller
             ], 422);
         }
 
-        $menu->update($request->all());
+        $result = $this->menuDetailService->update($menu, $request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Menu detail updated successfully',
-            'data' => $menu
-        ]);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -172,21 +109,18 @@ class MenuController extends Controller
      */
     public function destroy($id)
     {
-        $menu = MenuDetail::find($id);
-        
-        if (!$menu) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Menu detail not found'
-            ], 404);
+        $findResult = $this->menuDetailService->findMenuById($id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
 
-        $menu->delete();
+        /** @var MenuDetail $menu */
+        $menu = $findResult['payload']['data'];
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Menu detail deleted successfully'
-        ]);
+        $result = $this->menuDetailService->destroy($menu);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -209,11 +143,8 @@ class MenuController extends Controller
             ], 422);
         }
 
-        $count = MenuDetail::whereIn('id', $request->ids)->delete();
+        $result = $this->menuDetailService->bulkDestroy($request->input('ids'));
 
-        return response()->json([
-            'success' => true,
-            'message' => $count . ' menu details deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\SettingService;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -10,74 +11,63 @@ use Illuminate\Validation\Rule;
 
 class SettingController extends Controller
 {
-    /**
-     * List all settings
+    public function __construct(
+        private SettingService $settingService
+    ) {}
+
+    /** List all settings
      * 
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
     public function index(Request $request)
     {
-        try {
-            $query = Setting::query();
+        $result = $this->settingService->list($request->all());
 
-            // Filter by group if provided
-            if ($request->has('group')) {
-                $query->where('group', $request->group);
-            }
+        return response()->json($result['payload'], $result['statusCode']);
+    }
 
-            // Filter by type if provided
-            if ($request->has('type')) {
-                $query->where('type', $request->type);
-            }
+    /** Private function to validate a Create payload.
+     * 
+     * @param array $data
+     * @return \Illuminate\Contracts\Validation\Validator
+     */
+    private function validateCreatePayload(array $data)
+    {
+        return Validator::make($data, [
+            'key' => 'required|string|max:127|unique:settings,key',
+            'display_name' => 'required|string|max:127',
+            'value' => 'nullable|string',
+            'details' => 'nullable|string',
+            'type' => 'required|string|max:127',
+            'order' => 'nullable|integer',
+            'group' => 'nullable|string|max:127',
+        ]);
+    }
 
-            // Add search functionality if provided
-            if ($request->has('search')) {
-                $searchTerm = $request->search;
-                $query->where(function ($q) use ($searchTerm) {
-                    $q->where('key', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('display_name', 'LIKE', "%{$searchTerm}%")
-                        ->orWhere('group', 'LIKE', "%{$searchTerm}%");
-                });
-            }
-
-            // Order settings
-            $query->orderBy($request->get('sort_by', 'order'), $request->get('sort_direction', 'asc'));
-
-            // Check if pagination is requested
-            if ($request->has('page') || $request->has('per_page')) {
-                // Apply pagination
-                $perPage = $request->get('per_page', 10);
-                $settings = $query->paginate($perPage);
-
-                return response()->json([
-                    'success' => true,
-                    'data' => $settings->items(),
-                    'meta' => [
-                        'current_page' => $settings->currentPage(),
-                        'last_page' => $settings->lastPage(),
-                        'per_page' => $settings->perPage(),
-                        'total' => $settings->total()
-                    ],
-                    'message' => 'Settings retrieved successfully'
-                ]);
-            } else {
-                // Return all records without pagination
-                $settings = $query->get();
-
-                return response()->json([
-                    'success' => true,
-                    'data' => $settings,
-                    'message' => 'Settings retrieved successfully'
-                ]);
-            }
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve settings',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+    /** Private function to validate an Update payload.
+     * 
+     * @param array $data
+     * @param int $settingId
+     * @return \Illuminate\Contracts\Validation\Validator
+     */
+    private function validateUpdatePayload(array $data, int $settingId)
+    {
+        return Validator::make($data, [
+            'key' => [
+                'sometimes',
+                'required',
+                'string',
+                'max:127',
+                Rule::unique('settings')->ignore($settingId)
+            ],
+            'display_name' => 'sometimes|required|string|max:127',
+            'value' => 'nullable|string',
+            'details' => 'nullable|string',
+            'type' => 'sometimes|required|string|max:127',
+            'order' => 'nullable|integer',
+            'group' => 'nullable|string|max:127',
+        ]);
     }
 
     /**
@@ -88,51 +78,33 @@ class SettingController extends Controller
      */
     public function store(Request $request)
     {
-        try {
-            $input = $request->all();
-            $isArray = is_array($input) && isset($input[0]);
+        $input = $request->all();
 
-            // Convert single item to array format for consistent processing
-            $settingsToCreate = $isArray ? $input : [$input];
-            $createdSettings = [];
+        // Check if input is an array of settings
+        $isArray = is_array($input) && isset($input[0]);
 
-            foreach ($settingsToCreate as $settingData) {
-                // Validate each setting
-                $validator = Validator::make($settingData, [
-                    'key' => 'required|string|max:127|unique:settings,key',
-                    'display_name' => 'required|string|max:127',
-                    'value' => 'nullable',
-                    'details' => 'nullable',
-                    'type' => 'required|string|max:127',
-                    'order' => 'nullable|integer',
-                    'group' => 'nullable|string|max:127',
-                ]);
+        // Convert single item to array format for consistent processing
+        // We only need to validate and prepare data here
+        $settingsToCreate = $isArray ? $input : [$input];
 
-                if ($validator->fails()) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
-                        'errors' => $validator->errors()
-                    ], 422);
-                }
+        foreach ($settingsToCreate as $settingData) {
+            // Validate each setting
+            $validator = $this->validateCreatePayload($settingData);
 
-                // Create the setting
-                $setting = Setting::create($settingData);
-                $createdSettings[] = $setting;
+            // Future reference: consider grouping validation errors for all items.
+            // For now, we can just short-circuit on first failure.
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
+                    'errors' => $validator->errors()
+                ], 422);
             }
-
-            return response()->json([
-                'success' => true,
-                'data' => $isArray ? $createdSettings : $createdSettings[0],
-                'message' => count($createdSettings) . ' setting(s) created successfully'
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create setting(s)',
-                'error' => $e->getMessage()
-            ], 500);
         }
+
+        $result = $this->settingService->store($settingsToCreate);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -143,149 +115,77 @@ class SettingController extends Controller
      */
     public function show($id)
     {
-        try {
-            $setting = Setting::findOrFail($id);
+        $result = $this->settingService->findSettingById($id);
 
-            return response()->json([
-                'success' => true,
-                'data' => $setting,
-                'message' => 'Setting retrieved successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Setting not found',
-                'error' => $e->getMessage()
-            ], 404);
-        }
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
-     * Update existing settings (supports single ID update or batch update via array)
+     * Update a single setting by ID.
      * 
      * @param Request $request
-     * @param int|null $id
+     * @param int $id
      * @return \Illuminate\Http\JsonResponse
      */
-    public function update(Request $request, $id = null)
+    public function update(Request $request, $id)
     {
-        try {
-            $input = $request->all();
+        $findResult = $this->settingService->findSettingById($id);
 
-            // Check if this is a batch update (array of settings)
-            if ($id === null && is_array($input) && isset($input[0])) {
-                $updatedSettings = [];
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
+        }
 
-                foreach ($input as $settingData) {
-                    // Must have key to identify the setting
-                    if (!isset($settingData['key'])) {
-                        continue;
-                    }
+        /** @var Setting $setting */
+        $setting = $findResult['payload']['data'];
 
-                    // Find setting by key
-                    $setting = Setting::where('key', $settingData['key'])->first();
+        $validator = $this->validateUpdatePayload($request->all(), $setting->id);
 
-                    if ($setting) {
-                        // Validate update data
-                        $validator = Validator::make($settingData, [
-                            'key' => [
-                                'sometimes',
-                                'string',
-                                'max:127',
-                                Rule::unique('settings')->ignore($setting->id)
-                            ],
-                            'display_name' => 'sometimes|required|string|max:127',
-                            'value' => 'nullable',
-                            'details' => 'nullable',
-                            'type' => 'sometimes|required|string|max:127',
-                            'order' => 'nullable|integer',
-                            'group' => 'nullable|string|max:127',
-                        ]);
-
-                        if ($validator->fails()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
-                                'errors' => $validator->errors()
-                            ], 422);
-                        }
-
-                        // if ($validator->fails()) {
-                        //     continue; // Skip invalid items
-                        // }
-
-                        // Update the setting
-                        $setting->update($settingData);
-                        $updatedSettings[] = $setting;
-                    } else {
-                        // Create new setting if it doesn't exist
-                        $validator = Validator::make($settingData, [
-                            'key' => 'required|string|max:127|unique:settings,key',
-                            'display_name' => 'required|string|max:127',
-                            'value' => 'nullable',
-                            'details' => 'nullable',
-                            'type' => 'required|string|max:127',
-                            'order' => 'nullable|integer',
-                            'group' => 'nullable|string|max:127',
-                        ]);
-
-                        if ($validator->fails()) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
-                                'errors' => $validator->errors()
-                            ], 422);
-                        }
-
-                        // if ($validator->fails()) {
-                        //     continue; // Skip invalid items
-                        // }
-
-                        $setting = Setting::create($settingData);
-                        $updatedSettings[] = $setting;
-                    }
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'data' => $updatedSettings,
-                    'message' => count($updatedSettings) . ' setting(s) updated successfully'
-                ]);
-            } else {
-                // Single setting update via ID
-                $setting = Setting::findOrFail($id);
-
-                $validator = Validator::make($request->all(), [
-                    'key' => [
-                        'sometimes',
-                        'required',
-                        'string',
-                        'max:127',
-                        Rule::unique('settings')->ignore($id)
-                    ],
-                    'display_name' => 'sometimes|required|string|max:127',
-                    'value' => 'nullable',
-                    'details' => 'nullable',
-                    'type' => 'sometimes|required|string|max:127',
-                    'order' => 'nullable|integer',
-                    'group' => 'nullable|string|max:127',
-                ]);
-
-                $setting->update($request->all());
-
-                return response()->json([
-                    'success' => true,
-                    'data' => $setting,
-                    'message' => 'Setting updated successfully'
-                ]);
-            }
-        } catch (\Exception $e) {
+        if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to update setting(s)',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        $result = $this->settingService->update($setting, $request->all());
+
+        return response()->json($result['payload'], $result['statusCode']);
+    }
+
+    /**
+     * Bulk update or insert settings by key.
+     * Accepts an array of settings.
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function bulkUpsert(Request $request)
+    {
+        $input = $request->all();
+
+        foreach ($input as $settingData) {
+
+            $findResult = $this->settingService->findSettingByKey($settingData['key'] ?? '');
+            $isUpdate = $findResult['statusCode'] === 200;
+
+            // Validate each setting
+            $validator = $isUpdate
+                ? $this->validateUpdatePayload($settingData, $findResult['payload']['data']->id)
+                : $this->validateCreatePayload($settingData);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed for setting with key: ' . ($settingData['key'] ?? 'unknown'),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+        }
+
+        $result = $this->settingService->bulkUpsertByKey($input);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -296,24 +196,21 @@ class SettingController extends Controller
      */
     public function destroy($id)
     {
-        try {
-            $setting = Setting::findOrFail($id);
-            $setting->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Setting deleted successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete setting',
-                'error' => $e->getMessage()
-            ], 500);
+        $result = $this->settingService->findSettingById($id);
+        
+        if ($result['statusCode'] === 404) {
+            return response()->json($result['payload'], 404);
         }
+
+        /** @var Setting $setting */
+        $setting = $result['payload']['data'];
+
+        $result = $this->settingService->destroy($setting);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
-    /**
+    /** 
      * Bulk delete settings
      * 
      * @param Request $request
@@ -321,32 +218,21 @@ class SettingController extends Controller
      */
     public function bulkDestroy(Request $request)
     {
-        try {
-            $validator = Validator::make($request->all(), [
-                'ids' => 'required|array',
-                'ids.*' => 'integer|exists:settings,id'
-            ]);
+        $validator = Validator::make($request->all(), [
+            'ids' => 'required|array',
+            'ids.*' => 'integer|exists:settings,id'
+        ]);
 
-            if ($validator->fails()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Validation failed',
-                    'errors' => $validator->errors()
-                ], 422);
-            }
-
-            Setting::whereIn('id', $request->ids)->delete();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Settings deleted successfully'
-            ]);
-        } catch (\Exception $e) {
+        if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to delete settings',
-                'error' => $e->getMessage()
-            ], 500);
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
         }
+
+        $result = $this->settingService->bulkDestroy($request->input('ids', []));
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }

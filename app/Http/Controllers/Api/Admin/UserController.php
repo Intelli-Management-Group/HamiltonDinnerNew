@@ -8,11 +8,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use App\Services\UserService;
 
 class UserController extends Controller
 {   
 
-    public function __construct()
+    public function __construct(
+        private UserService $userService
+    )
     {
         ini_set('max_execution_time', 0);
     }
@@ -25,43 +28,8 @@ class UserController extends Controller
      */
     public function index(Request $request)
     {
-        $query = User::with('permissionList')
-            ->when($request->has('search'), function($query) use ($request) {
-                return $query->where('name', 'LIKE', '%' . $request->search . '%')
-                      ->orWhere('email', 'LIKE', '%' . $request->search . '%')
-                      ->orWhere('user_name', 'LIKE', '%' . $request->search . '%');
-            })
-            ->latest();
-    
-        // Check if pagination parameters are specified
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15); 
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $users = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $users->items(),
-                'pagination' => [
-                    'total' => $users->total(),
-                    'per_page' => $users->perPage(),
-                    'current_page' => $users->currentPage(),
-                    'last_page' => $users->lastPage(),
-                    'from' => $users->firstItem(),
-                    'to' => $users->lastItem()
-                ]
-            ], 200);
-        } else {
-            // Return all data without pagination
-            $users = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $users,
-                'count' => $users->count()
-            ], 200);
-        }
+        $result = $this->userService->list($request->all());
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -87,60 +55,8 @@ class UserController extends Controller
             ], 422);
         }
 
-        // Check for a soft-deleted user
-        $existing = User::withTrashed()
-            ->where('email', $request->email)
-            ->first();
-
-        // Restore the soft-deleted user
-        if ($existing && $existing->trashed()) {
-            $existing->restore();
-
-            $existing->update([
-                'name' => $request->name,
-                'user_name' => $request->user_name,
-                'email' => $request->email,
-                'password' => Hash::make($request->password),
-                'role_id' => $request->role_id,
-                'role' => $request->role,
-                'email_verified_at' => $request->email_verified_at,
-                'is_admin' => $request->is_admin,
-                'avatar' => $request->avatar,
-            ]);
-
-            $role = Role::findById($request->role_id);
-            $existing->syncRoles([$role]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'User restored and updated successfully',
-                'data' => $existing
-            ], 201);
-        }
-
-        // Create a new user
-        $user = User::create([
-            'name' => $request->name,
-            'user_name' => $request->user_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-            'role_id' => $request->role_id,
-            'role' => $request->role,
-            'email_verified_at' => $request->email_verified_at,
-            'is_admin' => $request->is_admin,
-            'avatar' => $request->avatar,
-        ]);
-        
-        // Assign role using Spatie permissions
-        $role = Role::findById($request->role_id);
-        
-        $user->assignRole($role);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User created successfully',
-            'data' => $user
-        ], 201);
+        $result = $this->userService->store($request->all());
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -151,19 +67,8 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::with('permissionList')->find($id);
-        
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => $user
-        ]);
+        $result = $this->userService->show((int)$id);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -175,14 +80,14 @@ class UserController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $user = User::find($id);
-        
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
+        $findResult = $this->userService->findUserById((int)$id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
+
+        /** @var User $user */
+        $user = $findResult['payload']['data'];
 
         $validator = Validator::make($request->all(), [
             'name' => 'sometimes|string|max:255',
@@ -199,27 +104,9 @@ class UserController extends Controller
             ], 422);
         }
 
-        $updateData = $request->only(['name', 'user_name', 'email' , 'email_verified_at' , 'role_id' , 'role','is_admin' , 'avatar']);
+        $result = $this->userService->update($user, $request->all());
 
-        // Only update password if provided
-        if ($request->has('password')) {
-            $updateData['password'] = Hash::make($request->password);
-        }
-        
-        $user->update($updateData);
-
-        // Update role if specified
-        if ($request->has('role_id')) {
-            $role = Role::findById($request->role_id);
-        
-            $user->assignRole($role);
-        }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User updated successfully',
-            'data' => $user->fresh(['roles'])
-        ]);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -230,21 +117,15 @@ class UserController extends Controller
      */
     public function destroy($id)
     {
-        $user = User::find($id);
-        
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'User not found'
-            ], 404);
+        $findResult = $this->userService->findUserById((int)$id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
+        $user = $findResult['payload']['data'];
 
-        $user->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'User deleted successfully'
-        ]);
+        $result = $this->userService->destroy($user);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -267,11 +148,8 @@ class UserController extends Controller
             ], 422);
         }
 
-        $count = User::whereIn('id', $request->ids)->delete();
+        $result = $this->userService->bulkDestroy($request->ids);
 
-        return response()->json([
-            'success' => true,
-            'message' => $count . ' users deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }
