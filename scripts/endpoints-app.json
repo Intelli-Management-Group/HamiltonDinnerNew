@@ -1,0 +1,108 @@
+{
+  "_meta": {
+    "auth": "APIToken — the token is a double-base64-encoded JSON string. Pass via: --token=\"Bearer <encoded_token>\"",
+    "base_urls": {
+      "redesign": "https://hamiltondinnerapp.redesign.intelligrp.com/api",
+      "staging": "https://hamiltondinnerapp.staging.intelligrp.com/api"
+    },
+    "usage": "php scripts/compare_api.php --base-a=https://hamiltondinnerapp.redesign.intelligrp.com/api --base-b=https://hamiltondinnerapp.staging.intelligrp.com/api --endpoints=scripts/endpoints-app.json --token=\"Bearer <api_token>\"",
+    "customize": [
+      "Replace SAMPLE_ROOM_ID (1) with a real room_id from both environments.",
+      "Replace SAMPLE_DATE (2026-02-15) with a date that has order/report data in both environments.",
+      "Replace SAMPLE_DATE_END (2026-02-28) for range queries."
+    ]
+  },
+  "endpoints": [
+    {
+      "name": "App: order-list",
+      "method": "POST",
+      "path": "/order-list",
+      "body": { "room_id": 1, "date": "2026-02-15" },
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: guest-order-list",
+      "method": "POST",
+      "path": "/guest-order-list",
+      "body": {},
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: get-user-data",
+      "method": "POST",
+      "path": "/get-user-data",
+      "body": {},
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: get-report-data (category-wise, by date)",
+      "method": "POST",
+      "path": "/get-report-data",
+      "body": { "date": "2026-02-15" },
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: charge-report (single date)",
+      "method": "POST",
+      "path": "/temp-get-charges-report",
+      "body": { "start_date": "2026-02-15", "end_date": "2026-02-15" },
+      "expectStatus": 200
+    },
+    {
+      "name": "App: charge-report (date range)",
+      "method": "POST",
+      "path": "/temp-get-charges-report",
+      "body": { "start_date": "2026-02-15", "end_date": "2026-02-28" },
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: get-move-in-summary-values",
+      "method": "GET",
+      "path": "/get-move-in-summary-values",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: get-room-details",
+      "method": "GET",
+      "path": "/1/get-room-details",
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: get-category-specific-items",
+      "method": "POST",
+      "path": "/get-category-specific-items",
+      "body": {},
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: list-forms",
+      "method": "POST",
+      "path": "/list-forms",
+      "body": {},
+      "expectStatus": 200
+    },
+
+    {
+      "name": "App: order-report (single date)",
+      "method": "GET",
+      "path": "/reports",
+      "query": { "search_date": "2026-02-15" },
+      "expectStatus": 200
+    },
+    {
+      "name": "App: order-report (date range)",
+      "method": "GET",
+      "path": "/reports",
+      "query": { "start_date": "2026-02-15", "end_date": "2026-02-28" },
+      "expectStatus": 200
+    }
+  ]
+}
