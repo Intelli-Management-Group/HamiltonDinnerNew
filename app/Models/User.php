@@ -43,7 +43,6 @@ class User extends Authenticatable implements JWTSubject
         
     ];
 
-
     /**
      * Get the identifier that will be stored in the subject claim of the JWT.
      *
@@ -64,7 +63,19 @@ class User extends Authenticatable implements JWTSubject
         return [];
     }
     
-     public function permissionList()
+    /** 
+     * Define many-to-many relationship with Permission through RoleHasPermissions.
+     * Named permissionList (not permissions) to avoid clashing with Spatie's own
+     * permissions() method from HasRoles/HasPermissions. Serialises as permission_list in JSON.
+     *
+     * Usage:
+     * $user->permissionList (to get the permissions associated with the user)
+     * Eager Loading:
+     * User::with('permissionList')->get();
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasManyThrough
+     */
+    public function permissionList()
     {
         return $this->hasManyThrough(
             Permission::class,
@@ -76,7 +87,20 @@ class User extends Authenticatable implements JWTSubject
         );
     }
 
-    public function role(){
+    /**
+     * Define one-to-one relationship with Role.
+     *
+     * Named roleModel (not role) to avoid shadowing the `role` string column on the users
+     * table. Eloquent's getAttribute checks $this->attributes first, so a relationship
+     * named `role()` would be unreachable via $user->role when that column exists.
+     *
+     * Usage:
+     * $user->roleModel          (access the loaded relation)
+     * User::with('roleModel')   (eager loading)
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     * */
+    public function roleModel(){
         return $this->hasOne(Role::class, 'id', 'role_id');
     }
 
@@ -94,6 +118,45 @@ class User extends Authenticatable implements JWTSubject
         }
     }
 
+    // /**
+    //  * Scope a query to retrieve users with their roles.
+    //  * 
+    //  * @param \Illuminate\Database\Eloquent\Builder $query
+    //  * @return \Illuminate\Database\Eloquent\Builder
+    //  */
+    // public function scopeWithRole($query)
+    // {
+    //     return $query->with('role');
+    // }
 
+    // /**
+    //  * Scope a query to retrieve users with their permissions.
+    //  * 
+    //  * @param \Illuminate\Database\Eloquent\Builder $query
+    //  * @return \Illuminate\Database\Eloquent\Builder
+    //  */
+    // public function scopeWithPermissions($query)
+    // {
+    //     return $query->with('permissionList');
+    // }
+
+    /**
+     * Scope a query to retrieve users with a matching name, email or user_name
+     * to the search term, if it is provided. Otherwise, return the unmodified query.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $searchTerm
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSearch($query, $searchTerm)
+    {
+        if (!$searchTerm) return $query;
+
+        return $query->where(function ($q) use ($searchTerm) {
+            $q->where('name', 'LIKE', "%{$searchTerm}%")
+              ->orWhere('email', 'LIKE', "%{$searchTerm}%")
+              ->orWhere('user_name', 'LIKE', "%{$searchTerm}%");
+        });
+    }
 
 }
