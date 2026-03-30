@@ -7,6 +7,7 @@ use App\Repositories\Contracts\SettingRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
 
 class SettingService extends BaseService
 {
