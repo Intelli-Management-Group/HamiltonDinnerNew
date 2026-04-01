@@ -93,7 +93,7 @@ class RoomDetailController extends Controller
         /** @var RoomDetail $room */
         $room = $result['payload']['data'];
 
-        $result = $this->roomDetailService->delete($room);
+        $result = $this->roomDetailService->destroy($room);
 
         return response()->json($result['payload'], $result['statusCode']);
     }
@@ -118,7 +118,7 @@ class RoomDetailController extends Controller
             ], 422);
         }
 
-        $result = $this->roomDetailService->bulkDelete($request->input('ids'));
+        $result = $this->roomDetailService->bulkDestroy($request->input('ids'));
 
         return response()->json($result['payload'], $result['statusCode']);
     }

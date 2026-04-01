@@ -48,4 +48,32 @@ class RoomDetailServiceTest extends TestCase
         $this->assertCount(1, $result['payload']['data']);
         $this->assertSame(1, $result['payload']['pagination']['total']);
     }
+
+    #[Test]
+    public function it_soft_deletes_a_room()
+    {
+        $room = new RoomDetail();
+
+        $mockRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $mockRepo->shouldReceive('delete')->once()->with($room);
+
+        $result = (new RoomDetailService($mockRepo))->destroy($room);
+
+        $this->assertSame(200, $result['statusCode']);
+        $this->assertTrue($result['payload']['success']);
+        $this->assertSame('RoomDetail deleted successfully.', $result['payload']['message']);
+    }
+
+    #[Test]
+    public function it_bulk_deletes_rooms_by_ids()
+    {
+        $mockRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $mockRepo->shouldReceive('bulkDeleteByIds')->once()->with([1, 2, 3])->andReturn(3);
+
+        $result = (new RoomDetailService($mockRepo))->bulkDestroy([1, 2, 3]);
+
+        $this->assertSame(200, $result['statusCode']);
+        $this->assertTrue($result['payload']['success']);
+        $this->assertStringContainsString('3', $result['payload']['message']);
+    }
 }
