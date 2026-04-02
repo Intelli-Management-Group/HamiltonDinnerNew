@@ -171,7 +171,7 @@ class SettingService extends BaseService
         foreach ($data as $item) {
             $setting = $this->settings->findByKey($item['key'] ?? '');
             if ($setting) {
-                $existing[] = $setting;
+                $existing[] = ['model' => $setting, 'data' => $item];
             } else {
                 $new[] = $item;
             }
@@ -179,10 +179,10 @@ class SettingService extends BaseService
 
         // Wrap in transaction to ensure atomicity
         DB::transaction(function () use (&$existing, &$new, &$createdSettings, &$updatedSettings) {
-            foreach ($existing as $item) {
-                $item->fill($item);
-                $this->settings->save($item);
-                $updatedSettings[] = $item;
+            foreach ($existing as $entry) {
+                $entry['model']->fill($entry['data']);
+                $this->settings->save($entry['model']);
+                $updatedSettings[] = $entry['model'];
             }
 
             foreach ($new as $item) {
