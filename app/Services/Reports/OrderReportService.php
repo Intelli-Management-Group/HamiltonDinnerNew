@@ -13,30 +13,29 @@ class OrderReportService
     // title shown in the report. Three mutually exclusive rules apply — checked in order:
     //
     //   ALTERNATIVE    — numeric suffix per meal. The Nth item of this type in a meal
-    //                    gets that number: first cat_id=4 in breakfast → "B1", next → "B2".
+    //                    gets that number: first cat_id=64 in lunch → "L1", next → "L2".
+    //                    cat_ids: 64 (Lunch Alternatives), 61 (Dinner Alternatives).
     //
     //   AB_ALTERNATIVE — lettered suffix (lunch/dinner only). First item → "LA"/"DA",
     //                    second → "LB"/"DB". Breakfast items of this type are ignored.
+    //                    cat_ids: 65/66 (Western/Chinese Lunch Entrée), 62/63 (Western/Chinese Dinner Entrée).
     //
     //   CAT_ID         — fixed two-letter code. Multiple items of the same code get a
     //                    count appended only when there is more than one: "BA", "BA2", …
-    //                    Examples: 1→"BA" (Breakfast entrée A), 2→"LS" (Lunch Soup),
-    //                              7→"LD" (Lunch Dessert), 13→"DD" (Dinner Dessert).
+    //                    cat_ids: 67→"BA" (Western Breakfast), 68→"BB" (Chinese Breakfast).
     //
     // The first character of every column title is always the meal prefix (B/L/D).
     // Items whose cat_id matches none of these constants produce an empty title and
     // are effectively ignored in the column output.
 
     private const CAT_ID = [
-        1  => 'BA',
-        2  => 'LS',
-        7  => 'LD',
-        13 => 'DD',
+        67 => 'BA',  // Western Breakfast
+        68 => 'BB',  // Chinese Breakfast
     ];
 
-    private const ALTERNATIVE = [4, 8, 11];
+    private const ALTERNATIVE = [64, 61];  // Lunch Alternatives, Dinner Alternatives
 
-    private const AB_ALTERNATIVE = [5, 3];
+    private const AB_ALTERNATIVE = [65, 66, 62, 63];  // Western/Chinese Lunch Entrée, Western/Chinese Dinner Entrée
 
     private const PREFIX_MEAL = [
         'B' => 'breakfast',

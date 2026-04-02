@@ -1831,13 +1831,11 @@ class DiningAppService
     // -----------------------------------------------------------------------
 
     private const CAT_ID = [
-        1  => 'BA',
-        2  => 'LS',
-        7  => 'LD',
-        13 => 'DD',
+        67 => 'BA',  // Western Breakfast
+        68 => 'BB',  // Chinese Breakfast
     ];
-    private const ALTERNATIVE    = [4, 8, 11];
-    private const AB_ALTERNATIVE = [5, 3];
+    private const ALTERNATIVE    = [64, 61];  // Lunch Alternatives, Dinner Alternatives
+    private const AB_ALTERNATIVE = [65, 66, 62, 63];  // Western/Chinese Lunch Entrée, Western/Chinese Dinner Entrée
 
     private function getItemDetailsByIdsOrdered(array $ids)
     {

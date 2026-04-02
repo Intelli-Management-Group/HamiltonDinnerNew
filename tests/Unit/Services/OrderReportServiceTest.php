@@ -111,7 +111,7 @@ class OrderReportServiceTest extends TestCase
     public function single_day_with_menu_but_no_orders_produces_zeroed_rows(): void
     {
         $room  = $this->makeRoom(1, '101');
-        $item  = $this->makeItem(10, 1, 'Scrambled Eggs'); // cat_id=1 → BA
+        $item  = $this->makeItem(10, 67, 'Scrambled Eggs'); // cat_id=67 → BA
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -153,7 +153,7 @@ class OrderReportServiceTest extends TestCase
     public function single_day_with_order_populates_qty_flag_and_total(): void
     {
         $room  = $this->makeRoom(2, '102');
-        $item  = $this->makeItem(10, 1, 'Scrambled Eggs'); // cat_id=1 → BA
+        $item  = $this->makeItem(10, 67, 'Scrambled Eggs'); // cat_id=67 → BA
         $order = $this->makeOrder(2, 10, 3); // qty=3, not guest
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -193,7 +193,7 @@ class OrderReportServiceTest extends TestCase
     {
         $room1 = $this->makeRoom(1, '101');
         $room2 = $this->makeRoom(2, '102');
-        $item  = $this->makeItem(10, 1, 'Eggs'); // BA
+        $item  = $this->makeItem(10, 67, 'Eggs'); // BA
 
         // Each room has qty=2
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -230,7 +230,7 @@ class OrderReportServiceTest extends TestCase
     public function single_day_guest_order_appends_G_row(): void
     {
         $room  = $this->makeRoom(1, '101');
-        $item  = $this->makeItem(10, 1, 'Eggs'); // BA
+        $item  = $this->makeItem(10, 67, 'Eggs'); // BA
         $guestOrder = $this->makeOrder(1, 10, 2, isForGuest: 1);
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -274,7 +274,7 @@ class OrderReportServiceTest extends TestCase
     public function single_day_no_guest_order_omits_G_row(): void
     {
         $room  = $this->makeRoom(1, '101');
-        $item  = $this->makeItem(10, 1, 'Eggs');
+        $item  = $this->makeItem(10, 67, 'Eggs');
         $order = $this->makeOrder(1, 10, 1, isForGuest: 0);
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -309,7 +309,7 @@ class OrderReportServiceTest extends TestCase
     public function single_day_column_tooltip_is_string_not_array(): void
     {
         $room = $this->makeRoom(1, '101');
-        $item = $this->makeItem(10, 1, 'Scrambled Eggs'); // cat_id=1 → BA
+        $item = $this->makeItem(10, 67, 'Scrambled Eggs'); // cat_id=67 → BA
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -347,8 +347,8 @@ class OrderReportServiceTest extends TestCase
     public function single_day_column_headers_span_correct_meals(): void
     {
         $room       = $this->makeRoom(1, '101');
-        $brkItem    = $this->makeItem(10, 1, 'Eggs');    // cat_id=1 → BA (breakfast)
-        $dinnerItem = $this->makeItem(20, 13, 'Chicken'); // cat_id=13 → DD (dinner)
+        $brkItem    = $this->makeItem(10, 67, 'Eggs');    // cat_id=67 → BA (breakfast)
+        $dinnerItem = $this->makeItem(20, 62, 'Chicken'); // cat_id=62 → DA (dinner AB_ALTERNATIVE)
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -398,7 +398,7 @@ class OrderReportServiceTest extends TestCase
     public function single_day_room_with_special_instructions_sets_flag(): void
     {
         $room = $this->makeRoom(1, '101', 'Low sodium');
-        $item = $this->makeItem(10, 1, 'Eggs');
+        $item = $this->makeItem(10, 67, 'Eggs');
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -458,7 +458,7 @@ class OrderReportServiceTest extends TestCase
     public function range_quantities_accumulate_across_dates(): void
     {
         $room = $this->makeRoom(1, '101');
-        $item = $this->makeItem(10, 1, 'Eggs'); // BA
+        $item = $this->makeItem(10, 67, 'Eggs'); // BA
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -499,7 +499,7 @@ class OrderReportServiceTest extends TestCase
     public function range_skips_dates_with_no_menu_and_still_accumulates_others(): void
     {
         $room = $this->makeRoom(1, '101');
-        $item = $this->makeItem(10, 1, 'Eggs');
+        $item = $this->makeItem(10, 67, 'Eggs');
         $menu = $this->makeMenu(['breakfast' => [10], 'lunch' => [], 'dinner' => []]);
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -538,7 +538,7 @@ class OrderReportServiceTest extends TestCase
         // Rooms returned in reverse order from the repo; usort should fix it
         $room2 = $this->makeRoom(2, '102');
         $room1 = $this->makeRoom(1, '101');
-        $item  = $this->makeItem(10, 1, 'Eggs');
+        $item  = $this->makeItem(10, 67, 'Eggs');
         $menu  = $this->makeMenu(['breakfast' => [10], 'lunch' => [], 'dinner' => []]);
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -572,7 +572,7 @@ class OrderReportServiceTest extends TestCase
     public function range_column_tooltip_is_date_indexed_array_not_string(): void
     {
         $room = $this->makeRoom(1, '101');
-        $item = $this->makeItem(10, 1, 'Scrambled Eggs'); // BA
+        $item = $this->makeItem(10, 67, 'Scrambled Eggs'); // BA
         $menu = $this->makeMenu(['breakfast' => [10], 'lunch' => [], 'dinner' => []]);
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -610,7 +610,7 @@ class OrderReportServiceTest extends TestCase
     public function range_does_not_include_single_day_flags_in_rows(): void
     {
         $room = $this->makeRoom(1, '101');
-        $item = $this->makeItem(10, 1, 'Eggs');
+        $item = $this->makeItem(10, 67, 'Eggs');
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -647,7 +647,7 @@ class OrderReportServiceTest extends TestCase
     public function range_guest_order_adds_G_row(): void
     {
         $room       = $this->makeRoom(1, '101');
-        $item       = $this->makeItem(10, 1, 'Eggs');
+        $item       = $this->makeItem(10, 67, 'Eggs');
         $guestOrder = $this->makeOrder(1, 10, 2, isForGuest: 1);
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
@@ -709,9 +709,9 @@ class OrderReportServiceTest extends TestCase
     public function column_order_is_breakfast_then_lunch_then_dinner(): void
     {
         $room       = $this->makeRoom(1, '101');
-        $brkItem    = $this->makeItem(10, 1, 'Eggs');    // cat_id=1 → BA (breakfast)
-        $lunchItem  = $this->makeItem(20, 2, 'Soup');    // cat_id=2 → LS (lunch)
-        $dinnerItem = $this->makeItem(30, 13, 'Chicken'); // cat_id=13 → DD (dinner)
+        $brkItem    = $this->makeItem(10, 67, 'Eggs');    // cat_id=67 → BA (breakfast)
+        $lunchItem  = $this->makeItem(20, 65, 'Soup');    // cat_id=65 → LA (lunch AB_ALTERNATIVE)
+        $dinnerItem = $this->makeItem(30, 62, 'Chicken'); // cat_id=62 → DA (dinner AB_ALTERNATIVE)
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -742,14 +742,14 @@ class OrderReportServiceTest extends TestCase
         $titles  = array_column($columns, 'title');
 
         $posBA = array_search('BA', $titles);
-        $posLS = array_search('LS', $titles);
-        $posDD = array_search('DD', $titles);
+        $posLA = array_search('LA', $titles);
+        $posDA = array_search('DA', $titles);
 
         $this->assertNotFalse($posBA);
-        $this->assertNotFalse($posLS);
-        $this->assertNotFalse($posDD);
-        $this->assertLessThan($posLS, $posBA, 'BA (breakfast) should come before LS (lunch)');
-        $this->assertLessThan($posDD, $posLS, 'LS (lunch) should come before DD (dinner)');
+        $this->assertNotFalse($posLA);
+        $this->assertNotFalse($posDA);
+        $this->assertLessThan($posLA, $posBA, 'BA (breakfast) should come before LA (lunch)');
+        $this->assertLessThan($posDA, $posLA, 'LA (lunch) should come before DA (dinner)');
     }
 
     // -----------------------------------------------------------------------
@@ -760,7 +760,7 @@ class OrderReportServiceTest extends TestCase
     public function single_day_with_no_active_rooms_returns_empty(): void
     {
         // Menu exists and has items, but no active rooms → no rows
-        $item = $this->makeItem(10, 1, 'Eggs');
+        $item = $this->makeItem(10, 67, 'Eggs');
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -816,14 +816,14 @@ class OrderReportServiceTest extends TestCase
     #[Test]
     public function single_day_alternative_cat_id_produces_numeric_columns(): void
     {
-        // cat_id in ALTERNATIVE [4, 8, 11] → B1, L1 titles (not CAT_ID map)
-        $room     = $this->makeRoom(1, '101');
-        $brkAlt   = $this->makeItem(10, 4,  'Oatmeal'); // cat_id=4 → ALTERNATIVE → B1
-        $lunchAlt = $this->makeItem(20, 8,  'Pasta');   // cat_id=8 → ALTERNATIVE → L1
+        // cat_id in ALTERNATIVE [64, 61] → L1, D1 titles (not CAT_ID map)
+        $room       = $this->makeRoom(1, '101');
+        $lunchAlt   = $this->makeItem(10, 64, 'Oatmeal'); // cat_id=64 → ALTERNATIVE → L1
+        $dinnerAlt  = $this->makeItem(20, 61, 'Pasta');   // cat_id=61 → ALTERNATIVE → D1
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
-            $this->makeMenu(['breakfast' => [10], 'lunch' => [20], 'dinner' => []])
+            $this->makeMenu(['breakfast' => [], 'lunch' => [10], 'dinner' => [20]])
         );
         $menuRepo->shouldReceive('findLatestDate')->andReturn('2026-01-01');
 
@@ -831,8 +831,8 @@ class OrderReportServiceTest extends TestCase
         $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room]));
 
         $itemRepo = Mockery::mock(ItemDetailRepositoryInterface::class);
-        $itemRepo->shouldReceive('findOrderReportSummaries')->with([10])->andReturn(new Collection([$brkAlt]));
-        $itemRepo->shouldReceive('findOrderReportSummaries')->with([20])->andReturn(new Collection([$lunchAlt]));
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([10])->andReturn(new Collection([$lunchAlt]));
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([20])->andReturn(new Collection([$dinnerAlt]));
 
         $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
         $orderRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection([
@@ -851,19 +851,19 @@ class OrderReportServiceTest extends TestCase
         $row     = $result['result']['rows'][0];
         $titles  = array_column($result['columns'][2], 'title');
 
-        $this->assertSame(2, $row['B1']); // breakfast alternative
-        $this->assertSame(3, $row['L1']); // lunch alternative
-        $this->assertContains('B1', $titles);
+        $this->assertSame(2, $row['L1']); // lunch alternative
+        $this->assertSame(3, $row['D1']); // dinner alternative
         $this->assertContains('L1', $titles);
+        $this->assertContains('D1', $titles);
     }
 
     #[Test]
     public function single_day_ab_alternative_cat_id_produces_lettered_columns(): void
     {
-        // cat_id in AB_ALTERNATIVE [5, 3] on lunch/dinner → LA, DA titles
+        // cat_id in AB_ALTERNATIVE [65, 66, 62, 63] on lunch/dinner → LA, DA titles
         $room      = $this->makeRoom(1, '101');
-        $lunchEnt  = $this->makeItem(10, 3,  'Beef Entree');   // cat_id=3 → LA
-        $dinnerEnt = $this->makeItem(20, 5,  'Salmon Entree'); // cat_id=5 → DA
+        $lunchEnt  = $this->makeItem(10, 65, 'Beef Entree');   // cat_id=65 → LA
+        $dinnerEnt = $this->makeItem(20, 62, 'Salmon Entree'); // cat_id=62 → DA
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
@@ -908,7 +908,7 @@ class OrderReportServiceTest extends TestCase
         $room3 = $this->makeRoom(3, '103');
         $room1 = $this->makeRoom(1, '101');
         $room2 = $this->makeRoom(2, '102');
-        $item  = $this->makeItem(10, 1, 'Eggs');
+        $item  = $this->makeItem(10, 67, 'Eggs');
 
         $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
         $menuRepo->shouldReceive('findByDate')->andReturn(
