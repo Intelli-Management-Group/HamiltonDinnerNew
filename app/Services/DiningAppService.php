@@ -1646,6 +1646,7 @@ class DiningAppService
     ) {
         $instruction = "";
         $food_texture = "";
+        $allergy_info = "";
         $resident_name = "";
 
         if ($date == "" || $mealType == "") {
@@ -1770,6 +1771,7 @@ class DiningAppService
 
             $instruction = $spiData?->special_instrucations ?? "";
             $food_texture = $spiData?->food_texture ?? "";
+            $allergy_info = $spiData?->allergy_info ?? "";
             $resident_name = $spiData?->resident_name ?? "NA";
 
             $lastOrderFilters = [
@@ -1789,6 +1791,7 @@ class DiningAppService
             $finalData[] = array(
                 "special_instruction" => $instruction,
                 "food_texture" => $food_texture,
+                "allergy_info" => $allergy_info,
                 "resident_name" => $resident_name,
                 "is_brk_tray_service" => $lastOrder?->is_brk_tray_service ?? 0,
                 "is_lunch_tray_service" => $lastOrder?->is_lunch_tray_service ?? 0,

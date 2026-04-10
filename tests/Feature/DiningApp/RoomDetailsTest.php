@@ -36,6 +36,7 @@ class RoomDetailsTest extends DiningAppTestCase
             'room_name'     => '205',
             'occupancy'     => 4,
             'resident_name' => 'John Smith',
+            'allergy_info'  => 'Shellfish',
         ]);
 
         $data = $this->withHeaders($this->authHeaders)
@@ -50,6 +51,7 @@ class RoomDetailsTest extends DiningAppTestCase
         $this->assertSame('205',        $data['Data']['room_name']);
         $this->assertSame(4,            $data['Data']['occupancy']);
         $this->assertSame('John Smith', $data['Data']['resident_name']);
+        $this->assertSame('Shellfish',  $data['Data']['allergy_info']);
     }
 
     #[Test]
@@ -86,6 +88,7 @@ class RoomDetailsTest extends DiningAppTestCase
             ->postJson("/api/{$room->id}/update-room-details", [
                 'occupancy'     => 5,
                 'resident_name' => 'Updated Name',
+                'allergy_info'  => 'Dairy and gluten',
             ])
             ->assertStatus(200)
             ->assertJson([
@@ -94,14 +97,16 @@ class RoomDetailsTest extends DiningAppTestCase
             ])
             ->json();
 
-        $this->assertSame(5,              $data['Data']['occupancy']);
-        $this->assertSame('Updated Name', $data['Data']['resident_name']);
+        $this->assertSame(5,                  $data['Data']['occupancy']);
+        $this->assertSame('Updated Name',      $data['Data']['resident_name']);
+        $this->assertSame('Dairy and gluten', $data['Data']['allergy_info']);
 
         // Verify persisted to DB
         $this->assertDatabaseHas('room_details', [
             'id'            => $room->id,
             'occupancy'     => 5,
             'resident_name' => 'Updated Name',
+            'allergy_info'  => 'Dairy and gluten',
         ]);
     }
 

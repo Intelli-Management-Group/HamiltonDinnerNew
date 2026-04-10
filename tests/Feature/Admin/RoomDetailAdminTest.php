@@ -102,4 +102,80 @@ class RoomDetailAdminTest extends DiningAppTestCase
         $this->deleteJson('/api/admin/rooms/bulk-delete', ['ids' => [$room->id]])
             ->assertStatus(401);
     }
+
+    // -----------------------------------------------------------------------
+    // allergy_info — create / update / read
+    // -----------------------------------------------------------------------
+
+    #[Test]
+    public function store_saves_allergy_info(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $data = $this->actingAs($admin, 'api')
+            ->postJson('/api/admin/rooms', [
+                'room_name'    => '301',
+                'password'     => 'secret',
+                'allergy_info' => 'Peanuts and tree nuts',
+            ])
+            ->assertStatus(201)
+            ->json();
+
+        $this->assertSame('Peanuts and tree nuts', $data['data']['allergy_info']);
+        $this->assertDatabaseHas('room_details', [
+            'room_name'    => '301',
+            'allergy_info' => 'Peanuts and tree nuts',
+        ]);
+    }
+
+    #[Test]
+    public function update_saves_allergy_info(): void
+    {
+        $admin = $this->makeAdminUser();
+        $room  = $this->makeRoom(['room_name' => '302']);
+
+        $data = $this->actingAs($admin, 'api')
+            ->putJson("/api/admin/rooms/{$room->id}", [
+                'allergy_info' => 'Soy and wheat',
+            ])
+            ->assertStatus(200)
+            ->json();
+
+        $this->assertSame('Soy and wheat', $data['data']['allergy_info']);
+        $this->assertDatabaseHas('room_details', [
+            'id'           => $room->id,
+            'allergy_info' => 'Soy and wheat',
+        ]);
+    }
+
+    #[Test]
+    public function show_returns_allergy_info(): void
+    {
+        $admin = $this->makeAdminUser();
+        $room  = $this->makeRoom(['room_name' => '303', 'allergy_info' => 'Eggs']);
+
+        $data = $this->actingAs($admin, 'api')
+            ->getJson("/api/admin/rooms/{$room->id}")
+            ->assertStatus(200)
+            ->json();
+
+        $this->assertSame('Eggs', $data['data']['allergy_info']);
+    }
+
+    #[Test]
+    public function index_returns_allergy_info_for_each_room(): void
+    {
+        $admin = $this->makeAdminUser();
+        $this->makeRoom(['room_name' => '304', 'allergy_info' => 'Fish']);
+
+        $data = $this->actingAs($admin, 'api')
+            ->getJson('/api/admin/rooms')
+            ->assertStatus(200)
+            ->json();
+
+        $rooms = $data['data'];
+        $match = array_filter($rooms, fn ($r) => $r['room_name'] === '304');
+        $this->assertNotEmpty($match);
+        $this->assertSame('Fish', array_values($match)[0]['allergy_info']);
+    }
 }

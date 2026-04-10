@@ -440,6 +440,7 @@ class DiningAppServiceTest extends TestCase
         $correctRoom->room_name = '311';
         $correctRoom->special_instrucations = 'No salt';
         $correctRoom->food_texture = 'Soft';
+        $correctRoom->allergy_info = 'Nut allergy';
         $correctRoom->resident_name = 'Jane Doe';
 
         $item = new ItemDetail();
@@ -489,6 +490,7 @@ class DiningAppServiceTest extends TestCase
         $this->assertSame('311', $entry['room_name']);
         $this->assertSame('No salt', $entry['special_instruction']);
         $this->assertSame('Soft', $entry['food_texture']);
+        $this->assertSame('Nut allergy', $entry['allergy_info']);
         $this->assertSame('Jane Doe', $entry['resident_name']);
     }
 
