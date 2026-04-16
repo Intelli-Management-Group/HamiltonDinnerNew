@@ -580,4 +580,225 @@ class DiningAppServiceTest extends TestCase
         // Must be a plain string, not an array/object like ['name' => 'Less oil', 'name_cn' => '少油']
         $this->assertSame('Less oil', $preferences[0]);
     }
+
+    // -----------------------------------------------------------------------
+    // printOrderData — service-flag guest-contamination regression
+    // -----------------------------------------------------------------------
+
+    #[Test]
+    public function print_order_data_service_flags_not_contaminated_by_higher_id_guest_order(): void
+    {
+        // Regression: $lastOrder was fetched without an is_for_guest filter, so
+        // a higher-ID guest order was returned by ORDER BY id DESC, causing
+        // is_dinner_takeout_service / is_brk_escort_service etc. to read as 0.
+        // Fix: always pass is_for_guest to the lastOrder query.
+
+        $prefRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);
+        $prefRepo->shouldReceive('getAll')->andReturn(new Collection());
+
+        $dinnerCat = new CategoryDetail();
+        $dinnerCat->id = 62;
+        $dinnerCat->cat_name = 'Dinner Entree';
+        $dinnerCat->type = 3;
+        $dinnerCat->parent_id = 0;
+
+        $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
+        $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+
+        $item = new ItemDetail();
+        $item->item_name = 'Steak';
+        $item->setRelation('category', $dinnerCat);
+
+        // Regular order (id=200): takeout and breakfast escort both selected.
+        $regularOrder = Mockery::mock();
+        $regularOrder->room_id    = 72;
+        $regularOrder->is_for_guest = 0;
+        $regularOrder->item_options = '';
+        $regularOrder->preference   = '';
+        $regularOrder->quantity     = 1;
+        $regularOrder->id           = 200;
+        $regularOrder->is_brk_tray_service     = 0;
+        $regularOrder->is_lunch_tray_service    = 0;
+        $regularOrder->is_dinner_tray_service   = 0;
+        $regularOrder->is_brk_escort_service    = 1;
+        $regularOrder->is_lunch_escort_service  = 0;
+        $regularOrder->is_dinner_escort_service = 0;
+        $regularOrder->is_brk_takeout_service   = 0;
+        $regularOrder->is_lunch_takeout_service = 0;
+        $regularOrder->is_dinner_takeout_service = 1;
+        $regularOrder->itemData = $item;
+
+        // Guest order (id=201, higher ID): all service flags 0.
+        // Without the fix, ORDER BY id DESC would return this row for a regular-order lookup.
+        $guestOrder = Mockery::mock();
+        $guestOrder->room_id    = 72;
+        $guestOrder->is_for_guest = 1;
+        $guestOrder->id           = 201;
+        $guestOrder->is_brk_tray_service     = 0;
+        $guestOrder->is_lunch_tray_service    = 0;
+        $guestOrder->is_dinner_tray_service   = 0;
+        $guestOrder->is_brk_escort_service    = 0;
+        $guestOrder->is_lunch_escort_service  = 0;
+        $guestOrder->is_dinner_escort_service = 0;
+        $guestOrder->is_brk_takeout_service   = 0;
+        $guestOrder->is_lunch_takeout_service = 0;
+        $guestOrder->is_dinner_takeout_service = 0;
+
+        $roomForCollection = Mockery::mock();
+        $roomForCollection->id        = 72;
+        $roomForCollection->room_name = '311';
+
+        $roomData = new RoomDetail();
+        $roomData->id                   = 72;
+        $roomData->room_name            = '311';
+        $roomData->special_instrucations = '';
+        $roomData->food_texture         = '';
+        $roomData->allergy_info         = '';
+        $roomData->resident_name        = 'Jane Doe';
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$roomForCollection]));
+        $roomRepo->shouldReceive('findById')->with(72)->andReturn($roomData);
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('getAll')->andReturnUsing(
+            function (array $filters) use ($regularOrder, $guestOrder) {
+                if (!isset($filters['room_id'])) {
+                    // Initial orderData fetch (no room_id yet) — return the regular order.
+                    return new Collection([$regularOrder]);
+                }
+                // lastOrder fetch: with the fix, is_for_guest=0 must be present.
+                // Without the fix (no is_for_guest key), simulate the bug by returning
+                // the higher-ID guest order so the assertion below would fail.
+                if (($filters['is_for_guest'] ?? null) === 0) {
+                    return new Collection([$regularOrder]);
+                }
+                return new Collection([$guestOrder]); // would be returned by buggy code
+            }
+        );
+
+        $service = $this->makeService([
+            'itemPreferences' => $prefRepo,
+            'categoryDetails' => $catRepo,
+            'roomDetails'     => $roomRepo,
+            'orderDetails'    => $orderRepo,
+        ]);
+
+        $response = $service->printOrderData(311, '2026-04-15', 'dinner');
+        $data     = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertCount(1, $data['Data']);
+        $entry = $data['Data'][0];
+        // Service flags must come from the regular order (id=200), not the guest order (id=201).
+        $this->assertSame(1, $entry['is_dinner_takeout_service'], 'dinner takeout contaminated by guest order');
+        $this->assertSame(1, $entry['is_brk_escort_service'],     'brk escort contaminated by guest order');
+        $this->assertSame(0, $entry['is_dinner_tray_service']);
+    }
+
+    #[Test]
+    public function print_order_data_guest_order_service_flags_scoped_to_guest_orders(): void
+    {
+        // Symmetric case: when the order being processed is a guest order,
+        // the lastOrder query must filter is_for_guest=1 so that a lower-ID
+        // regular order with different flags does not contaminate the result.
+
+        $prefRepo = Mockery::mock(ItemPreferenceRepositoryInterface::class);
+        $prefRepo->shouldReceive('getAll')->andReturn(new Collection());
+
+        $dinnerCat = new CategoryDetail();
+        $dinnerCat->id = 62;
+        $dinnerCat->cat_name = 'Dinner Entree';
+        $dinnerCat->type = 3;
+        $dinnerCat->parent_id = 0;
+
+        $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
+        $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+
+        $item = new ItemDetail();
+        $item->item_name = 'Pasta';
+        $item->setRelation('category', $dinnerCat);
+
+        // Regular order (id=200): all service flags 0 for this guest visit.
+        $regularOrder = Mockery::mock();
+        $regularOrder->room_id    = 72;
+        $regularOrder->is_for_guest = 0;
+        $regularOrder->id           = 200;
+        $regularOrder->is_brk_tray_service     = 0;
+        $regularOrder->is_lunch_tray_service    = 0;
+        $regularOrder->is_dinner_tray_service   = 0;
+        $regularOrder->is_brk_escort_service    = 0;
+        $regularOrder->is_lunch_escort_service  = 0;
+        $regularOrder->is_dinner_escort_service = 0;
+        $regularOrder->is_brk_takeout_service   = 0;
+        $regularOrder->is_lunch_takeout_service = 0;
+        $regularOrder->is_dinner_takeout_service = 0;
+
+        // Guest order (id=201): dinner tray selected.
+        $guestOrder = Mockery::mock();
+        $guestOrder->room_id    = 72;
+        $guestOrder->is_for_guest = 1;
+        $guestOrder->item_options = '';
+        $guestOrder->preference   = '';
+        $guestOrder->quantity     = 1;
+        $guestOrder->id           = 201;
+        $guestOrder->is_brk_tray_service     = 0;
+        $guestOrder->is_lunch_tray_service    = 0;
+        $guestOrder->is_dinner_tray_service   = 1;
+        $guestOrder->is_brk_escort_service    = 0;
+        $guestOrder->is_lunch_escort_service  = 0;
+        $guestOrder->is_dinner_escort_service = 0;
+        $guestOrder->is_brk_takeout_service   = 0;
+        $guestOrder->is_lunch_takeout_service = 0;
+        $guestOrder->is_dinner_takeout_service = 0;
+        $guestOrder->itemData = $item;
+
+        $roomForCollection = Mockery::mock();
+        $roomForCollection->id        = 72;
+        $roomForCollection->room_name = '311';
+
+        $roomData = new RoomDetail();
+        $roomData->id                   = 72;
+        $roomData->room_name            = '311';
+        $roomData->special_instrucations = '';
+        $roomData->food_texture         = '';
+        $roomData->allergy_info         = '';
+        $roomData->resident_name        = 'Jane Doe';
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$roomForCollection]));
+        $roomRepo->shouldReceive('findById')->with(72)->andReturn($roomData);
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('getAll')->andReturnUsing(
+            function (array $filters) use ($regularOrder, $guestOrder) {
+                if (!isset($filters['room_id'])) {
+                    // Initial orderData fetch — return only the guest order.
+                    return new Collection([$guestOrder]);
+                }
+                // lastOrder fetch: is_for_guest=1 must be set for guest-order lookups.
+                if (($filters['is_for_guest'] ?? null) === 1) {
+                    return new Collection([$guestOrder]);
+                }
+                return new Collection([$regularOrder]); // would be returned by buggy code
+            }
+        );
+
+        $service = $this->makeService([
+            'itemPreferences' => $prefRepo,
+            'categoryDetails' => $catRepo,
+            'roomDetails'     => $roomRepo,
+            'orderDetails'    => $orderRepo,
+        ]);
+
+        $response = $service->printOrderData(311, '2026-04-15', 'dinner');
+        $data     = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertCount(1, $data['Data']);
+        $entry = $data['Data'][0];
+        // Service flags must come from the guest order (id=201), not the regular order (id=200).
+        $this->assertSame(1, $entry['is_dinner_tray_service'],    'dinner tray contaminated by regular order');
+        $this->assertSame(0, $entry['is_dinner_takeout_service']);
+    }
 }

@@ -1775,12 +1775,10 @@ class DiningAppService
             $resident_name = $spiData?->resident_name ?? "NA";
 
             $lastOrderFilters = [
-                'room_id' => $order->room_id,
-                'date' => $date,
+                'room_id'      => $order->room_id,
+                'date'         => $date,
+                'is_for_guest' => $order->is_for_guest ? 1 : 0,
             ];
-            if ($order->is_for_guest) {
-                $lastOrderFilters['is_for_guest'] = 1;
-            }
 
             $lastOrder = $this->orderDetails->getAll(
                 filters: array_merge($lastOrderFilters, ['order_by' => 'id', 'order_direction' => 'desc'])
