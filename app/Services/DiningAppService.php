@@ -1758,9 +1758,7 @@ class DiningAppService
                     "order_id" => $order->id
                 );
 
-                // Exclude soup/dessert sub-categories and deleted category 13.
-                // These IDs are hardcoded — see docblock for the maintenance note.
-                if (!in_array(intval($catData->id), [2,7,10,13])) { // LUNCH SOUP, LUNCH DESSERT, DINNER DESSERT, 13 is deleted
+                if (!in_array(intval($catData->id), $this->categoryRoleMappings()['excluded'])) {
                     $meal = $categoryTypeMap[intval($catData->type)];
                     $itemsByMealType[$meal][] = $data;
                     $combinedItemsData[$order->room_id][$meal][$order->is_for_guest][] = $data;
@@ -1831,12 +1829,12 @@ class DiningAppService
     // Category-wise report data
     // -----------------------------------------------------------------------
 
-    private const CAT_ID = [
-        67 => 'BA',  // Western Breakfast
-        68 => 'BB',  // Chinese Breakfast
-    ];
-    private const ALTERNATIVE    = [64, 61];  // Lunch Alternatives, Dinner Alternatives
-    private const AB_ALTERNATIVE = [65, 66, 62, 63];  // Western/Chinese Lunch Entrée, Western/Chinese Dinner Entrée
+    private ?array $categoryRoleMappings = null;
+
+    private function categoryRoleMappings(): array
+    {
+        return $this->categoryRoleMappings ??= $this->categoryDetails->getCategoryRoleMappings();
+    }
 
     private function getItemDetailsByIdsOrdered(array $ids)
     {
@@ -1882,9 +1880,14 @@ class DiningAppService
         $meal_first_char = strtoupper(substr($meal, 0, 1));
         $all_items       = $this->getItemDetailsByIdsOrdered($menu_items_array);
 
+        $roleMappings = $this->categoryRoleMappings();
+        $catIdRoles   = $roleMappings['catId'];
+        $alternative  = $roleMappings['alternative'];
+        $abAlternative = $roleMappings['abAlternative'];
+
         $ab_count  = 'A';
         $count     = 1;
-        $cat_id_map = array_fill_keys(array_keys(self::CAT_ID), []);
+        $cat_id_map = array_fill_keys(array_keys($catIdRoles), []);
         $items      = [];
         $guestItems = [];
 
@@ -1896,15 +1899,15 @@ class DiningAppService
         }
 
         foreach ($all_items as $a) {
-            if (array_key_exists($a->cat_id, self::CAT_ID)) {
+            if (array_key_exists($a->cat_id, $catIdRoles)) {
                 $cat_id_map[$a->cat_id][$a->id] = true;
             }
 
             $title = (
-                in_array($a->cat_id, self::ALTERNATIVE) ?
+                in_array($a->cat_id, $alternative) ?
                 $meal_first_char . $count : (
-                    $meal_first_char !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE) ?
-                    $meal_first_char . $ab_count : self::CAT_ID[$a->cat_id] . (
+                    $meal_first_char !== 'B' && in_array($a->cat_id, $abAlternative) ?
+                    $meal_first_char . $ab_count : $catIdRoles[$a->cat_id] . (
                         count($cat_id_map[$a->cat_id]) > 1 ?
                         count($cat_id_map[$a->cat_id]) : ''
                     )
@@ -1931,8 +1934,8 @@ class DiningAppService
                 array_push($guestItems, 0);
             }
 
-            if (in_array($a->cat_id, self::ALTERNATIVE)) $count++;
-            if (in_array($a->cat_id, self::AB_ALTERNATIVE)) $ab_count = 'B';
+            if (in_array($a->cat_id, $alternative)) $count++;
+            if (in_array($a->cat_id, $abAlternative)) $ab_count = 'B';
         }
 
         $meal_rooms_array[$room->id]['quantity'] = $items;

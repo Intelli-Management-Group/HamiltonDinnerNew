@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Models\MenuDetail;
+use App\Repositories\Contracts\CategoryDetailRepositoryInterface;
 use App\Repositories\Contracts\ItemDetailRepositoryInterface;
 use App\Repositories\Contracts\MenuDetailRepositoryInterface;
 use App\Repositories\Contracts\OrderDetailRepositoryInterface;
@@ -19,18 +20,36 @@ class OrderReportServiceTest extends TestCase
     // Helpers
     // -----------------------------------------------------------------------
 
+    /**
+     * Default category role mapping used by tests.
+     * Cat IDs here match the fixture items created via makeItem() throughout this file.
+     */
+    private function makeDefaultCategoryMock(): object
+    {
+        $mock = Mockery::mock(CategoryDetailRepositoryInterface::class);
+        $mock->shouldReceive('getCategoryRoleMappings')->andReturn([
+            'catId'         => [67 => 'BA', 68 => 'BB'],
+            'alternative'   => [64, 61],
+            'abAlternative' => [65, 66, 62, 63],
+            'excluded'      => [],
+        ]);
+        return $mock;
+    }
+
     private function makeService(array $overrides = []): OrderReportService
     {
         $defaults = [
-            'menuDetails'  => Mockery::mock(MenuDetailRepositoryInterface::class),
-            'orderDetails' => Mockery::mock(OrderDetailRepositoryInterface::class),
-            'roomDetails'  => Mockery::mock(RoomDetailRepositoryInterface::class),
-            'itemDetails'  => Mockery::mock(ItemDetailRepositoryInterface::class),
+            'categoryDetails' => $this->makeDefaultCategoryMock(),
+            'menuDetails'     => Mockery::mock(MenuDetailRepositoryInterface::class),
+            'orderDetails'    => Mockery::mock(OrderDetailRepositoryInterface::class),
+            'roomDetails'     => Mockery::mock(RoomDetailRepositoryInterface::class),
+            'itemDetails'     => Mockery::mock(ItemDetailRepositoryInterface::class),
         ];
 
         $deps = array_merge($defaults, $overrides);
 
         return new OrderReportService(
+            $deps['categoryDetails'],
             $deps['menuDetails'],
             $deps['orderDetails'],
             $deps['roomDetails'],

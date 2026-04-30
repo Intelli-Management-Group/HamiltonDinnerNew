@@ -21,6 +21,37 @@ class CategoryDetailRepository extends BaseRepository implements CategoryDetailR
         parent::__construct($model);
     }
 
+    private const BREAKFAST_ENTREES = [
+        'Western Breakfast' => 'BA',
+        'Chinese Breakfast' => 'BB',
+    ];
+    private const ALTERNATIVES        = ['Lunch Alternative', 'Dinner Alternative'];
+    private const MEAL_ENTREES        = ['Western Lunch Entrée', 'Chinese Lunch Entrée',
+                                         'Western Dinner Entrée', 'Chinese Dinner Entrée'];
+    private const EXCLUDED_FROM_REPORTS = ['Lunch Soup', 'Lunch Dessert', 'Dinner Dessert'];
+
+    public function getCategoryRoleMappings(): array
+    {
+        $allNames = array_merge(
+            array_keys(self::BREAKFAST_ENTREES),
+            self::ALTERNATIVES,
+            self::MEAL_ENTREES,
+            self::EXCLUDED_FROM_REPORTS
+        );
+
+        $cats = $this->model->whereIn('cat_name', $allNames)->get(['id', 'cat_name']);
+
+        $catId = []; $alternative = []; $abAlternative = []; $excluded = [];
+        foreach ($cats as $cat) {
+            if (isset(self::BREAKFAST_ENTREES[$cat->cat_name]))            $catId[$cat->id]  = self::BREAKFAST_ENTREES[$cat->cat_name];
+            if (in_array($cat->cat_name, self::ALTERNATIVES))              $alternative[]    = $cat->id;
+            if (in_array($cat->cat_name, self::MEAL_ENTREES))              $abAlternative[]  = $cat->id;
+            if (in_array($cat->cat_name, self::EXCLUDED_FROM_REPORTS))     $excluded[]       = $cat->id;
+        }
+
+        return compact('catId', 'alternative', 'abAlternative', 'excluded');
+    }
+
     protected function applyFilters(
         Builder $query,
         array $filters

@@ -80,6 +80,7 @@ class DiningAppServiceTest extends TestCase
         $dinnerCat->type = 3;
         $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
         $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+        $catRepo->shouldReceive('getCategoryRoleMappings')->andReturn(['catId' => [], 'alternative' => [], 'abAlternative' => [], 'excluded' => []]);
 
         $room = Mockery::mock();
         $room->id = 72;
@@ -125,6 +126,7 @@ class DiningAppServiceTest extends TestCase
 
         $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
         $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+        $catRepo->shouldReceive('getCategoryRoleMappings')->andReturn(['catId' => [], 'alternative' => [], 'abAlternative' => [], 'excluded' => []]);
 
         $item = new ItemDetail();
         $item->item_name = 'Roast Chicken';
@@ -429,6 +431,7 @@ class DiningAppServiceTest extends TestCase
 
         $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
         $catRepo->shouldReceive('getAll')->andReturn(new Collection([$lunchCat]));
+        $catRepo->shouldReceive('getCategoryRoleMappings')->andReturn(['catId' => [], 'alternative' => [], 'abAlternative' => [], 'excluded' => []]);
 
         // The order belongs to room 72 (room "311").
         $correctRoomForCollection = Mockery::mock();
@@ -522,6 +525,7 @@ class DiningAppServiceTest extends TestCase
 
         $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
         $catRepo->shouldReceive('getAll')->andReturn(new Collection([$lunchCat]));
+        $catRepo->shouldReceive('getCategoryRoleMappings')->andReturn(['catId' => [], 'alternative' => [], 'abAlternative' => [], 'excluded' => []]);
 
         $item = new ItemDetail();
         $item->item_name = 'Fried Rice';
@@ -604,6 +608,7 @@ class DiningAppServiceTest extends TestCase
 
         $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
         $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+        $catRepo->shouldReceive('getCategoryRoleMappings')->andReturn(['catId' => [], 'alternative' => [], 'abAlternative' => [], 'excluded' => []]);
 
         $item = new ItemDetail();
         $item->item_name = 'Steak';
@@ -714,6 +719,7 @@ class DiningAppServiceTest extends TestCase
 
         $catRepo = Mockery::mock(CategoryDetailRepositoryInterface::class);
         $catRepo->shouldReceive('getAll')->andReturn(new Collection([$dinnerCat]));
+        $catRepo->shouldReceive('getCategoryRoleMappings')->andReturn(['catId' => [], 'alternative' => [], 'abAlternative' => [], 'excluded' => []]);
 
         $item = new ItemDetail();
         $item->item_name = 'Pasta';

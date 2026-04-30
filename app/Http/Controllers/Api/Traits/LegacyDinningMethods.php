@@ -182,15 +182,12 @@ trait LegacyDinningMethods
 
                     $o->cat_id = intval($o->itemData->category->id);
                     $data = array("category" => (intval($cat_data->parent_id) == 0 ? $cat_data->cat_name : ($cat_data->catParentId ? $cat_data->catParentId->cat_name : "")), "sub_cat" => (intval($cat_data->parent_id) == 0 ? "" : $cat_data->cat_name), "item_name" => $o->itemData->item_name, "quantity" => intval($o->quantity), "options" => $option_details, "preference" => $preference_array);
-                    if (!in_array(intval($o->itemData->category->id), [2, 7, 10, 13])) { // LUNCH SOUP , LUNCH DESSERT, DINNER DESSERT , 13 is deleted
-
-                        if ($type == 1) {
-                            array_push($breakfast, $data);
-                        } else if ($type == 2) {
-                            array_push($lunch, $data);
-                        } else {
-                            array_push($dinner, $data);
-                        }
+                    if ($type == 1) {
+                        array_push($breakfast, $data);
+                    } else if ($type == 2) {
+                        array_push($lunch, $data);
+                    } else {
+                        array_push($dinner, $data);
                     }
                 }
             }

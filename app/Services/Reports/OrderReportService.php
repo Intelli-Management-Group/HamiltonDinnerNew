@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Repositories\Contracts\CategoryDetailRepositoryInterface;
 use App\Repositories\Contracts\ItemDetailRepositoryInterface;
 use App\Repositories\Contracts\MenuDetailRepositoryInterface;
 use App\Repositories\Contracts\OrderDetailRepositoryInterface;
@@ -12,30 +13,24 @@ class OrderReportService
     // Each menu item belongs to a category (cat_id). The category determines the column
     // title shown in the report. Three mutually exclusive rules apply — checked in order:
     //
-    //   ALTERNATIVE    — numeric suffix per meal. The Nth item of this type in a meal
-    //                    gets that number: first cat_id=64 in lunch → "L1", next → "L2".
-    //                    cat_ids: 64 (Lunch Alternatives), 61 (Dinner Alternatives).
+    //   alternative    — numeric suffix per meal. The Nth item of this type in a meal
+    //                    gets that number: first Lunch Alternative in lunch → "L1", next → "L2".
+    //                    Resolved by cat_name from DB: "Lunch Alternative", "Dinner Alternative".
     //
-    //   AB_ALTERNATIVE — lettered suffix (lunch/dinner only). First item → "LA"/"DA",
+    //   abAlternative  — lettered suffix (lunch/dinner only). First item → "LA"/"DA",
     //                    second → "LB"/"DB". Breakfast items of this type are ignored.
-    //                    cat_ids: 65/66 (Western/Chinese Lunch Entrée), 62/63 (Western/Chinese Dinner Entrée).
+    //                    Resolved by cat_name: "Western/Chinese Lunch/Dinner Entrée".
     //
-    //   CAT_ID         — fixed two-letter code. Multiple items of the same code get a
+    //   catId          — fixed two-letter code. Multiple items of the same code get a
     //                    count appended only when there is more than one: "BA", "BA2", …
-    //                    cat_ids: 67→"BA" (Western Breakfast), 68→"BB" (Chinese Breakfast).
+    //                    Resolved by cat_name: "Western Breakfast"→"BA", "Chinese Breakfast"→"BB".
     //
     // The first character of every column title is always the meal prefix (B/L/D).
-    // Items whose cat_id matches none of these constants produce an empty title and
+    // Items whose cat_id matches none of these roles produce an empty title and
     // are effectively ignored in the column output.
-
-    private const CAT_ID = [
-        67 => 'BA',  // Western Breakfast
-        68 => 'BB',  // Chinese Breakfast
-    ];
-
-    private const ALTERNATIVE = [64, 61];  // Lunch Alternatives, Dinner Alternatives
-
-    private const AB_ALTERNATIVE = [65, 66, 62, 63];  // Western/Chinese Lunch Entrée, Western/Chinese Dinner Entrée
+    //
+    // IDs are resolved at runtime via getCategoryRoleMappings() so the logic stays
+    // correct even when categories are recreated with new auto-increment IDs.
 
     private const PREFIX_MEAL = [
         'B' => 'breakfast',
@@ -43,11 +38,19 @@ class OrderReportService
         'D' => 'dinner',
     ];
 
+    private ?array $categoryRoleMappings = null;
+
+    private function categoryRoleMappings(): array
+    {
+        return $this->categoryRoleMappings ??= $this->categoryDetails->getCategoryRoleMappings();
+    }
+
     public function __construct(
-        private MenuDetailRepositoryInterface  $menuDetails,
-        private OrderDetailRepositoryInterface $orderDetails,
-        private RoomDetailRepositoryInterface  $roomDetails,
-        private ItemDetailRepositoryInterface  $itemDetails
+        private CategoryDetailRepositoryInterface $categoryDetails,
+        private MenuDetailRepositoryInterface     $menuDetails,
+        private OrderDetailRepositoryInterface    $orderDetails,
+        private RoomDetailRepositoryInterface     $roomDetails,
+        private ItemDetailRepositoryInterface     $itemDetails
     ) {}
 
     /**
@@ -174,6 +177,11 @@ class OrderReportService
                 // $isFirst is captured by VALUE, not by reference. The closure is redefined
                 // fresh for each room, so it always captures the value $isFirst had at that
                 // point. Only the first room's closure sees $isFirst === true.
+                $roleMappings  = $this->categoryRoleMappings();
+                $catIdRoles    = $roleMappings['catId'];
+                $alternative   = $roleMappings['alternative'];
+                $abAlternative = $roleMappings['abAlternative'];
+
                 $processMealItems = function (
                     $items,
                     $mealPrefix,
@@ -193,29 +201,32 @@ class OrderReportService
                     &$desserts,
                     $isFirst,
                     $searchDate,
-                    $isSingleDay
+                    $isSingleDay,
+                    $catIdRoles,
+                    $alternative,
+                    $abAlternative
                 ) {
                     foreach ($items as $a) {
                         $roomKey = $roomId . ($isGuest ? ' G' : '');
 
-                        if (array_key_exists($a->cat_id, self::CAT_ID)) {
+                        if (array_key_exists($a->cat_id, $catIdRoles)) {
                             $catIdMap[$a->cat_id][$a->id] = true;
                         }
 
                         // Compute column title
                         if ($mealPrefix === 'B') {
-                            $title = in_array($a->cat_id, self::ALTERNATIVE)
+                            $title = in_array($a->cat_id, $alternative)
                                 ? $mealPrefix . $count
-                                : (array_key_exists($a->cat_id, self::CAT_ID)
-                                    ? self::CAT_ID[$a->cat_id] . (count($catIdMap[$a->cat_id]) > 1 ? count($catIdMap[$a->cat_id]) : '')
+                                : (array_key_exists($a->cat_id, $catIdRoles)
+                                    ? $catIdRoles[$a->cat_id] . (count($catIdMap[$a->cat_id]) > 1 ? count($catIdMap[$a->cat_id]) : '')
                                     : '');
                         } else {
-                            $title = in_array($a->cat_id, self::ALTERNATIVE)
+                            $title = in_array($a->cat_id, $alternative)
                                 ? $mealPrefix . $count
-                                : (in_array($a->cat_id, self::AB_ALTERNATIVE)
+                                : (in_array($a->cat_id, $abAlternative)
                                     ? $mealPrefix . $abCount
-                                    : (array_key_exists($a->cat_id, self::CAT_ID)
-                                        ? self::CAT_ID[$a->cat_id] . (count($catIdMap[$a->cat_id]) > 1 ? count($catIdMap[$a->cat_id]) : '')
+                                    : (array_key_exists($a->cat_id, $catIdRoles)
+                                        ? $catIdRoles[$a->cat_id] . (count($catIdMap[$a->cat_id]) > 1 ? count($catIdMap[$a->cat_id]) : '')
                                         : ''));
                         }
 
@@ -267,10 +278,10 @@ class OrderReportService
 
                         $total[$title] = ($total[$title] ?? 0) + $currItemArray[$roomKey][$title];
 
-                        if (in_array($a->cat_id, self::ALTERNATIVE)) {
+                        if (in_array($a->cat_id, $alternative)) {
                             $count++;
                         }
-                        if ($mealPrefix !== 'B' && in_array($a->cat_id, self::AB_ALTERNATIVE)) {
+                        if ($mealPrefix !== 'B' && in_array($a->cat_id, $abAlternative)) {
                             $abCount = 'B';
                         }
                     }
@@ -280,7 +291,7 @@ class OrderReportService
                     foreach (['B' => $breakfastItems, 'L' => $lunchItems, 'D' => $dinnerItems] as $mealPrefix => $items) {
                         $count    = 1;
                         $abCount  = 'A';
-                        $catIdMap = array_fill_keys(array_keys(self::CAT_ID), []);
+                        $catIdMap = array_fill_keys(array_keys($catIdRoles), []);
                         $processMealItems($items, $mealPrefix, $count, $abCount, $catIdMap, $isGuest, $addGuest);
                     }
                     $isFirst = false;
