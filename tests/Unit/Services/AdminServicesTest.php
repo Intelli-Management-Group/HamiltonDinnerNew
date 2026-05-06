@@ -30,8 +30,10 @@ use App\Services\ItemPreferenceService;
 use App\Services\MenuDetailService;
 use App\Services\PermissionService;
 use App\Services\RoleService;
+use App\Services\ApnsService;
 use App\Services\RoomDetailService;
 use App\Services\SettingService;
+use Mockery;
 use App\Services\UserService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -200,7 +202,8 @@ class AdminServicesTest extends TestCase
     public function it_creates_room_with_service()
     {
         $service = new RoomDetailService(
-            new RoomDetailRepository(new RoomDetail())
+            new RoomDetailRepository(new RoomDetail()),
+            Mockery::mock(ApnsService::class)
         );
 
         $created = $service->store([

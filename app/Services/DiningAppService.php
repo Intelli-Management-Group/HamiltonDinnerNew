@@ -71,7 +71,8 @@ class DiningAppService
      */
     public function login(
         string $room_no,
-        string $password
+        string $password,
+        ?string $device_token = null
     ) {
         $last_date = $this->menuDetails->findLatestDate() ?? "";
         if ($last_date) {
@@ -126,7 +127,12 @@ class DiningAppService
 
         if ($user) {
             if ($user->is_active == 1) {
-                $user_token =  $this->generateAccessToken($user->id, "user");
+                $user_token = $this->generateAccessToken($user->id, "user");
+
+                if ($device_token !== null) {
+                    $user->device_token = $device_token;
+                    $user->save();
+                }
 
                 return ApiResponse::format(
                     status: '1',
@@ -254,6 +260,16 @@ class DiningAppService
             'role' => $role
         ));
         return 'Bearer ' . base64_encode(base64_encode($token));
+    }
+
+    public function setDeviceToken($room, string $token)
+    {
+        if ($room->device_token !== $token) {
+            $room->device_token = $token;
+            $room->save();
+        }
+
+        return ApiResponse::format(status: '1', message: 'Success');
     }
 
     public function getUserData($user)

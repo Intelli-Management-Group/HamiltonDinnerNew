@@ -90,10 +90,11 @@ class DinningController extends Controller
                     message: $validator->errors()->first()
                 );
             }
-            $room_no = $request->input("room_no");
-            $password = $request->input("password");
+            $room_no      = $request->input("room_no");
+            $password     = $request->input("password");
+            $device_token = $request->input("device_token");
 
-            return $this->diningAppService->login($room_no, $password);
+            return $this->diningAppService->login($room_no, $password, $device_token);
 
         } catch (\Exception $e) {
             return ApiResponse::format(
@@ -177,6 +178,26 @@ class DinningController extends Controller
         $ordersToChange = $request->input('orders_to_change');
 
         return $this->diningAppService->updateOrderBulk($room_id, $date, $ordersToChange);
+    }
+
+    public function setDeviceToken(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'token' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return ApiResponse::format(
+                status: '0',
+                message: $validator->errors()->first()
+            );
+        }
+
+        if (!session('user_details')) {
+            return ApiResponse::format(status: '11', message: 'Unauthorised');
+        }
+
+        return $this->diningAppService->setDeviceToken(session('user_details'), $request->input('token'));
     }
 
     public function getUserData()

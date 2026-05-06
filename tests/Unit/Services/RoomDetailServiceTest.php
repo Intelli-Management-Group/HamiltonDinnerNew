@@ -4,6 +4,7 @@ namespace Tests\Unit\Services;
 
 use App\Models\RoomDetail;
 use App\Repositories\Contracts\RoomDetailRepositoryInterface;
+use App\Services\ApnsService;
 use App\Services\RoomDetailService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Mockery;
@@ -18,7 +19,7 @@ class RoomDetailServiceTest extends TestCase
         $mockRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
         $mockRepo->shouldReceive('findById')->with(999)->andReturn(null);
 
-        $result = (new RoomDetailService($mockRepo))->findRoomById(999);
+        $result = (new RoomDetailService($mockRepo, Mockery::mock(ApnsService::class)))->findRoomById(999);
 
         $this->assertSame(404, $result['statusCode']);
         $this->assertFalse($result['payload']['success']);
@@ -38,7 +39,7 @@ class RoomDetailServiceTest extends TestCase
         $mockRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
         $mockRepo->shouldReceive('paginate')->andReturn($paginator);
 
-        $result = (new RoomDetailService($mockRepo))->list([
+        $result = (new RoomDetailService($mockRepo, Mockery::mock(ApnsService::class)))->list([
             'is_active' => 1,
             'pagesize'  => 1,
             'pagenumber' => 1,
@@ -57,7 +58,7 @@ class RoomDetailServiceTest extends TestCase
         $mockRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
         $mockRepo->shouldReceive('delete')->once()->with($room);
 
-        $result = (new RoomDetailService($mockRepo))->destroy($room);
+        $result = (new RoomDetailService($mockRepo, Mockery::mock(ApnsService::class)))->destroy($room);
 
         $this->assertSame(200, $result['statusCode']);
         $this->assertTrue($result['payload']['success']);
@@ -70,7 +71,7 @@ class RoomDetailServiceTest extends TestCase
         $mockRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
         $mockRepo->shouldReceive('bulkDeleteByIds')->once()->with([1, 2, 3])->andReturn(3);
 
-        $result = (new RoomDetailService($mockRepo))->bulkDestroy([1, 2, 3]);
+        $result = (new RoomDetailService($mockRepo, Mockery::mock(ApnsService::class)))->bulkDestroy([1, 2, 3]);
 
         $this->assertSame(200, $result['statusCode']);
         $this->assertTrue($result['payload']['success']);

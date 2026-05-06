@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\RoomDetail;
 use App\Repositories\Contracts\RoomDetailRepositoryInterface;
+use App\Services\ApnsService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -11,7 +12,8 @@ use Illuminate\Database\Eloquent\Collection;
 class RoomDetailService extends BaseService
 {
     public function __construct(
-        private RoomDetailRepositoryInterface $roomDetails
+        private RoomDetailRepositoryInterface $roomDetails,
+        private ApnsService                   $apns
     ) {}
 
     public function findRoomById(int $id): array
@@ -73,8 +75,15 @@ class RoomDetailService extends BaseService
 
     public function update(RoomDetail $room, array $data): array
     {
+        $statusChanged = isset($data['is_active']) && (int) $data['is_active'] !== (int) $room->is_active;
+
         $room->fill($data);
         $this->roomDetails->save($room);
+
+        if ($statusChanged) {
+            $tokens = $this->roomDetails->getAllDeviceTokens();
+            $this->apns->sendSilent($tokens, ['type' => 'room_status_changed']);
+        }
 
         return $this->successResponse(
             data: $room,

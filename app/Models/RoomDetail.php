@@ -26,7 +26,8 @@ class RoomDetail extends Model
         'password',
         'role_id',
         'food_texture',
-        'allergy_info'
+        'allergy_info',
+        'device_token'
     ];
 
 }

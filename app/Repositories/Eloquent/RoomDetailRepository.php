@@ -36,4 +36,13 @@ class RoomDetailRepository extends BaseRepository implements RoomDetailRepositor
 
         return $query->latest();
     }
+
+    public function getAllDeviceTokens(): array
+    {
+        return $this->model
+            ->whereNotNull('device_token')
+            ->where('is_active', 1)
+            ->pluck('device_token')
+            ->all();
+    }
 }
