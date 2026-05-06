@@ -17,8 +17,8 @@ class OrderReportService
     //                    gets that number: first Lunch Alternative in lunch → "L1", next → "L2".
     //                    Resolved by cat_name from DB: "Lunch Alternative", "Dinner Alternative".
     //
-    //   abAlternative  — lettered suffix (lunch/dinner only). First item → "LA"/"DA",
-    //                    second → "LB"/"DB". Breakfast items of this type are ignored.
+    //   abAlternative  — lettered suffix (lunch/dinner only). Chinese → "A", Western → "B".
+    //                    Breakfast items of this type are ignored.
     //                    Resolved by cat_name: "Western/Chinese Lunch/Dinner Entrée".
     //
     //   catId          — fixed two-letter code. Multiple items of the same code get a
@@ -186,7 +186,6 @@ class OrderReportService
                     $items,
                     $mealPrefix,
                     &$count,
-                    &$abCount,
                     &$catIdMap,
                     $isGuest,
                     &$addGuest
@@ -223,8 +222,8 @@ class OrderReportService
                         } else {
                             $title = in_array($a->cat_id, $alternative)
                                 ? $mealPrefix . $count
-                                : (in_array($a->cat_id, $abAlternative)
-                                    ? $mealPrefix . $abCount
+                                : (array_key_exists($a->cat_id, $abAlternative)
+                                    ? $mealPrefix . $abAlternative[$a->cat_id]
                                     : (array_key_exists($a->cat_id, $catIdRoles)
                                         ? $catIdRoles[$a->cat_id] . (count($catIdMap[$a->cat_id]) > 1 ? count($catIdMap[$a->cat_id]) : '')
                                         : ''));
@@ -281,18 +280,14 @@ class OrderReportService
                         if (in_array($a->cat_id, $alternative)) {
                             $count++;
                         }
-                        if ($mealPrefix !== 'B' && in_array($a->cat_id, $abAlternative)) {
-                            $abCount = 'B';
-                        }
                     }
                 };
 
                 foreach ([false, true] as $isGuest) {
                     foreach (['B' => $breakfastItems, 'L' => $lunchItems, 'D' => $dinnerItems] as $mealPrefix => $items) {
                         $count    = 1;
-                        $abCount  = 'A';
                         $catIdMap = array_fill_keys(array_keys($catIdRoles), []);
-                        $processMealItems($items, $mealPrefix, $count, $abCount, $catIdMap, $isGuest, $addGuest);
+                        $processMealItems($items, $mealPrefix, $count, $catIdMap, $isGuest, $addGuest);
                     }
                     $isFirst = false;
                 }

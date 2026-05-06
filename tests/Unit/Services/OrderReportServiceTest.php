@@ -30,7 +30,7 @@ class OrderReportServiceTest extends TestCase
         $mock->shouldReceive('getCategoryRoleMappings')->andReturn([
             'catId'         => [67 => 'BA', 68 => 'BB'],
             'alternative'   => [64, 61],
-            'abAlternative' => [65, 66, 62, 63],
+            'abAlternative' => [65 => 'A', 66 => 'B', 62 => 'A', 63 => 'B'],
             'excluded'      => [],
         ]);
         return $mock;
@@ -918,6 +918,58 @@ class OrderReportServiceTest extends TestCase
         $this->assertSame(2, $row['DA']); // dinner AB alternative
         $this->assertContains('LA', $titles);
         $this->assertContains('DA', $titles);
+    }
+
+    #[Test]
+    public function chinese_entree_gets_a_suffix_and_western_gets_b_suffix(): void
+    {
+        // Chinese categories (65, 62) → 'A'; Western categories (66, 63) → 'B'
+        $room          = $this->makeRoom(1, '101');
+        $chineseLunch  = $this->makeItem(10, 65, 'Steamed Fish');   // 65 → 'A' → LA
+        $westernLunch  = $this->makeItem(11, 66, 'Beef Steak');     // 66 → 'B' → LB
+        $chineseDinner = $this->makeItem(20, 62, 'Duck Rice');      // 62 → 'A' → DA
+        $westernDinner = $this->makeItem(21, 63, 'Roast Chicken');  // 63 → 'B' → DB
+
+        $menuRepo = Mockery::mock(MenuDetailRepositoryInterface::class);
+        $menuRepo->shouldReceive('findByDate')->andReturn(
+            $this->makeMenu(['breakfast' => [], 'lunch' => [10, 11], 'dinner' => [20, 21]])
+        );
+        $menuRepo->shouldReceive('findLatestDate')->andReturn('2026-01-01');
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAll')->andReturn(new Collection([$room]));
+
+        $itemRepo = Mockery::mock(ItemDetailRepositoryInterface::class);
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([10, 11])->andReturn(new Collection([$chineseLunch, $westernLunch]));
+        $itemRepo->shouldReceive('findOrderReportSummaries')->with([20, 21])->andReturn(new Collection([$chineseDinner, $westernDinner]));
+
+        $orderRepo = Mockery::mock(OrderDetailRepositoryInterface::class);
+        $orderRepo->shouldReceive('findOrderReportSummaries')->andReturn(new Collection([
+            $this->makeOrder(1, 10, 1),
+            $this->makeOrder(1, 11, 2),
+            $this->makeOrder(1, 20, 3),
+            $this->makeOrder(1, 21, 4),
+        ]));
+
+        $service = $this->makeService([
+            'menuDetails'  => $menuRepo,
+            'roomDetails'  => $roomRepo,
+            'itemDetails'  => $itemRepo,
+            'orderDetails' => $orderRepo,
+        ]);
+
+        $result = $service->getOrderReport('2026-01-01', null, null);
+        $row    = $result['result']['rows'][0];
+        $titles = array_column($result['columns'][2], 'title');
+
+        $this->assertSame(1, $row['LA']); // Chinese lunch → A
+        $this->assertSame(2, $row['LB']); // Western lunch → B
+        $this->assertSame(3, $row['DA']); // Chinese dinner → A
+        $this->assertSame(4, $row['DB']); // Western dinner → B
+        $this->assertContains('LA', $titles);
+        $this->assertContains('LB', $titles);
+        $this->assertContains('DA', $titles);
+        $this->assertContains('DB', $titles);
     }
 
     #[Test]

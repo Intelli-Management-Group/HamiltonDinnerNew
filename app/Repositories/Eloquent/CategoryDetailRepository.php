@@ -22,12 +22,16 @@ class CategoryDetailRepository extends BaseRepository implements CategoryDetailR
     }
 
     private const BREAKFAST_ENTREES = [
-        'Western Breakfast' => 'BA',
-        'Chinese Breakfast' => 'BB',
+        'Chinese Breakfast' => 'BA',
+        'Western Breakfast' => 'BB',
     ];
     private const ALTERNATIVES        = ['Lunch Alternative', 'Dinner Alternative'];
-    private const MEAL_ENTREES        = ['Western Lunch Entrée', 'Chinese Lunch Entrée',
-                                         'Western Dinner Entrée', 'Chinese Dinner Entrée'];
+    private const MEAL_ENTREES        = [
+        'Chinese Lunch Entrée'  => 'A',
+        'Chinese Dinner Entrée' => 'A',
+        'Western Lunch Entrée'  => 'B',
+        'Western Dinner Entrée' => 'B',
+    ];
     private const EXCLUDED_FROM_REPORTS = ['Lunch Soup', 'Lunch Dessert', 'Dinner Dessert'];
 
     public function getCategoryRoleMappings(): array
@@ -35,7 +39,7 @@ class CategoryDetailRepository extends BaseRepository implements CategoryDetailR
         $allNames = array_merge(
             array_keys(self::BREAKFAST_ENTREES),
             self::ALTERNATIVES,
-            self::MEAL_ENTREES,
+            array_keys(self::MEAL_ENTREES),
             self::EXCLUDED_FROM_REPORTS
         );
 
@@ -45,7 +49,7 @@ class CategoryDetailRepository extends BaseRepository implements CategoryDetailR
         foreach ($cats as $cat) {
             if (isset(self::BREAKFAST_ENTREES[$cat->cat_name]))            $catId[$cat->id]  = self::BREAKFAST_ENTREES[$cat->cat_name];
             if (in_array($cat->cat_name, self::ALTERNATIVES))              $alternative[]    = $cat->id;
-            if (in_array($cat->cat_name, self::MEAL_ENTREES))              $abAlternative[]  = $cat->id;
+            if (isset(self::MEAL_ENTREES[$cat->cat_name]))                 $abAlternative[$cat->id] = self::MEAL_ENTREES[$cat->cat_name];
             if (in_array($cat->cat_name, self::EXCLUDED_FROM_REPORTS))     $excluded[]       = $cat->id;
         }
 

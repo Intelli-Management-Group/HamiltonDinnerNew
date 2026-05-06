@@ -1901,7 +1901,6 @@ class DiningAppService
         $alternative  = $roleMappings['alternative'];
         $abAlternative = $roleMappings['abAlternative'];
 
-        $ab_count  = 'A';
         $count     = 1;
         $cat_id_map = array_fill_keys(array_keys($catIdRoles), []);
         $items      = [];
@@ -1922,8 +1921,8 @@ class DiningAppService
             $title = (
                 in_array($a->cat_id, $alternative) ?
                 $meal_first_char . $count : (
-                    $meal_first_char !== 'B' && in_array($a->cat_id, $abAlternative) ?
-                    $meal_first_char . $ab_count : $catIdRoles[$a->cat_id] . (
+                    $meal_first_char !== 'B' && array_key_exists($a->cat_id, $abAlternative) ?
+                    $meal_first_char . $abAlternative[$a->cat_id] : $catIdRoles[$a->cat_id] . (
                         count($cat_id_map[$a->cat_id]) > 1 ?
                         count($cat_id_map[$a->cat_id]) : ''
                     )
@@ -1951,7 +1950,6 @@ class DiningAppService
             }
 
             if (in_array($a->cat_id, $alternative)) $count++;
-            if (in_array($a->cat_id, $abAlternative)) $ab_count = 'B';
         }
 
         $meal_rooms_array[$room->id]['quantity'] = $items;
