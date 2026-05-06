@@ -619,7 +619,7 @@ class DiningAppService
 
                     $catArray[$c->cat_id]['items'][] = array(
                         'type' => "item",
-                        'parent_id' => $c->category->parent_id ?? 0,
+                        'parent_id' => $c->category?->parent_id ?? 0,
                         'item_id' => $c->id,
                         'item_name' => $c->item_name,
                         'chinese_name' => $c->item_chinese_name,
@@ -663,7 +663,7 @@ class DiningAppService
 
                     $catArray[$c->cat_id]['items'][] = array(
                         'type' => "item",
-                        'parent_id' => $c->category->parent_id ?? 0,
+                        'parent_id' => $c->category?->parent_id ?? 0,
                         'item_id' => $c->id,
                         'item_name' => $c->item_name,
                         'chinese_name' => $c->item_chinese_name,
@@ -1728,7 +1728,7 @@ class DiningAppService
             
             if (array_key_exists($mealType, $categoryDetails) && $order->itemData) {
                 $itemData = $order->itemData;
-                if (!in_array($itemData->category->id, $categoryDetails[$mealType])) {
+                if (!in_array($itemData->category?->id, $categoryDetails[$mealType])) {
                     continue;
                 }
             }
