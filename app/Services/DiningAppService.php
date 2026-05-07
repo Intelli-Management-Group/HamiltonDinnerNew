@@ -601,7 +601,7 @@ class DiningAppService
                         $cPreferences = json_decode($c->preference, true);
                         foreach ($cPreferences as $cp) {
                             $cp = intval($cp);
-                            if ($preferenceDetails[$cp]) {
+                            if (isset($preferenceDetails[$cp])) {
                                 $isSelected = (
                                     $orderData?->preference != null
                                     && in_array($cp, explode(',', $orderData->preference))
@@ -747,7 +747,7 @@ class DiningAppService
                         $scPreferences = json_decode($sc->preference, true);
                         foreach ($scPreferences as $scp) {
                             $scp = intval($scp);
-                            if ($preferenceDetails[$scp]) {
+                            if (isset($preferenceDetails[$scp])) {
                                 $isSelected = (
                                     $orderData?->preference != null
                                     && in_array($scp, explode(',', $orderData->preference))
@@ -1324,7 +1324,7 @@ class DiningAppService
                         $cPreferences = json_decode($c->preference, true);
                         foreach ($cPreferences as $cp) {
                             $cp = intval($cp);
-                            if ($preferenceDetails[$cp]) {
+                            if (isset($preferenceDetails[$cp])) {
                                 $isSelected = (
                                     $orderData && $orderData->preference != null
                                     ? in_array($cp, explode(",", $orderData->preference))
@@ -1474,7 +1474,7 @@ class DiningAppService
                         $scPreferences = json_decode($sc->preference, true);
                         foreach ($scPreferences as $scp) {
                             $scp = intval($scp);
-                            if ($preferenceDetails[$scp]) {
+                            if (isset($preferenceDetails[$scp])) {
                                 $isSelected = (
                                     $orderData && $orderData->preference != null
                                     ? in_array($scp, explode(",", $orderData->preference))
