@@ -389,7 +389,7 @@ class DiningAppService
         $rooms = $this->roomDetails->getAll(
             filters: ['is_active' => 1],
             relations: [],
-            columns: ['id', 'room_name', 'occupancy']);
+            columns: ['id', 'room_name', 'occupancy', 'resident_name']);
 
         // Rename room_name → name for API compatibility
         $roomsArray = $rooms->toArray();
