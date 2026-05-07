@@ -44,6 +44,11 @@ class OrderDetailRepository extends BaseRepository implements OrderDetailReposit
         )->sum('quantity');
     }
 
+    public function updateByFilters(array $filters, array $data): int
+    {
+        return $this->query($filters)->update($data);
+    }
+
     public function upsertByFilters(array $filters, array $data): OrderDetail
     {
         $this->query($filters)->update($data);

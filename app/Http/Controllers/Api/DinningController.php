@@ -180,6 +180,27 @@ class DinningController extends Controller
         return $this->diningAppService->updateOrderBulk($room_id, $date, $ordersToChange);
     }
 
+    public function updatePrintStatus(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'room_id'   => 'required|integer',
+            'is_guest'  => 'required|integer|in:0,1',
+            'date'      => 'required|date_format:Y-m-d',
+            'meal_type' => 'required|string|in:breakfast,lunch,dinner',
+        ]);
+
+        if ($validator->fails()) {
+            return ApiResponse::format(status: '0', message: $validator->errors()->first());
+        }
+
+        return $this->diningAppService->updatePrintStatus(
+            roomId:   (int) $request->input('room_id'),
+            isGuest:  (int) $request->input('is_guest'),
+            date:     $request->input('date'),
+            mealType: $request->input('meal_type'),
+        );
+    }
+
     public function setDeviceToken(Request $request)
     {
         $validator = Validator::make($request->all(), [

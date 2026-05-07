@@ -64,6 +64,7 @@ Route::group(['middleware' => 'APIToken'], function () {
     // Route::post('save-temp-form-pdf', [DinningController::class, 'saveFormTempPdf']);
 
     Route::post('set-device-token', [DinningController::class, 'setDeviceToken']);
+    Route::post('update-print-status', [DinningController::class, 'updatePrintStatus']);
     Route::get('rooms-list', [DinningController::class, 'getRoomList']);
     Route::post('order-list', [DinningController::class, 'getOrderList']);
     Route::post('update-order', [DinningController::class, 'updateOrder']);

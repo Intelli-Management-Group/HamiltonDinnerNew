@@ -901,9 +901,33 @@ class DiningAppService
                 'is_dinner_escort_service' => $trayServiceData?->is_dinner_escort_service ?? 0,
                 'is_brk_takeout_service' => $trayServiceData?->is_brk_takeout_service ?? 0,
                 'is_lunch_takeout_service' => $trayServiceData?->is_lunch_takeout_service ?? 0,
-                'is_dinner_takeout_service' => $trayServiceData?->is_dinner_takeout_service ?? 0
+                'is_dinner_takeout_service' => $trayServiceData?->is_dinner_takeout_service ?? 0,
+                'is_brk_printed' => $trayServiceData?->is_brk_printed ?? 0,
+                'is_lunch_printed' => $trayServiceData?->is_lunch_printed ?? 0,
+                'is_dinner_printed' => $trayServiceData?->is_dinner_printed ?? 0,
             ]
         );
+    }
+
+    public function updatePrintStatus(int $roomId, int $isGuest, string $date, string $mealType): array
+    {
+        $column = match ($mealType) {
+            'breakfast' => 'is_brk_printed',
+            'lunch'     => 'is_lunch_printed',
+            'dinner'    => 'is_dinner_printed',
+            default     => null,
+        };
+
+        if (!$column) {
+            return ApiResponse::format(status: '0', message: 'Invalid meal_type');
+        }
+
+        $this->orderDetails->updateByFilters(
+            filters: ['room_id' => $roomId, 'date' => $date, 'is_for_guest' => $isGuest],
+            data: [$column => 1]
+        );
+
+        return ApiResponse::format(status: '1', message: 'Success');
     }
 
     public function updateRoomDetails(int $roomId, array $data)
@@ -1626,7 +1650,10 @@ class DiningAppService
                 'occupancy' => $occupancy?->occupancy ?? 0,
                 'is_brk_tray_service' => $trayServiceData?->is_brk_tray_service ?? 0,
                 'is_lunch_tray_service' => $trayServiceData?->is_lunch_tray_service ?? 0,
-                'is_dinner_tray_service' => $trayServiceData?->is_dinner_tray_service ?? 0
+                'is_dinner_tray_service' => $trayServiceData?->is_dinner_tray_service ?? 0,
+                'is_brk_printed' => $trayServiceData?->is_brk_printed ?? 0,
+                'is_lunch_printed' => $trayServiceData?->is_lunch_printed ?? 0,
+                'is_dinner_printed' => $trayServiceData?->is_dinner_printed ?? 0,
             ]
         );
     }
