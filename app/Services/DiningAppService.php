@@ -909,7 +909,7 @@ class DiningAppService
         );
     }
 
-    public function updatePrintStatus(int $roomId, int $isGuest, string $date, string $mealType): array
+    public function updatePrintStatus(int $roomId, int $isGuest, string $date, string $mealType)
     {
         $column = match ($mealType) {
             'breakfast' => 'is_brk_printed',

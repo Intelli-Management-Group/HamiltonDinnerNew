@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\Admin\SettingController;
 
 
 Route::post('login', [DinningController::class, 'login']); // APIToken
+Route::post('set-device-token', [DinningController::class, 'setDeviceToken']);
 
 Route::post('backend/ios/login', [DinningController::class, 'iosFormLogin']); // jwt auth , just for reference  , we are not using it actively
 
@@ -63,7 +64,6 @@ Route::group(['middleware' => 'APIToken'], function () {
     // Route::get('temp-form-template-download', [DinningController::class, 'getTempFormDownload']);
     // Route::post('save-temp-form-pdf', [DinningController::class, 'saveFormTempPdf']);
 
-    Route::post('set-device-token', [DinningController::class, 'setDeviceToken']);
     Route::post('update-print-status', [DinningController::class, 'updatePrintStatus']);
     Route::get('rooms-list', [DinningController::class, 'getRoomList']);
     Route::post('order-list', [DinningController::class, 'getOrderList']);
