@@ -582,7 +582,7 @@ class DiningAppService
                         $cOptions = json_decode($c->options, true);
                         foreach ($cOptions as $co) {
                             $co = intval($co);
-                            if ($optionDetails[$co]) {
+                            if (isset($optionDetails[$co])) {
                                 $options[$co] = array(
                                     'id' => $co,
                                     'name' => $optionDetails[$co]['option_name'],
@@ -649,7 +649,7 @@ class DiningAppService
                                 ]
                             )->count();
 
-                            if ($optionDetails[$co]) {
+                            if (isset($optionDetails[$co])) {
                                 $options[$co] = array(
                                     'id' => $co,
                                     'name' => $optionDetails[$co]['option_name'],
@@ -728,7 +728,7 @@ class DiningAppService
                         $scOptions = json_decode($sc->options, true);
                         foreach ($scOptions as $sco) {
                             $sco = intval($sco);
-                            if ($optionDetails[$sco]) {
+                            if (isset($optionDetails[$sco])) {
                                 $options[$sco] = array(
                                     'id' => $sco,
                                     'name' => $optionDetails[$sco]['option_name'],
@@ -793,7 +793,7 @@ class DiningAppService
                                 ]
                             )->count();
 
-                            if ($optionDetails[$sco]) {
+                            if (isset($optionDetails[$sco])) {
                                 $options[$sco] = array(
                                     'id' => $sco,
                                     'name' => $optionDetails[$sco]['option_name'],
@@ -1329,7 +1329,7 @@ class DiningAppService
                         $cOptions = json_decode($c->options, true);
                         foreach ($cOptions as $co) {
                             $co = intval($co);
-                            if ($optionDetails[$co]) {
+                            if (isset($optionDetails[$co])) {
                                 $options[$co] = array(
                                     "id" => $co,
                                     "name" => $optionDetails[$co]['option_name'],
@@ -1393,7 +1393,7 @@ class DiningAppService
                         $cOptions = json_decode($c->options, true);
                         foreach ($cOptions as $co) {
                             $co = intval($co);
-                            if ($optionDetails[$co]) {
+                            if (isset($optionDetails[$co])) {
                                 $itemCount = $this->orderDetails->getAll(
                                     filters: [
                                         'date' => $date,
@@ -1479,7 +1479,7 @@ class DiningAppService
                         $scOptions = json_decode($sc->options, true);
                         foreach ($scOptions as $sco) {
                             $sco = intval($sco);
-                            if ($optionDetails[$sco]) {
+                            if (isset($optionDetails[$sco])) {
                                 $options[$sco] = array(
                                     "id" => $sco,
                                     "name" => $optionDetails[$sco]['option_name'],
@@ -1542,7 +1542,7 @@ class DiningAppService
                         $scOptions = json_decode($sc->options, true);
                         foreach ($scOptions as $sco) {
                             $sco = intval($sco);
-                            if ($optionDetails[$sco]) {
+                            if (isset($optionDetails[$sco])) {
                                 $itemCount = $this->orderDetails->getAll(
                                     filters: [
                                         'date' => $date,
