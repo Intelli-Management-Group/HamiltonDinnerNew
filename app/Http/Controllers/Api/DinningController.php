@@ -204,24 +204,14 @@ class DinningController extends Controller
     public function setDeviceToken(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'room_id' => 'required|integer',
-            'token'   => 'required|string',
+            'token' => 'required|string',
         ]);
 
         if ($validator->fails()) {
-            return ApiResponse::format(
-                status: '0',
-                message: $validator->errors()->first()
-            );
+            return ApiResponse::format(status: '0', message: $validator->errors()->first());
         }
 
-        $room = \App\Models\RoomDetail::find($request->input('room_id'));
-
-        if (!$room) {
-            return ApiResponse::format(status: '2', message: 'Room not found');
-        }
-
-        return $this->diningAppService->setDeviceToken($room, $request->input('token'));
+        return $this->diningAppService->setDeviceToken($request->input('token'));
     }
 
     public function getUserData()

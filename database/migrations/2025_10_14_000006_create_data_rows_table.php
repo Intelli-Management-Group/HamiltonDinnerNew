@@ -5,29 +5,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up() {
-        Schema::create('data_rows', function (Blueprint $table) {
-            $table->increments('id');
-            $table->integer('data_type_id')->unsigned();
-            $table->string('field', 127);
-            $table->string('type', 127);
-            $table->string('display_name', 127);
-            $table->tinyInteger('required')->default(0);
-            $table->tinyInteger('browse')->default(1);
-            $table->tinyInteger('read')->default(1);
-            $table->tinyInteger('edit')->default(1);
-            $table->tinyInteger('add')->default(1);
-            $table->tinyInteger('delete')->default(1);
+        Schema::create('data_types', function (Blueprint $table) {
+            $table->increments('id'); // Primary key, auto_increment
+            $table->string('name', 127);
+            $table->string('slug', 127);
+            $table->string('display_name_singular', 127);
+            $table->string('display_name_plural', 127);
+            $table->string('icon', 127)->nullable();
+            $table->string('model_name', 127)->nullable();
+            $table->string('policy_name', 127)->nullable();
+            $table->string('controller', 127)->nullable();
+            $table->string('description', 255)->nullable();
+            $table->tinyInteger('generate_permissions')->default(0);
+            $table->tinyInteger('server_side')->default(0);
             $table->text('details')->nullable();
-            $table->integer('order')->default(1);
-            $table->index('data_type_id');
-            $table->foreign('data_type_id')
-                ->references('id')
-                ->on('data_types')
-                ->onDelete('cascade')
-                ->onUpdate('cascade');
+            $table->timestamps();
+            $table->unique('name');
+            $table->unique('slug');
         });
     }
     public function down() {
-        Schema::dropIfExists('data_rows');
+        Schema::dropIfExists('data_types');
     }
 };

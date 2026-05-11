@@ -262,12 +262,9 @@ class DiningAppService
         return 'Bearer ' . base64_encode(base64_encode($token));
     }
 
-    public function setDeviceToken($room, string $token)
+    public function setDeviceToken(string $token)
     {
-        if ($room->device_token !== $token) {
-            $room->device_token = $token;
-            $room->save();
-        }
+        \App\Models\DeviceToken::firstOrCreate(['token' => $token]);
 
         return ApiResponse::format(status: '1', message: 'Success');
     }

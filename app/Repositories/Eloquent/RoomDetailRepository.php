@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\Models\DeviceToken;
 use App\Models\RoomDetail;
 use App\Repositories\Contracts\RoomDetailRepositoryInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -39,10 +40,6 @@ class RoomDetailRepository extends BaseRepository implements RoomDetailRepositor
 
     public function getAllDeviceTokens(): array
     {
-        return $this->model
-            ->whereNotNull('device_token')
-            ->where('is_active', 1)
-            ->pluck('device_token')
-            ->all();
+        return DeviceToken::pluck('token')->all();
     }
 }

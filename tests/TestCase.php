@@ -9,12 +9,13 @@ use Mockery;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function getEnvironmentSetUp($app): void
+    public function createApplication()
     {
-        $app['config']->set(
-            'database.connections.sqlite.foreign_key_constraints',
-            false
-        );
+        $app = parent::createApplication();
+        $app['config']->set('database.default', 'sqlite');
+        $app['config']->set('database.connections.sqlite.database', ':memory:');
+        $app['config']->set('database.connections.sqlite.foreign_key_constraints', false);
+        return $app;
     }
 
     protected function setUp(): void
