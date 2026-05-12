@@ -20,9 +20,13 @@ class ApnsService
     {
         $this->keyId      = config('apns.key_id');
         $this->teamId     = config('apns.team_id');
-        $this->privateKey = config('apns.private_key');
         $this->bundleId   = config('apns.bundle_id');
         $this->production = (bool) config('apns.production', false);
+
+        $keyPath = config('apns.key_path');
+        $this->privateKey = ($keyPath && file_exists($keyPath))
+            ? file_get_contents($keyPath)
+            : null;
     }
 
     /**
