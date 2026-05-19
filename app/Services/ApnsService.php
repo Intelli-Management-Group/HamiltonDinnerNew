@@ -34,7 +34,18 @@ class ApnsService
      */
     public function sendSilent(array $deviceTokens, array $data = []): void
     {
-        if (empty($deviceTokens) || !$this->keyId || !$this->teamId || !$this->privateKey || !$this->bundleId) {
+        if (empty($deviceTokens)) {
+            Log::info('APNs sendSilent: no device tokens registered');
+            return;
+        }
+
+        if (!$this->keyId || !$this->teamId || !$this->privateKey || !$this->bundleId) {
+            Log::warning('APNs sendSilent: missing config', [
+                'key_id'      => $this->keyId      ? 'set' : 'MISSING',
+                'team_id'     => $this->teamId     ? 'set' : 'MISSING',
+                'private_key' => $this->privateKey ? 'set' : 'MISSING',
+                'bundle_id'   => $this->bundleId   ? 'set' : 'MISSING',
+            ]);
             return;
         }
 
@@ -42,6 +53,8 @@ class ApnsService
         if (!$jwt) {
             return;
         }
+
+        Log::info('APNs sendSilent: sending to ' . count($deviceTokens) . ' token(s)', ['data' => $data]);
 
         foreach ($deviceTokens as $token) {
             $this->sendToToken($token, $data, $jwt);
@@ -54,18 +67,31 @@ class ApnsService
             ? 'https://api.push.apple.com'
             : 'https://api.sandbox.push.apple.com';
 
-        $payload = array_merge(['aps' => ['content-available' => 1]], $data);
+        $payload = array_merge([
+            // 'aps' => ['content-available' => 1]
+            'aps' => [
+                'alert' => [
+                    'title' => 'New Message',
+                    'body' => 'You have received a new message for HHSR.'
+                ],
+                'sound' => 'default',
+                'badge' => 1,
+                'content-available' => 1
+            ]
+        ], $data);
 
         $response = Http::withHeaders([
             'authorization'  => "bearer {$jwt}",
             'apns-topic'     => $this->bundleId,
-            'apns-push-type' => 'background',
-            'apns-priority'  => '5',
+            'apns-push-type' => 'alert',
+            'apns-priority'  => '10',
         ])
         ->withOptions(['version' => 2.0])
         ->post("{$host}/3/device/{$deviceToken}", $payload);
 
-        if (!$response->successful()) {
+        if ($response->successful()) {
+            Log::info('APNs send ok', ['token' => substr($deviceToken, 0, 20) . '...', 'status' => $response->status()]);
+        } else {
             Log::warning('APNs send failed', [
                 'token'  => substr($deviceToken, 0, 20) . '...',
                 'status' => $response->status(),
