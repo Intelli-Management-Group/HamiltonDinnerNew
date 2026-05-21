@@ -113,6 +113,8 @@ Route::group(['prefix' => 'admin', 'middleware' => 'auth:api'], function () {
     Route::get('me', [AuthController::class, 'me']);
     Route::post('refresh', [AuthController::class, 'refresh']);
 
+    Route::post('send-push', [DinningController::class, 'sendPush']);
+
     Route::post('temp-send-email', [DinningController::class, 'tempSendMail']);
     Route::post('temp-form-response-list', [DinningController::class, 'getTempFormResponseList']);
     Route::get('get-temp-form-list', [DinningController::class, 'getTempFormTypesList']);

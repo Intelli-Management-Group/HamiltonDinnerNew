@@ -19,6 +19,7 @@ use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\RoomDetailRepositoryInterface;
 use App\Repositories\Contracts\SettingRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Services\ApnsService;
 use App\Services\DiningAppService;
 use Illuminate\Database\Eloquent\Collection;
 use Mockery;
@@ -42,6 +43,7 @@ class DiningAppServiceTest extends TestCase
             'roomDetails'       => Mockery::mock(RoomDetailRepositoryInterface::class),
             'settings'          => Mockery::mock(SettingRepositoryInterface::class),
             'users'             => Mockery::mock(UserRepositoryInterface::class),
+            'apns'              => Mockery::mock(ApnsService::class),
         ];
 
         $deps = array_merge($defaults, $overrides);
@@ -59,6 +61,7 @@ class DiningAppServiceTest extends TestCase
             $deps['roomDetails'],
             $deps['settings'],
             $deps['users'],
+            $deps['apns'],
         );
     }
 
@@ -806,5 +809,45 @@ class DiningAppServiceTest extends TestCase
         // Service flags must come from the guest order (id=201), not the regular order (id=200).
         $this->assertSame(1, $entry['is_dinner_tray_service'],    'dinner tray contaminated by regular order');
         $this->assertSame(0, $entry['is_dinner_takeout_service']);
+    }
+
+    // -----------------------------------------------------------------------
+    // sendPush
+    // -----------------------------------------------------------------------
+
+    #[Test]
+    public function send_push_fires_apns_with_all_registered_tokens(): void
+    {
+        $tokens = ['token-aaa', 'token-bbb'];
+
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAllDeviceTokens')->once()->andReturn($tokens);
+
+        $apns = Mockery::mock(ApnsService::class);
+        $apns->shouldReceive('sendSilent')
+            ->once()
+            ->with($tokens, ['type' => 'manual_push']);
+
+        $response = $this->makeService(['roomDetails' => $roomRepo, 'apns' => $apns])->sendPush();
+        $data = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertStringContainsString('2', $data['ResponseText']);
+    }
+
+    #[Test]
+    public function send_push_still_calls_apns_when_no_tokens_registered(): void
+    {
+        $roomRepo = Mockery::mock(RoomDetailRepositoryInterface::class);
+        $roomRepo->shouldReceive('getAllDeviceTokens')->once()->andReturn([]);
+
+        $apns = Mockery::mock(ApnsService::class);
+        $apns->shouldReceive('sendSilent')->once()->with([], ['type' => 'manual_push']);
+
+        $response = $this->makeService(['roomDetails' => $roomRepo, 'apns' => $apns])->sendPush();
+        $data = $response->getData(true);
+
+        $this->assertSame('1', $data['ResponseCode']);
+        $this->assertStringContainsString('0', $data['ResponseText']);
     }
 }

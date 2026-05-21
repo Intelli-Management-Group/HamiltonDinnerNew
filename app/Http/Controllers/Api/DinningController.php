@@ -214,6 +214,11 @@ class DinningController extends Controller
         return $this->diningAppService->setDeviceToken($request->input('token'));
     }
 
+    public function sendPush(Request $request)
+    {
+        return $this->diningAppService->sendPush();
+    }
+
     public function getUserData()
     {
         if (!session("user_details")) {

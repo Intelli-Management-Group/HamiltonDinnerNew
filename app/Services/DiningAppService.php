@@ -42,7 +42,8 @@ class DiningAppService
         private RoleRepositoryInterface $roles,
         private RoomDetailRepositoryInterface $roomDetails,
         private SettingRepositoryInterface $settings,
-        private UserRepositoryInterface $users
+        private UserRepositoryInterface $users,
+        private ApnsService $apns
     ) {}
 
     /**
@@ -267,6 +268,14 @@ class DiningAppService
         \App\Models\DeviceToken::firstOrCreate(['token' => $token]);
 
         return ApiResponse::format(status: '1', message: 'Success');
+    }
+
+    public function sendPush()
+    {
+        $tokens = $this->roomDetails->getAllDeviceTokens();
+        $this->apns->sendSilent($tokens, ['type' => 'manual_push']);
+
+        return ApiResponse::format(status: '1', message: 'Push sent to ' . count($tokens) . ' device(s)');
     }
 
     public function getUserData($user)
