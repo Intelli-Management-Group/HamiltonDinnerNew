@@ -21,15 +21,12 @@ KEY;
 
     private function makeService(array $overrides = []): ApnsService
     {
-        $keyFile = tempnam(sys_get_temp_dir(), 'apns_test_');
-        file_put_contents($keyFile, self::TEST_KEY);
-
         config([
-            'apns.key_id'     => $overrides['key_id']     ?? 'TESTKEYID1',
-            'apns.team_id'    => $overrides['team_id']    ?? 'TESTTEAMID',
-            'apns.bundle_id'  => $overrides['bundle_id']  ?? 'com.test.app',
-            'apns.key_path'   => $overrides['key_path']   ?? $keyFile,
-            'apns.production' => $overrides['production'] ?? false,
+            'apns.key_id'      => $overrides['key_id']      ?? 'TESTKEYID1',
+            'apns.team_id'     => $overrides['team_id']     ?? 'TESTTEAMID',
+            'apns.bundle_id'   => $overrides['bundle_id']   ?? 'com.test.app',
+            'apns.private_key' => $overrides['private_key'] ?? base64_encode(self::TEST_KEY),
+            'apns.production'  => $overrides['production']  ?? false,
         ]);
 
         return new ApnsService();
@@ -93,7 +90,7 @@ KEY;
             ->once()
             ->withArgs(fn($msg) => str_contains($msg, 'missing config'));
 
-        config(['apns.key_id' => null, 'apns.team_id' => null, 'apns.bundle_id' => null, 'apns.key_path' => null]);
+        config(['apns.key_id' => null, 'apns.team_id' => null, 'apns.bundle_id' => null, 'apns.private_key' => null]);
         (new ApnsService())->sendSilent(['some-token']);
 
         Http::assertNothingSent();

@@ -23,10 +23,8 @@ class ApnsService
         $this->bundleId   = config('apns.bundle_id');
         $this->production = (bool) config('apns.production', false);
 
-        $keyPath = config('apns.key_path');
-        $this->privateKey = ($keyPath && file_exists($keyPath))
-            ? file_get_contents($keyPath)
-            : null;
+        $rawKey = config('apns.private_key');
+        $this->privateKey = $rawKey ? base64_decode($rawKey) : null;
     }
 
     /**
