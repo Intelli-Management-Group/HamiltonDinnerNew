@@ -66,22 +66,14 @@ class ApnsService
             : 'https://api.sandbox.push.apple.com';
 
         $payload = array_merge([
-            // 'aps' => ['content-available' => 1]
-            'aps' => [
-                'alert' => [
-                    'title' => 'New Message',
-                    'body' => 'You have received a new message for HHSR.'
-                ],
-                'sound' => 'default',
-                'badge' => 1,
-            ]
+            'aps' => ['content-available' => 1],
         ], $data);
 
         $response = Http::withHeaders([
             'authorization'  => "bearer {$jwt}",
             'apns-topic'     => $this->bundleId,
-            'apns-push-type' => 'alert',
-            'apns-priority'  => '10',
+            'apns-push-type' => 'background',
+            'apns-priority'  => '5',
         ])
         ->withOptions(['version' => 2.0])
         ->post("{$host}/3/device/{$deviceToken}", $payload);
