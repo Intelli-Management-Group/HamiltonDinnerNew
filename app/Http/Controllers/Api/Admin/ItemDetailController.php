@@ -2,64 +2,36 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
-use App\Models\ItemDetail;
+use App\Http\Controllers\Controller;
+use App\Services\ItemDetailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class ItemDetailController extends Controller
 {   
 
-    public function __construct()
+    public function __construct(
+        private ItemDetailService $itemDetailService
+    )
     {
         ini_set('max_execution_time', 0);
     }
 
     /**
-     * Display a listing of the item options.
+     * Display a listing of the item details.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
     public function index(Request $request)
     {
-        $query = ItemDetail::when($request->has('cat_id'), function($query) use ($request) {
-            return $query->where('cat_id', $request->cat_id);
-        })
-        ->latest();
-    
-        
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15);
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $items = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $items->items(),
-                'pagination' => [
-                    'total' => $items->total(),
-                    'per_page' => $items->perPage(),
-                    'current_page' => $items->currentPage(),
-                    'last_page' => $items->lastPage(),
-                    'from' => $items->firstItem(),
-                    'to' => $items->lastItem()
-                ]
-            ], 200);
-        } else {
-            
-            $items = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $items,
-                'count' => $items->count()
-            ], 200);
-        }
+        $result = $this->itemDetailService->list($request->all());
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
-     * Store a newly created item option.
+     * Store a newly created item detail.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
@@ -84,40 +56,26 @@ class ItemDetailController extends Controller
             ], 422);
         }
 
-        $item = ItemDetail::create($request->all());
+        $result = $this->itemDetailService->store($request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item option created successfully',
-            'data' => $item
-        ], 201);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
-     * Display the specified item option.
+     * Display the specified item detail.
      *
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function show($id)
     {
-        $item = ItemDetail::find($id);
-        
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item option not found'
-            ], 404);
-        }
+        $result = $this->itemDetailService->findItemById($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $item
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
-     * Update the specified item option.
+     * Update the specified item detail.
      *
      * @param  \Illuminate\Http\Request  $request
      * @param  int  $id
@@ -125,14 +83,14 @@ class ItemDetailController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $item = ItemDetail::find($id);
-        
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item option not found'
-            ], 404);
+        $findResult = $this->itemDetailService->findItemById($id);
+
+        if ($findResult['statusCode'] == 404) {
+            return response()->json($findResult['payload'], 404);
         }
+        
+        /** @var ItemDetail $item */
+        $item = $findResult['payload']['data'];
 
         $validator = Validator::make($request->all(), [
             'item_name' => 'required|string|max:127',
@@ -152,40 +110,39 @@ class ItemDetailController extends Controller
             ], 422);
         }
 
-        $item->update($request->all());
+        $result = $this->itemDetailService->update($item, $request->all());
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Item option updated successfully',
-            'data' => $item
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
-     * Remove the specified item option.
+     * Remove the specified item detail.
      *
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
-        $item = ItemDetail::find($id);
+        $findResult = $this->itemDetailService->findItemById((int) $id);
         
-        if (!$item) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Item option not found'
-            ], 404);
+        if ($findResult['statusCode'] == 404) {
+            return response()->json($findResult['payload'], 404);
         }
+        
+        /** @var ItemDetail $item */
+        $item = $findResult['payload']['data'];
+        
+        $result = $this->itemDetailService->destroy($item);
 
-        $item->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Item option deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
+    /**
+     * Bulk remove the specified item details.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
     public function bulkDestroy(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -200,11 +157,8 @@ class ItemDetailController extends Controller
             ], 422);
         }
 
-        $count = ItemDetail::whereIn('id', $request->ids)->delete();
+        $result = $this->itemDetailService->bulkDestroy($request->input('ids'));
 
-        return response()->json([
-            'success' => true,
-            'message' => $count . ' items deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }

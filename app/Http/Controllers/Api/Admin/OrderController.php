@@ -2,54 +2,17 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Services\Reports\OrderReportService;
 use Illuminate\Http\Request;
-
-use App\Models\MenuDetail;
-use App\Models\RoomDetail;
-use App\Models\ItemDetail;
-use App\Models\OrderDetail;
 
 class OrderController extends Controller
 {
-    // Meal/category constants
-    private const CAT_ID = [
-        1 => 'BA',
-        2 => 'LS',
-        7 => 'LD',
-        13 => 'DD',
-    ];
+    public function __construct(
+        private OrderReportService $orderReportService
+    ) {}
 
-    // represented as b/l/d alternatives (numbered)
-    private const ALTERNATIVE = [4, 8, 11];
-
-    // represented as l/d entrees (lettered)
-    private const AB_ALTERNATIVE = [5, 3];
-
-    private const PREFIX_MEAL = [
-        'B' => 'breakfast',
-        'L' => 'lunch',
-        'D' => 'dinner',
-    ];
-
-    /**
-     * Retrieve item details by their IDs.
-     * 
-     * @param array $item_ids
-     * @return \Illuminate\Database\Eloquent\Collection
-     */
-    private function retrieveItemDetails($item_ids) {
-        return ItemDetail::selectRaw("id,item_name,cat_id")
-            ->whereIn("id", $item_ids)
-            ->orderBy("cat_id")->get();
-    }
-
-    /**
-     * Get room-wise orders for a given single day.
-     * 
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function reportListSingle(Request $request)
+    /** @deprecated Replaced by OrderReportService::getOrderReport — kept for reference until verified in production. */
+    private function _legacyReportListSingle(Request $request)
     {
         $search_date = $request->input("search_date");
         $menu_details = MenuDetail::where("date", $search_date)->first();
@@ -361,13 +324,8 @@ class OrderController extends Controller
         return $this->sendResultJSON('1', '', $finalData);
     }
 
-        /**
-     * Get room-wise orders for a given day.
-     * 
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function reportListRange(Request $request)
+    /** @deprecated Replaced by OrderReportService::getOrderReport — kept for reference until verified in production. */
+    private function _legacyReportListRange(Request $request)
     {
         $start_date = $request->input("start_date");
         $end_date = $request->input("end_date");
@@ -769,20 +727,16 @@ class OrderController extends Controller
         return $this->sendResultJSON('1', '', $finalData);
     }
 
-    /**
-     * Get room-wise orders for a given day or date range.
-     * 
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
     public function reportList(Request $request)
     {
         if ($request->has('start_date') && $request->has('end_date')) {
-            return $this->reportListRange($request);
+            $data = $this->orderReportService->getOrderReport(null, $request->input('start_date'), $request->input('end_date'));
         } elseif ($request->has('search_date')) {
-            return $this->reportListSingle($request);
+            $data = $this->orderReportService->getOrderReport($request->input('search_date'), null, null);
         } else {
             return $this->sendResultJSON('0', 'Please provide either search_date or both start_date and end_date.', []);
-        }   
+        }
+
+        return $this->sendResultJSON('1', '', $data);
     }
 }

@@ -139,4 +139,51 @@ class Setting extends Model
             })
             ->toArray();
     }
+
+    /**
+     * Scope a query to retrieve settings with a matching key,
+     * display name, or group to the search term, if it is provided.
+     * Otherwise, return the unmodified query.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $searchTerm
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeSearch($query, $searchTerm)
+    {
+        if (!$searchTerm) return $query;
+
+        return $query->where(function ($q) use ($searchTerm) {
+            $q->where('key', 'LIKE', "%{$searchTerm}%")
+              ->orWhere('display_name', 'LIKE', "%{$searchTerm}%")
+              ->orWhere('group', 'LIKE', "%{$searchTerm}%");
+        });
+    }
+
+    /**
+     * Scope a query to order settings by the specified field and direction.
+     * If the fields are not provided or invalid, defaults to ordering by 'order' ascending.
+     * 
+     * @param \Illuminate\Database\Eloquent\Builder $query
+     * @param string|null $sortBy
+     * @param string|null $sortDirection
+     * @return \Illuminate\Database\Eloquent\Builder
+     */
+    public function scopeOrderByField($query, ?string $sortBy, ?string $sortDirection)
+    {
+        $allowed = [
+            'key',
+            'display_name',
+            'value',
+            'details',
+            'type',
+            'order',
+            'group'
+        ];
+
+        $sortDirection = strtolower($sortDirection ?? '') === 'desc' ? 'desc' : 'asc';
+        $column = in_array($sortBy, $allowed, true) ? $sortBy : 'order';
+
+        return $query->orderBy($column, $sortDirection);
+    }
 }

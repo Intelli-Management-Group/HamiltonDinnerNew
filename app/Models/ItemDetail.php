@@ -1,8 +1,6 @@
 <?php
 
 namespace App\Models;
-use App\ItemOption;
-use App\ItemPreference;
 use App\Traits\FileUploadTrait;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -24,21 +22,9 @@ class ItemDetail extends Model
      
     ];
 
-
-
-    function categoryData()
+    public function category()
     {
-        return $this->hasOne('App\Models\CategoryDetail', 'id', 'cat_id');
-    }
-
-
-    public function options(){
-        return $this->belongsTo(ItemOption::class);
-    }
-    
-    
-    public function preference(){
-        return $this->belongsTo(ItemPreference::class);
+        return $this->belongsTo(CategoryDetail::class, 'cat_id');
     }
 
     public function setItemImageAttribute($value)
@@ -54,4 +40,5 @@ class ItemDetail extends Model
             return $this->getFileUrl($this->attributes['item_image']);
         }
     }
+
 }

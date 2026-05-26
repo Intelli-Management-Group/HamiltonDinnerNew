@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MenuDetail extends Model
 {
-    use HasFactory, SoftDeletes;
+    use SoftDeletes;
 
     /**
      * The table associated with the model.
@@ -34,7 +33,7 @@ class MenuDetail extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'date' => 'date',
+        'date' => 'date:Y-m-d',
         'is_allday' => 'boolean',
         'items' => 'array',
     ];

@@ -2,12 +2,18 @@
 
 namespace App\Http\Controllers\Api\Admin;
 
+use App\Http\Controllers\Controller;
+use App\Services\RoomDetailService;
 use App\Models\RoomDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class RoomDetailController extends Controller
 {
+    public function __construct(
+        private RoomDetailService $roomDetailService
+    ) {}
+
     /**
      * Display a listing of room details.
      *
@@ -16,40 +22,9 @@ class RoomDetailController extends Controller
      */
     public function index(Request $request)
     {
-        $query = RoomDetail::when($request->has('is_active'), function($query) use ($request) {
-            return $query->where('is_active', $request->is_active);
-        })
-        ->latest();
-    
-        // Check if pagination parameters are specified
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15);
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $rooms = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $rooms->items(),
-                'pagination' => [
-                    'total' => $rooms->total(),
-                    'per_page' => $rooms->perPage(),
-                    'current_page' => $rooms->currentPage(),
-                    'last_page' => $rooms->lastPage(),
-                    'from' => $rooms->firstItem(),
-                    'to' => $rooms->lastItem()
-                ]
-            ], 200);
-        } else {
-            // Return all data without pagination
-            $rooms = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $rooms,
-                'count' => $rooms->count()
-            ], 200);
-        }
+        $result = $this->roomDetailService->list($request->all());
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -60,16 +35,9 @@ class RoomDetailController extends Controller
      */
     public function store(Request $request)
     {
+        $result = $this->roomDetailService->store($request->all());
 
-        $roomData = $request->all();
-
-        $room = RoomDetail::create($roomData);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Room detail created successfully',
-            'data' => $room
-        ], 201);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -80,19 +48,9 @@ class RoomDetailController extends Controller
      */
     public function show($id)
     {
-        $room = RoomDetail::find($id);
-        
-        if (!$room) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Room detail not found'
-            ], 404);
-        }
+        $result = $this->roomDetailService->findRoomById($id);
 
-        return response()->json([
-            'success' => true,
-            'data' => $room
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -104,26 +62,18 @@ class RoomDetailController extends Controller
      */
     public function update(Request $request, $id)
     {
-        $room = RoomDetail::find($id);
-        
-        if (!$room) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Room detail not found'
-            ], 404);
+        $findResult = $this->roomDetailService->findRoomById($id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
 
-       
+        /** @var RoomDetail $room */
+        $room = $findResult['payload']['data'];
 
-        $roomData = $request->all();
+        $result = $this->roomDetailService->update($room, $request->all());
 
-        $room->update($roomData);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Room detail updated successfully',
-            'data' => $room
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -134,21 +84,18 @@ class RoomDetailController extends Controller
      */
     public function destroy($id)
     {
-        $room = RoomDetail::find($id);
-        
-        if (!$room) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Room detail not found'
-            ], 404);
+        $result = $this->roomDetailService->findRoomById($id);
+
+        if ($result['statusCode'] === 404) {
+            return response()->json($result['payload'], 404);
         }
 
-        $room->delete();
+        /** @var RoomDetail $room */
+        $room = $result['payload']['data'];
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Room detail deleted successfully'
-        ], 200);
+        $result = $this->roomDetailService->destroy($room);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -171,11 +118,8 @@ class RoomDetailController extends Controller
             ], 422);
         }
 
-        $count = RoomDetail::whereIn('id', $request->ids)->delete();
+        $result = $this->roomDetailService->bulkDestroy($request->input('ids'));
 
-        return response()->json([
-            'success' => true,
-            'message' => $count . ' rooms deleted successfully'
-        ], 200);
+        return response()->json($result['payload'], $result['statusCode']);
     }
 }

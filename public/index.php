@@ -4,6 +4,10 @@ use Illuminate\Http\Request;
 
 define('LARAVEL_START', microtime(true));
 
+// Suppress deprecation notices triggered by PHP 8.4+ on legacy PDO constants in
+// vendor/laravel/framework config. Remove once the framework vendor is updated.
+error_reporting(E_ALL & ~E_DEPRECATED & ~E_USER_DEPRECATED);
+
 // Determine if the application is in maintenance mode...
 if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php')) {
     require $maintenance;

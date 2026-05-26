@@ -6,9 +6,14 @@ use Illuminate\Http\Request;
 use App\Models\Role;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use App\Services\RoleService;
 
 class RoleController extends Controller
 {
+    public function __construct(
+        private RoleService $roleService
+    ) {}
+
     /**
      * Display a listing of roles.
      *
@@ -16,39 +21,9 @@ class RoleController extends Controller
      */
     public function index(Request $request)
     {   
+        $result = $this->roleService->list($request->all());
 
-        $query = Role::with('permissionList')->when($request->has('search'), function($query) use ($request) {
-                return $query->where('name', 'LIKE', '%' . $request->search . '%');
-            })
-            ->latest();
-        
-        if ($request->has('pagesize') || $request->has('pagenumber')) {
-            $pageSize = $request->input('pagesize', 15);
-            $pageNumber = $request->input('pagenumber', 1);
-            
-            $roles = $query->paginate($pageSize, ['*'], 'page', $pageNumber);
-            
-            return response()->json([
-                'success' => true,
-                'data' => $roles->items(),
-                'pagination' => [
-                    'total' => $roles->total(),
-                    'per_page' => $roles->perPage(),
-                    'current_page' => $roles->currentPage(),
-                    'last_page' => $roles->lastPage(),
-                    'from' => $roles->firstItem(),
-                    'to' => $roles->lastItem()
-                ]
-            ], 200);
-        } else {
-            $roles = $query->get();
-            
-            return response()->json([
-                'success' => true,
-                'data' => $roles,
-                'count' => $roles->count()
-            ], 200);
-        }
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -60,65 +35,22 @@ class RoleController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:roles,name,NULL,id,deleted_at,NULL'
+            'name' => 'required|string|max:255|unique:roles,name,NULL,id,deleted_at,NULL',
+            'permissions' => 'array'
         ]);
 
         if ($validator->fails()) {
             return response()->json([
+                'success' => false,
                 'status' => 'error',
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
         }
 
-        try {
-            // Check for soft-deleted role with same name
-            $existing = Role::withTrashed()
-                ->where('name', $request->name)
-                ->first();
+        $result = $this->roleService->store($request->all());
 
-            $permissions = $request->input('permissions', []); // should be permission array ['edit articles', 'delete articles']
-
-            // Restore the soft-deleted role
-            if ($existing && $existing->trashed()) {
-                $existing->restore();
-
-                $existing->update([
-                    'guard_name' => 'api' // Default guard for this application
-                ]);
-
-                $existing->syncPermissions($permissions);
-                $existing->refresh();
-
-                return response()->json([
-                    'status' => 'success',
-                    'message' => 'Role restored and updated successfully',
-                    'data' => $existing
-                ], 200);
-            }
-
-            // Create new role
-            $role = Role::create([
-                'name' => $request->name,
-                'guard_name' => 'api' // Default guard for this application
-            ]);
-
-            $role->syncPermissions($permissions);
-
-            $role->refresh();
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Role created successfully',
-                'data' => $role
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to create role',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -129,24 +61,9 @@ class RoleController extends Controller
      */
     public function show($id)
     {
-        try {
-            $role = Role::with('permissionList')->findOrFail($id);
-            return response()->json([
-                'status' => 'success',
-                'data' => $role
-            ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Role not found'
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to retrieve role',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        $result = $this->roleService->show((int) $id);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -159,11 +76,13 @@ class RoleController extends Controller
     public function update(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:roles,name,' . $id . ',id,deleted_at,NULL'
+            'name' => 'required|string|max:255|unique:roles,name,' . $id . ',id,deleted_at,NULL',
+            'permissions' => 'array'
         ]);
 
         if ($validator->fails()) {
             return response()->json([
+                'success' => false,
                 'status' => 'error',
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
@@ -171,47 +90,33 @@ class RoleController extends Controller
         }
 
         // Check if the name is already used by a deleted role
-        $conflict = Role::withTrashed()
-            ->where('name', $request->name)
-            ->whereNotNull('deleted_at')
-            ->where('id', '<>', $id)
-            ->exists();
+        $conflict = $this->roleService->nameConflictWithDeleted($request->name, (int) $id);
 
         if ($conflict) {
             return response()->json([
+                'success' => false,
                 'status' => 'error',
                 'errors' => ['name' => 'A deleted role already uses this name. Restore it by creating a new role with its name.']
             ], 422);
         }
 
+        $findResult = $this->roleService->findRoleById((int) $id);
+
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
+        }
+
+        /** @var Role $role */
+        $role = $findResult['payload']['data'];
+        
         $permissions = $request->input('permissions', []); // should be permission array ['edit articles', 'delete articles']
         
-        try {
-            $role = Role::findOrFail($id);
-            $role->name = $request->name;
-            $role->save();
+        $result = $this->roleService->update($role, [
+            'name' => $request->name,
+            'permissions' => $permissions
+        ]);
 
-            $role->syncPermissions($permissions);
-
-            $role->refresh();
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Role updated successfully',
-                'data' => $role
-            ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Role not found'
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to update role',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -222,26 +127,17 @@ class RoleController extends Controller
      */
     public function destroy($id)
     {
-        try {
-            $role = Role::findOrFail($id);
-            $role->delete();
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Role deleted successfully'
-            ]);
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Role not found'
-            ], 404);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to delete role',
-                'error' => $e->getMessage()
-            ], 500);
+        $findResult = $this->roleService->findRoleById((int) $id);
+        if ($findResult['statusCode'] === 404) {
+            return response()->json($findResult['payload'], 404);
         }
+
+        /** @var Role $role */
+        $role = $findResult['payload']['data'];
+
+        $result = $this->roleService->delete($role);
+
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
     /**
@@ -259,60 +155,43 @@ class RoleController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
+                'success' => false,
                 'status' => 'error',
                 'message' => 'Validation failed',
                 'errors' => $validator->errors()
             ], 422);
         }
 
-        try {
-            Role::whereIn('id', $request->ids)->delete();
+        $result = $this->roleService->bulkDestroy($request->input('ids', []));
 
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Roles deleted successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Failed to delete roles',
-                'error' => $e->getMessage()
-            ], 500);
-        }
+        return response()->json($result['payload'], $result['statusCode']);
     }
 
-    public function getUserTree(){
-        try {
+    // currently usused. Consider deleting
+    // public function getUserTree(){
+    //     try {
+    //         $list = Role::with('userList')->get();
+    //         return response()->json([ 'list' =>  $list], 200);
             
-            $list = Role::with('userList')->get();
-            return response()->json([ 'list' =>  $list], 200);
-            
-        }
-        catch (\Exception $e){
-            return $this->sendResultJSON("0", $e->getMessage());
-        }
-    }
-    
-    public function syncPermission(Request $request){
-        
-        try{
-            
-            $roleId = $request->input('roleId');
-            
-            $permissions = $request->input('permissions'); // should be permission array ['edit articles', 'delete articles']
-            
-            $role = Role::find($roleId);
-        
-            $role->syncPermissions($permissions);
-            
-            return response()->json(['message' =>  "Permissions Synced Successfully"], 200);
-            
-        }
-        
-        catch (\Exception $e){
-            return response()->json([ 'message' => $e->getMessage()], 500);
-        }
-        
+    //     }
+    //     catch (\Exception $e){
+    //         return $this->sendResultJSON("0", $e->getMessage());
+    //     }
+    // }
 
-    }
+    // currently usused. Consider deleting
+    // public function syncPermission(Request $request){
+        
+    //     try {
+    //         $roleId = $request->input('roleId');
+    //         $permissions = $request->input('permissions'); // should be permission array ['edit articles', 'delete articles']
+    //         $role = Role::find($roleId);
+    //         $role->syncPermissions($permissions);
+    //         return response()->json(['message' =>  "Permissions Synced Successfully"], 200);
+    //     }
+        
+    //     catch (\Exception $e){
+    //         return response()->json([ 'message' => $e->getMessage()], 500);
+    //     }
+    // }
 }

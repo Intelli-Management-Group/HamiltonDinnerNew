@@ -35,4 +35,5 @@ class ItemOption extends Model
     public function preference(){
         return $this->belongsTo(ItemPreference::class);
     }
+
 }

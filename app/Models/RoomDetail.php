@@ -16,7 +16,7 @@ class RoomDetail extends Model
     //     dd($this->attributes);
     // }
     
-        protected $fillable = [
+    protected $fillable = [
         'room_name',
         'special_instrucations',
         'occupancy',
@@ -25,8 +25,9 @@ class RoomDetail extends Model
         'is_active',
         'password',
         'role_id',
-        'food_texture'
+        'food_texture',
+        'allergy_info',
+        'device_token'
     ];
-
 
 }
