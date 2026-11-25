@@ -17,7 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->remove(ValidateCsrfToken::class);
+        $middleware->remove(PreventRequestForgery::class);
 
         $middleware->alias([
             'permission' =>  CheckPermission::class,

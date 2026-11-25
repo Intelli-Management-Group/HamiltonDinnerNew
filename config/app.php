@@ -234,7 +234,6 @@ return [
         'View' => Illuminate\Support\Facades\View::class,
         'PDF' => Barryvdh\DomPDF\Facade::class,
         'Thumbnail' => Lakshmaji\Thumbnail\Facade\Thumbnail::class,
-        'VideoThumbnail' => Pawlox\VideoThumbnail\Facade\VideoThumbnail::class,
         'JWTAuth' => PHPOpenSourceSaver\JWTAuth\Providers\LaravelServiceProvider::class,
         'Form' => Collective\Html\FormFacade::class,
         'Html' => Collective\Html\HtmlFacade::class,
